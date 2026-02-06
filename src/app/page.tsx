@@ -114,8 +114,6 @@ export default function DailyDigest() {
       <div className="dashboard">
         {/* Left Panel - Emerging Narratives */}
         <div className="panel-left">
-          <div className="panel-header">Emerging Narratives</div>
-
           <div className="panel-section">
             <div className="panel-section-title">Trending Topics</div>
             {filteredTopics.length > 0 ? (

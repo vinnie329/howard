@@ -165,7 +165,6 @@ h2 {
   color: var(--text-secondary);
   margin-bottom: var(--space-6);
   padding-bottom: var(--space-3);
-  border-bottom: 1px solid var(--border);
 }
 
 /* Sentiment badges */
@@ -238,7 +237,7 @@ h2 {
 }
 
 .panel-section-title {
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 500;
   color: var(--text-secondary);
   text-transform: uppercase;
