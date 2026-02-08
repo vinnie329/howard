@@ -54,8 +54,13 @@ export default function TickerTape() {
     <div style={{
       height: 32,
       minHeight: 32,
+      maxWidth: 1728,
+      width: '100%',
+      margin: '0 auto',
       background: 'var(--bg-surface)',
       borderBottom: '1px solid var(--border)',
+      borderLeft: '1px solid var(--border)',
+      borderRight: '1px solid var(--border)',
       overflow: 'hidden',
       position: 'relative',
     }}>

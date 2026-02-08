@@ -1,10 +1,12 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { DOMAINS } from '@/types';
-import type { Domain } from '@/types';
+import type { Domain, Source } from '@/types';
 import { useDomainFilter } from '@/lib/domain-filter-context';
+import { getSources } from '@/lib/data';
 
 interface NavItem {
   label: string;
@@ -12,7 +14,8 @@ interface NavItem {
 }
 
 const intelligence: NavItem[] = [
-  { label: 'Daily Digest', href: '/' },
+  { label: 'Data Feed', href: '/' },
+  { label: 'Outlook', href: '/outlook' },
   { label: 'Predictions Ledger', href: '/predictions' },
   { label: 'Discovery Pipeline', href: '/discovery' },
 ];
@@ -21,10 +24,15 @@ export default function Sidebar() {
   const pathname = usePathname();
   const { selectedDomains, toggle, clear } = useDomainFilter();
   const hasFilters = selectedDomains.length > 0;
+  const [sources, setSources] = useState<Source[]>([]);
+
+  useEffect(() => {
+    getSources().then(setSources);
+  }, []);
 
   return (
     <aside className="sidebar">
-      <div style={{ padding: 'var(--space-6)' }}>
+      <div style={{ padding: 'var(--space-6)', overflowY: 'auto', flex: 1 }}>
         {/* Logo */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', marginBottom: 'var(--space-8)' }}>
           <div style={{
@@ -96,7 +104,7 @@ export default function Sidebar() {
           <span className="mono" style={{ fontSize: 10 }}>System Online</span>
         </div>
         <div className="mono" style={{ fontSize: 10, marginTop: 'var(--space-1)', color: 'var(--text-tertiary)' }}>
-          5 sources tracked
+          {sources.length} source{sources.length !== 1 ? 's' : ''} tracked
         </div>
       </div>
     </aside>

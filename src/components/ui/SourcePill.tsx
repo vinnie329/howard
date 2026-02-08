@@ -1,10 +1,13 @@
+import Link from 'next/link';
+
 interface SourcePillProps {
   name: string;
   avatarUrl?: string;
+  slug?: string;
 }
 
-export default function SourcePill({ name, avatarUrl }: SourcePillProps) {
-  return (
+export default function SourcePill({ name, avatarUrl, slug }: SourcePillProps) {
+  const inner = (
     <div style={{
       display: 'inline-flex',
       alignItems: 'center',
@@ -13,6 +16,7 @@ export default function SourcePill({ name, avatarUrl }: SourcePillProps) {
       background: 'var(--bg-surface)',
       border: '1px solid var(--border)',
       borderRadius: 'var(--radius-pill)',
+      transition: 'border-color 0.15s ease',
     }}>
       <div style={{
         width: 12,
@@ -32,4 +36,18 @@ export default function SourcePill({ name, avatarUrl }: SourcePillProps) {
       <span style={{ fontSize: 11, color: 'var(--text-primary)' }}>{name}</span>
     </div>
   );
+
+  if (slug) {
+    return (
+      <Link
+        href={`/sources/${slug}`}
+        style={{ textDecoration: 'none' }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {inner}
+      </Link>
+    );
+  }
+
+  return inner;
 }

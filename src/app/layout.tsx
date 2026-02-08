@@ -32,10 +32,12 @@ export default function RootLayout({
       <body>
         <DomainFilterProvider>
           <div className="app-layout">
-            <Sidebar />
-            <div className="main-area">
-              <TickerTape />
-              {children}
+            <TickerTape />
+            <div className="app-body">
+              <Sidebar />
+              <div className="main-area">
+                {children}
+              </div>
             </div>
           </div>
         </DomainFilterProvider>

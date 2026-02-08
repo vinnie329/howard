@@ -1,19 +1,29 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import ContentCard from '@/components/ui/ContentCard';
 import ListRow from '@/components/ui/ListRow';
 import PulseSummary from '@/components/ui/PulseSummary';
 import SourcePanel from '@/components/ui/SourcePanel';
+import AddContentModal from '@/components/ui/AddContentModal';
 import { useDomainFilter } from '@/lib/domain-filter-context';
-import {
-  mockContentWithAnalysis,
-  mockTrendingTopics,
-  mockUntrackedSignals,
-  mockPulseSummary,
-  mockSources,
-  mockPredictions,
-} from '@/lib/mock-data';
+import { getSources, getContentWithAnalysis, getPredictions, getTrendingTopics } from '@/lib/data';
+import type { Source, ContentWithAnalysis, Prediction, TrendingTopic } from '@/types';
+
+function decodeEntities(text: string): string {
+  const el = typeof document !== 'undefined' ? document.createElement('textarea') : null;
+  if (el) {
+    el.innerHTML = text;
+    return el.value;
+  }
+  return text
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#0?39;/g, "'")
+    .replace(/&#x27;/g, "'");
+}
 
 function formatTimestamp(iso: string): string {
   const d = new Date(iso);
@@ -25,60 +35,80 @@ function formatTimestamp(iso: string): string {
   return `${diffDays}d ago`;
 }
 
-// Map themes to domains for filtering trending topics
-const themeDomainMap: Record<string, string> = {
-  'GPU CapEx Saturation': 'AI / Semiconductors',
-  'AI Revenue Gap': 'AI / Semiconductors',
-  'AI Infrastructure': 'AI / Semiconductors',
-  'Semiconductor Cycle': 'AI / Semiconductors',
-  'Sovereign Debt Concerns': 'Macro / Liquidity',
-  'Liquidity Tightening': 'Macro / Liquidity',
-  'Market Complacency': 'Macro / Liquidity',
-  'Private Credit Bubble': 'Credit / Fixed Income',
-  'Gold as Safe Haven': 'Commodities / Energy',
-  'Fed Balance Sheet': 'Macro / Liquidity',
-};
-
 export default function DailyDigest() {
   const [filter, setFilter] = useState<'all' | 'high'>('all');
-  const [selectedSourceId, setSelectedSourceId] = useState(mockSources[0].id);
+  const [sources, setSources] = useState<Source[]>([]);
+  const [contentItems, setContentItems] = useState<ContentWithAnalysis[]>([]);
+  const [predictions, setPredictions] = useState<Prediction[]>([]);
+  const [trendingTopics, setTrendingTopics] = useState<TrendingTopic[]>([]);
+  const [selectedSourceId, setSelectedSourceId] = useState<string>('');
+  const [selectedTheme, setSelectedTheme] = useState<string | null>(null);
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
   const { selectedDomains } = useDomainFilter();
   const hasFilters = selectedDomains.length > 0;
 
-  // Filter content by domain
+  const loadData = useCallback(async () => {
+    const [s, contentResult, p, topics] = await Promise.all([
+      getSources(),
+      getContentWithAnalysis(1, 20),
+      getPredictions(),
+      getTrendingTopics(),
+    ]);
+    setSources(s);
+    setContentItems(contentResult.items);
+    setHasMore(contentResult.hasMore);
+    setPredictions(p);
+    setTrendingTopics(topics);
+    setPage(1);
+    if (s.length > 0 && !selectedSourceId) {
+      setSelectedSourceId(s[0].id);
+    }
+  }, [selectedSourceId]);
+
+  const loadMore = useCallback(async () => {
+    setLoadingMore(true);
+    const nextPage = page + 1;
+    const result = await getContentWithAnalysis(nextPage, 20);
+    setContentItems((prev) => [...prev, ...result.items]);
+    setHasMore(result.hasMore);
+    setPage(nextPage);
+    setLoadingMore(false);
+  }, [page]);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
+
+  // Domain filtering
   const domainFilteredContent = hasFilters
-    ? mockContentWithAnalysis.filter((c) =>
+    ? contentItems.filter((c) =>
         c.source.domains.some((d) => selectedDomains.includes(d as typeof selectedDomains[number]))
       )
-    : mockContentWithAnalysis;
+    : contentItems;
 
-  const filteredContent =
+  const sentimentFiltered =
     filter === 'high'
       ? domainFilteredContent.filter((c) => Math.abs(c.analysis.sentiment_score) >= 0.5)
       : domainFilteredContent;
 
-  // Filter trending topics by domain
-  const filteredTopics = hasFilters
-    ? mockTrendingTopics.filter((t) => {
-        const domain = themeDomainMap[t.title];
-        return !domain || selectedDomains.includes(domain as typeof selectedDomains[number]);
-      })
-    : mockTrendingTopics;
+  const filteredContent = selectedTheme
+    ? sentimentFiltered.filter((c) => c.analysis.themes.includes(selectedTheme))
+    : sentimentFiltered;
 
-  // Filter untracked signals by domain (via the source that mentioned them)
-  const filteredSignals = (() => {
-    if (!hasFilters) return mockUntrackedSignals;
-    const activeSourceNames = mockSources
-      .filter((s) => s.domains.some((d) => selectedDomains.includes(d as typeof selectedDomains[number])))
-      .map((s) => s.name);
-    return mockUntrackedSignals.filter((sig) =>
-      sig.mentioned_by.some((name) => activeSourceNames.includes(name))
+  const selectedSource = sources.find((s) => s.id === selectedSourceId) || sources[0];
+  const sourcePredictions = predictions.filter((p) => p.source_id === selectedSourceId);
+  const sourceContentCount = contentItems.filter((c) => c.source_id === selectedSourceId).length;
+
+  if (!selectedSource) {
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 1 }}>
+        <span className="mono" style={{ fontSize: 12 }}>Loading...</span>
+      </div>
     );
-  })();
-
-  const selectedSource = mockSources.find((s) => s.id === selectedSourceId) || mockSources[0];
-  const sourcePredictions = mockPredictions.filter((p) => p.source_id === selectedSourceId);
-  const sourceContentCount = mockContentWithAnalysis.filter((c) => c.source_id === selectedSourceId).length;
+  }
 
   return (
     <>
@@ -86,7 +116,7 @@ export default function DailyDigest() {
       <div className="top-bar">
         <span style={{ color: 'var(--text-tertiary)', fontSize: 12 }}>Intelligence</span>
         <span style={{ color: 'var(--text-tertiary)', fontSize: 12 }}>/</span>
-        <span style={{ fontSize: 12 }}>Daily Digest</span>
+        <span style={{ fontSize: 12 }}>Data Feed</span>
         {hasFilters && (
           <span style={{
             fontSize: 10,
@@ -99,7 +129,44 @@ export default function DailyDigest() {
             {selectedDomains.length} domain{selectedDomains.length !== 1 ? 's' : ''} filtered
           </span>
         )}
+        {selectedTheme && (
+          <span
+            style={{
+              fontSize: 10,
+              padding: '2px 6px',
+              borderRadius: 'var(--radius-sm)',
+              background: 'var(--accent-dim)',
+              color: 'var(--accent)',
+              marginLeft: 'var(--space-2)',
+              cursor: 'pointer',
+            }}
+            onClick={() => setSelectedTheme(null)}
+          >
+            {selectedTheme} ×
+          </span>
+        )}
         <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
+          <button
+            onClick={() => setShowAddModal(true)}
+            style={{
+              width: 22,
+              height: 22,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              background: 'var(--bg-surface)',
+              border: '1px solid var(--border)',
+              borderRadius: 'var(--radius-sm)',
+              color: 'var(--text-secondary)',
+              fontSize: 14,
+              cursor: 'pointer',
+              padding: 0,
+              lineHeight: 1,
+            }}
+            title="Add content"
+          >
+            +
+          </button>
           <span className="mono" style={{ fontSize: 10 }}>
             {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}
           </span>
@@ -116,10 +183,10 @@ export default function DailyDigest() {
         <div className="panel-left">
           <div className="panel-section">
             <div className="panel-section-title">Trending Topics</div>
-            {filteredTopics.length > 0 ? (
-              filteredTopics.map((topic, i) => (
+            {trendingTopics.length > 0 ? (
+              trendingTopics.map((topic, i) => (
                 <ListRow
-                  key={topic.rank}
+                  key={topic.title}
                   rank={i + 1}
                   title={topic.title}
                   meta={`${topic.mentions} mentions`}
@@ -128,36 +195,7 @@ export default function DailyDigest() {
               ))
             ) : (
               <p style={{ fontSize: 12, color: 'var(--text-tertiary)', padding: 'var(--space-3) 0' }}>
-                No topics match selected domains.
-              </p>
-            )}
-          </div>
-
-          <div className="panel-section">
-            <div className="panel-section-title">Untracked Signals</div>
-            {filteredSignals.length > 0 ? (
-              filteredSignals.map((signal) => (
-                <div
-                  key={signal.name}
-                  style={{
-                    padding: 'var(--space-3) 0',
-                    borderBottom: '1px solid var(--border)',
-                  }}
-                >
-                  <div style={{ fontSize: 13, color: 'var(--text-primary)', marginBottom: 'var(--space-1)' }}>
-                    {signal.name}
-                  </div>
-                  <div style={{ fontSize: 11, color: 'var(--text-tertiary)', lineHeight: 1.4 }}>
-                    {signal.context}
-                  </div>
-                  <div className="mono" style={{ fontSize: 10, marginTop: 'var(--space-1)', color: 'var(--text-tertiary)' }}>
-                    via {signal.mentioned_by.join(', ')}
-                  </div>
-                </div>
-              ))
-            ) : (
-              <p style={{ fontSize: 12, color: 'var(--text-tertiary)', padding: 'var(--space-3) 0' }}>
-                No signals match selected domains.
+                No trending topics yet.
               </p>
             )}
           </div>
@@ -167,7 +205,7 @@ export default function DailyDigest() {
         <div className="panel-main">
           <div className="panel-header">Captured Intelligence</div>
 
-          <PulseSummary data={mockPulseSummary} />
+          <PulseSummary items={domainFilteredContent} />
 
           <div className="filter-tabs">
             <button
@@ -194,13 +232,16 @@ export default function DailyDigest() {
                 >
                   <ContentCard
                     sourceName={item.source.name}
+                    sourceSlug={item.source.slug}
                     sentiment={item.analysis.sentiment_overall}
-                    title={item.title}
+                    title={decodeEntities(item.analysis.display_title || item.title)}
                     summary={item.analysis.summary}
                     keyQuotes={item.analysis.key_quotes}
                     themes={item.analysis.themes}
+                    assetsMentioned={item.analysis.assets_mentioned}
                     timestamp={formatTimestamp(item.published_at)}
                     platform={item.platform}
+                    url={item.url}
                   />
                 </div>
               ))
@@ -210,6 +251,27 @@ export default function DailyDigest() {
               </p>
             )}
           </div>
+
+          {hasMore && (
+            <button
+              onClick={loadMore}
+              disabled={loadingMore}
+              style={{
+                marginTop: 'var(--space-4)',
+                padding: 'var(--space-2) var(--space-4)',
+                background: 'var(--bg-surface)',
+                border: '1px solid var(--border)',
+                borderRadius: 'var(--radius-sm)',
+                color: 'var(--text-secondary)',
+                fontSize: 12,
+                cursor: loadingMore ? 'default' : 'pointer',
+                width: '100%',
+                transition: 'all 0.15s ease',
+              }}
+            >
+              {loadingMore ? 'Loading...' : 'Load more'}
+            </button>
+          )}
         </div>
 
         {/* Right Panel - Source Analysis */}
@@ -224,6 +286,15 @@ export default function DailyDigest() {
           />
         </div>
       </div>
+
+      {/* Add Content Modal */}
+      {showAddModal && (
+        <AddContentModal
+          sources={sources}
+          onClose={() => setShowAddModal(false)}
+          onSuccess={loadData}
+        />
+      )}
     </>
   );
 }

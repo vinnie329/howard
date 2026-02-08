@@ -1,16 +1,18 @@
-import Database from 'better-sqlite3';
-import path from 'path';
-import { v4 as uuidv4 } from 'uuid';
-import { SCHEMA } from '../src/lib/db/schema';
+import { createClient } from '@supabase/supabase-js';
 import { calculateWeightedScore } from '../src/lib/scoring';
 import type { CredibilityScores } from '../src/types';
+import { config } from 'dotenv';
+config({ path: '.env.local' });
 
-const DB_PATH = path.join(process.cwd(), 'data', 'howard.db');
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-const db = new Database(DB_PATH);
-db.pragma('journal_mode = WAL');
-db.pragma('foreign_keys = ON');
-db.exec(SCHEMA);
+if (!supabaseUrl || !supabaseKey) {
+  console.error('Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY environment variables');
+  process.exit(1);
+}
+
+const supabase = createClient(supabaseUrl, supabaseKey);
 
 const sources: Array<{
   name: string;
@@ -19,6 +21,8 @@ const sources: Array<{
   avatar_url: string;
   domains: string[];
   scores: CredibilityScores;
+  youtube_search_queries: string[];
+  substack_url: string | null;
 }> = [
   {
     name: 'Howard Marks',
@@ -36,6 +40,8 @@ const sources: Array<{
       reputational_sensitivity: 4,
       performance: 5,
     },
+    youtube_search_queries: ['Howard Marks Oaktree', 'Howard Marks interview'],
+    substack_url: null,
   },
   {
     name: 'Michael Howell',
@@ -53,6 +59,8 @@ const sources: Array<{
       reputational_sensitivity: 5,
       performance: 5,
     },
+    youtube_search_queries: ['Michael Howell CrossBorder Capital', 'Michael Howell liquidity'],
+    substack_url: null,
   },
   {
     name: 'Mike Burry',
@@ -70,6 +78,8 @@ const sources: Array<{
       reputational_sensitivity: 2,
       performance: 5,
     },
+    youtube_search_queries: ['Michael Burry interview', 'Michael Burry 13F'],
+    substack_url: null,
   },
   {
     name: 'Ashok Varadhan',
@@ -87,6 +97,8 @@ const sources: Array<{
       reputational_sensitivity: 4,
       performance: 4,
     },
+    youtube_search_queries: ['Ashok Varadhan Goldman Sachs', 'Ashok Varadhan interview'],
+    substack_url: null,
   },
   {
     name: 'Dylan Patel',
@@ -104,226 +116,40 @@ const sources: Array<{
       reputational_sensitivity: 4,
       performance: 4,
     },
+    youtube_search_queries: ['Dylan Patel SemiAnalysis', 'Dylan Patel interview'],
+    substack_url: null,
   },
 ];
 
-const now = new Date().toISOString();
+async function seed() {
+  console.log('Seeding Howard sources to Supabase...\n');
 
-const insertSource = db.prepare(`
-  INSERT OR REPLACE INTO sources (id, name, slug, bio, avatar_url, domains, scores, weighted_score, created_at, updated_at)
-  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-`);
-
-const insertContent = db.prepare(`
-  INSERT OR REPLACE INTO content (id, source_id, platform, external_id, title, url, published_at, raw_text, created_at)
-  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-`);
-
-const insertAnalysis = db.prepare(`
-  INSERT OR REPLACE INTO analyses (id, content_id, sentiment_overall, sentiment_score, assets_mentioned, themes, predictions, key_quotes, referenced_people, summary, created_at)
-  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-`);
-
-const insertPrediction = db.prepare(`
-  INSERT OR REPLACE INTO predictions (id, content_id, source_id, claim, asset_or_theme, direction, time_horizon, confidence, status, notes, created_at)
-  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-`);
-
-const seedAll = db.transaction(() => {
-  const sourceIds: Record<string, string> = {};
-
-  // Insert sources
   for (const source of sources) {
-    const id = uuidv4();
-    sourceIds[source.slug] = id;
     const weightedScore = calculateWeightedScore(source.scores);
-    insertSource.run(
-      id,
-      source.name,
-      source.slug,
-      source.bio,
-      source.avatar_url,
-      JSON.stringify(source.domains),
-      JSON.stringify(source.scores),
-      weightedScore,
-      now,
-      now
-    );
-    console.log(`  Seeded source: ${source.name} (score: ${weightedScore})`);
-  }
 
-  // Insert mock content + analyses
-  const mockContent = [
-    {
-      sourceSlug: 'howard-marks',
-      platform: 'substack' as const,
-      title: 'The Illusion of Knowledge',
-      url: 'https://example.com/howard-marks/illusion-of-knowledge',
-      published_at: '2026-02-05T10:00:00Z',
-      raw_text:
-        'We are entering a period where investors believe they know more than they actually do. The current market reminds me of 2007 — not in terms of specific mechanics, but in the overwhelming confidence that "this time is different." When everyone agrees on the outlook, the outlook is usually wrong.',
-      analysis: {
-        sentiment_overall: 'bearish' as const,
-        sentiment_score: -0.6,
-        assets_mentioned: ['S&P 500', 'US Treasuries', 'Credit'],
-        themes: ['Market Complacency', 'Risk Assessment', 'Cycle Positioning'],
-        predictions: ['Market correction within 12 months'],
-        key_quotes: [
-          'When everyone agrees on the outlook, the outlook is usually wrong.',
-          'The current market reminds me of 2007.',
-        ],
-        referenced_people: ['Warren Buffett', 'Charlie Munger'],
-        summary:
-          'Marks warns of excessive market complacency, drawing parallels to pre-2008 sentiment. Advocates for defensive positioning and heightened risk awareness.',
+    const { error } = await supabase.from('sources').upsert(
+      {
+        name: source.name,
+        slug: source.slug,
+        bio: source.bio,
+        avatar_url: source.avatar_url,
+        domains: source.domains,
+        scores: source.scores,
+        weighted_score: weightedScore,
+        youtube_search_queries: source.youtube_search_queries,
+        substack_url: source.substack_url,
       },
-    },
-    {
-      sourceSlug: 'michael-howell',
-      platform: 'youtube' as const,
-      title: 'Global Liquidity Update: February 2026',
-      url: 'https://youtube.com/watch?v=mock123',
-      published_at: '2026-02-04T14:00:00Z',
-      raw_text:
-        'Global liquidity is entering a critical inflection point. The Fed\'s balance sheet is contracting, but private credit creation is offsetting some of the tightening. Net-net, we\'re seeing about $500B in liquidity drain over the next quarter. The key metric to watch is the Global Liquidity Index — it leads risk assets by about 6 weeks.',
-      analysis: {
-        sentiment_overall: 'bearish' as const,
-        sentiment_score: -0.45,
-        assets_mentioned: ['Bitcoin', 'NASDAQ', 'Gold', 'US Dollar'],
-        themes: [
-          'Liquidity Tightening',
-          'Fed Balance Sheet',
-          'Private Credit',
-        ],
-        predictions: [
-          'Risk assets face headwinds in Q1 2026',
-          '$500B liquidity drain over next quarter',
-        ],
-        key_quotes: [
-          'Global liquidity is entering a critical inflection point.',
-          'The Global Liquidity Index leads risk assets by about 6 weeks.',
-        ],
-        referenced_people: ['Jay Powell', 'Stanley Druckenmiller'],
-        summary:
-          'Howell identifies a net liquidity drain despite private credit offsetting Fed tightening. Signals caution for risk assets over the next quarter.',
-      },
-    },
-    {
-      sourceSlug: 'dylan-patel',
-      platform: 'substack' as const,
-      title: 'GPU CapEx: The Coming Correction',
-      url: 'https://semianalysis.com/gpu-capex-correction',
-      published_at: '2026-02-03T08:00:00Z',
-      raw_text:
-        'Hyperscaler GPU CapEx is reaching unsustainable levels. Microsoft alone is spending $80B+ annualized on AI infrastructure. The question isn\'t whether this spending slows — it\'s when and how abruptly. NVIDIA\'s forward guidance assumes continued acceleration, but our supply chain checks suggest a 15-20% reduction in orders for H2 2026.',
-      analysis: {
-        sentiment_overall: 'bearish' as const,
-        sentiment_score: -0.35,
-        assets_mentioned: ['NVIDIA', 'Microsoft', 'AMD', 'TSMC'],
-        themes: [
-          'GPU CapEx Saturation',
-          'AI Infrastructure',
-          'Semiconductor Cycle',
-        ],
-        predictions: [
-          '15-20% reduction in GPU orders H2 2026',
-          'NVIDIA guidance revision likely',
-        ],
-        key_quotes: [
-          "The question isn't whether this spending slows — it's when and how abruptly.",
-          'Our supply chain checks suggest a 15-20% reduction in orders.',
-        ],
-        referenced_people: ['Jensen Huang', 'Satya Nadella', 'Lisa Su'],
-        summary:
-          'Patel presents supply chain evidence of upcoming GPU CapEx reduction. Argues hyperscaler spending has overshot near-term AI revenue potential.',
-      },
-    },
-    {
-      sourceSlug: 'mike-burry',
-      platform: 'twitter' as const,
-      title: 'Burry 13F Filing Analysis — Q4 2025',
-      url: 'https://example.com/burry-13f-q4-2025',
-      published_at: '2026-02-01T12:00:00Z',
-      raw_text:
-        'Scion\'s latest 13F reveals a massive increase in put positions on QQQ and a new long position in physical gold ETFs. Burry appears to be positioning for a tech-led correction while seeking safety in hard assets. His portfolio concentration in these two trades suggests high conviction.',
-      analysis: {
-        sentiment_overall: 'bearish' as const,
-        sentiment_score: -0.7,
-        assets_mentioned: ['QQQ', 'Gold', 'GLD', 'NASDAQ'],
-        themes: [
-          'Tech Correction',
-          'Hard Assets',
-          'Portfolio Positioning',
-        ],
-        predictions: [
-          'Tech-led market correction imminent',
-          'Gold outperforms in H1 2026',
-        ],
-        key_quotes: [
-          'Massive increase in put positions on QQQ.',
-          'Portfolio concentration suggests high conviction.',
-        ],
-        referenced_people: ['Michael Burry'],
-        summary:
-          'Burry\'s 13F shows aggressive bearish positioning on tech via QQQ puts, paired with gold longs. High conviction contrarian bet on tech correction.',
-      },
-    },
-  ];
-
-  for (const item of mockContent) {
-    const contentId = uuidv4();
-    const sourceId = sourceIds[item.sourceSlug];
-
-    insertContent.run(
-      contentId,
-      sourceId,
-      item.platform,
-      `mock-${contentId.slice(0, 8)}`,
-      item.title,
-      item.url,
-      item.published_at,
-      item.raw_text,
-      now
+      { onConflict: 'slug' }
     );
 
-    const analysisId = uuidv4();
-    insertAnalysis.run(
-      analysisId,
-      contentId,
-      item.analysis.sentiment_overall,
-      item.analysis.sentiment_score,
-      JSON.stringify(item.analysis.assets_mentioned),
-      JSON.stringify(item.analysis.themes),
-      JSON.stringify(item.analysis.predictions),
-      JSON.stringify(item.analysis.key_quotes),
-      JSON.stringify(item.analysis.referenced_people),
-      item.analysis.summary,
-      now
-    );
-
-    // Create predictions from analysis
-    for (const pred of item.analysis.predictions) {
-      const predId = uuidv4();
-      insertPrediction.run(
-        predId,
-        contentId,
-        sourceId,
-        pred,
-        item.analysis.assets_mentioned[0] || 'Market',
-        item.analysis.sentiment_overall === 'bearish' ? 'down' : 'up',
-        '3-6 months',
-        'medium',
-        'pending',
-        '',
-        now
-      );
+    if (error) {
+      console.error(`  Error seeding ${source.name}:`, error.message);
+    } else {
+      console.log(`  Seeded: ${source.name} (score: ${weightedScore})`);
     }
-
-    console.log(`  Seeded content: "${item.title}"`);
   }
-});
 
-console.log('Seeding Howard database...\n');
-seedAll();
-console.log('\nDone! Database seeded at:', DB_PATH);
+  console.log('\nDone!');
+}
 
-db.close();
+seed();

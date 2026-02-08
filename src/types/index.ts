@@ -39,7 +39,8 @@ export interface Content {
 export interface Analysis {
   id: string;
   content_id: string;
-  sentiment_overall: 'bullish' | 'bearish' | 'neutral';
+  display_title?: string;
+  sentiment_overall: 'bullish' | 'bearish' | 'neutral' | 'mixed';
   sentiment_score: number;
   assets_mentioned: string[];
   themes: string[];
@@ -88,6 +89,42 @@ export interface PulseSummaryData {
   theme: string;
   divergences: string;
   signal_count: string;
+}
+
+export interface OutlookThesisPoint {
+  heading: string;
+  content: string;
+}
+
+export interface Outlook {
+  id: string;
+  time_horizon: 'short' | 'medium' | 'long';
+  domain: string;
+  title: string;
+  subtitle: string;
+  thesis_intro: string;
+  thesis_points: OutlookThesisPoint[];
+  positioning: string[];
+  key_themes: string[];
+  sentiment: 'bullish' | 'bearish' | 'cautious' | 'neutral';
+  confidence: number;
+  supporting_sources: { name: string; weight: number }[];
+  last_updated: string;
+  created_at: string;
+}
+
+export interface OutlookHistory {
+  id: string;
+  outlook_id: string;
+  time_horizon: 'short' | 'medium' | 'long';
+  evaluation_reasoning: string;
+  changes_summary: string[];
+  previous_sentiment: string;
+  new_sentiment: string;
+  previous_confidence: number;
+  new_confidence: number;
+  analyses_evaluated: number;
+  created_at: string;
 }
 
 export const DOMAINS = [
