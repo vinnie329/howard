@@ -81,22 +81,14 @@ h2 {
   color: var(--text-secondary);
 }
 
-/* Scrollbar */
+/* Scrollbar — hidden */
 ::-webkit-scrollbar {
-  width: 6px;
+  display: none;
 }
 
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-::-webkit-scrollbar-thumb {
-  background: var(--border);
-  border-radius: 3px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: var(--border-light);
+* {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 }
 
 /* Layout */

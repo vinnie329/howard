@@ -1,5 +1,5 @@
 import { getSupabaseClient } from './supabase';
-import type { Source, ContentWithAnalysis, Prediction, Outlook, OutlookHistory, TrendingTopic } from '@/types';
+import type { Source, Analysis, ContentWithAnalysis, Prediction, Outlook, OutlookHistory, TrendingTopic } from '@/types';
 import {
   mockSources,
   mockContentWithAnalysis,
@@ -341,6 +341,119 @@ export async function getPredictions(): Promise<Prediction[]> {
     }));
   } catch {
     return mockPredictions;
+  }
+}
+
+export interface ContentDetail {
+  id: string;
+  source: Source;
+  title: string;
+  url: string;
+  platform: string;
+  published_at: string;
+  analysis: Analysis;
+  predictions: Prediction[];
+}
+
+export async function getContentById(contentId: string): Promise<ContentDetail | null> {
+  if (!hasSupabase) {
+    const item = mockContentWithAnalysis.find((c) => c.id === contentId);
+    if (!item) return null;
+    const source = mockSources.find((s) => s.id === item.source_id);
+    if (!source) return null;
+    const preds = mockPredictions.filter((p) => p.content_id === contentId);
+    return {
+      id: item.id,
+      source,
+      title: item.title,
+      url: item.url,
+      platform: item.platform,
+      published_at: item.published_at,
+      analysis: item.analysis,
+      predictions: preds,
+    };
+  }
+
+  try {
+    const supabase = getSupabaseClient();
+
+    const { data: content, error: contentErr } = await supabase
+      .from('content')
+      .select('*')
+      .eq('id', contentId)
+      .single();
+
+    if (contentErr || !content) return null;
+
+    const [sourceRes, analysisRes, predsRes] = await Promise.all([
+      supabase.from('sources').select('*').eq('id', content.source_id).single(),
+      supabase.from('analyses').select('*').eq('content_id', contentId).single(),
+      supabase.from('predictions').select('*').eq('content_id', contentId).order('created_at', { ascending: false }),
+    ]);
+
+    if (sourceRes.error || !sourceRes.data) return null;
+
+    const source: Source = {
+      id: sourceRes.data.id,
+      name: sourceRes.data.name,
+      slug: sourceRes.data.slug,
+      bio: sourceRes.data.bio || '',
+      avatar_url: sourceRes.data.avatar_url || '',
+      domains: sourceRes.data.domains || [],
+      scores: sourceRes.data.scores || {},
+      weighted_score: sourceRes.data.weighted_score || 0,
+      created_at: sourceRes.data.created_at,
+      updated_at: sourceRes.data.updated_at,
+    };
+
+    const a = analysisRes.data;
+    const analysis: Analysis = a ? {
+      id: a.id,
+      content_id: a.content_id,
+      display_title: a.display_title || '',
+      sentiment_overall: a.sentiment_overall,
+      sentiment_score: a.sentiment_score,
+      assets_mentioned: (a.assets_mentioned || []) as string[],
+      themes: (a.themes || []) as string[],
+      predictions: (a.predictions || []) as string[],
+      key_quotes: (a.key_quotes || []) as string[],
+      referenced_people: (a.referenced_people || []) as string[],
+      summary: a.summary || '',
+      created_at: a.created_at,
+    } : {
+      id: '', content_id: contentId, sentiment_overall: 'neutral',
+      sentiment_score: 0, assets_mentioned: [], themes: [],
+      predictions: [], key_quotes: [], referenced_people: [],
+      summary: '', created_at: content.created_at,
+    };
+
+    const predictions: Prediction[] = (predsRes.data || []).map((p) => ({
+      id: p.id,
+      content_id: p.content_id,
+      source_id: p.source_id,
+      claim: p.claim,
+      asset_or_theme: p.asset_or_theme || '',
+      direction: p.direction || '',
+      time_horizon: p.time_horizon || '',
+      confidence: p.confidence || '',
+      status: p.status,
+      resolved_at: p.resolved_at,
+      notes: p.notes || '',
+      created_at: p.created_at,
+    }));
+
+    return {
+      id: content.id,
+      source,
+      title: content.title,
+      url: content.url || '',
+      platform: content.platform,
+      published_at: content.published_at,
+      analysis,
+      predictions,
+    };
+  } catch {
+    return null;
   }
 }
 

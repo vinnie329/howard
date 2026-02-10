@@ -3,12 +3,12 @@
 import { useState, useEffect, useCallback } from 'react';
 import ContentCard from '@/components/ui/ContentCard';
 import ListRow from '@/components/ui/ListRow';
-import PulseSummary from '@/components/ui/PulseSummary';
-import SourcePanel from '@/components/ui/SourcePanel';
+import DailyPulse from '@/components/ui/DailyPulse';
+import WatchlistPanel from '@/components/ui/WatchlistPanel';
 import AddContentModal from '@/components/ui/AddContentModal';
 import { useDomainFilter } from '@/lib/domain-filter-context';
-import { getSources, getContentWithAnalysis, getPredictions, getTrendingTopics } from '@/lib/data';
-import type { Source, ContentWithAnalysis, Prediction, TrendingTopic } from '@/types';
+import { getSources, getContentWithAnalysis, getTrendingTopics } from '@/lib/data';
+import type { Source, ContentWithAnalysis, TrendingTopic } from '@/types';
 
 function decodeEntities(text: string): string {
   const el = typeof document !== 'undefined' ? document.createElement('textarea') : null;
@@ -39,9 +39,7 @@ export default function DailyDigest() {
   const [filter, setFilter] = useState<'all' | 'high'>('all');
   const [sources, setSources] = useState<Source[]>([]);
   const [contentItems, setContentItems] = useState<ContentWithAnalysis[]>([]);
-  const [predictions, setPredictions] = useState<Prediction[]>([]);
   const [trendingTopics, setTrendingTopics] = useState<TrendingTopic[]>([]);
-  const [selectedSourceId, setSelectedSourceId] = useState<string>('');
   const [selectedTheme, setSelectedTheme] = useState<string | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
   const [page, setPage] = useState(1);
@@ -51,22 +49,17 @@ export default function DailyDigest() {
   const hasFilters = selectedDomains.length > 0;
 
   const loadData = useCallback(async () => {
-    const [s, contentResult, p, topics] = await Promise.all([
+    const [s, contentResult, topics] = await Promise.all([
       getSources(),
       getContentWithAnalysis(1, 20),
-      getPredictions(),
       getTrendingTopics(),
     ]);
     setSources(s);
     setContentItems(contentResult.items);
     setHasMore(contentResult.hasMore);
-    setPredictions(p);
     setTrendingTopics(topics);
     setPage(1);
-    if (s.length > 0 && !selectedSourceId) {
-      setSelectedSourceId(s[0].id);
-    }
-  }, [selectedSourceId]);
+  }, []);
 
   const loadMore = useCallback(async () => {
     setLoadingMore(true);
@@ -97,18 +90,6 @@ export default function DailyDigest() {
   const filteredContent = selectedTheme
     ? sentimentFiltered.filter((c) => c.analysis.themes.includes(selectedTheme))
     : sentimentFiltered;
-
-  const selectedSource = sources.find((s) => s.id === selectedSourceId) || sources[0];
-  const sourcePredictions = predictions.filter((p) => p.source_id === selectedSourceId);
-  const sourceContentCount = contentItems.filter((c) => c.source_id === selectedSourceId).length;
-
-  if (!selectedSource) {
-    return (
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 1 }}>
-        <span className="mono" style={{ fontSize: 12 }}>Loading...</span>
-      </div>
-    );
-  }
 
   return (
     <>
@@ -205,7 +186,7 @@ export default function DailyDigest() {
         <div className="panel-main">
           <div className="panel-header">Captured Intelligence</div>
 
-          <PulseSummary items={domainFilteredContent} />
+          <DailyPulse />
 
           <div className="filter-tabs">
             <button
@@ -225,10 +206,10 @@ export default function DailyDigest() {
           <div className="content-stack">
             {filteredContent.length > 0 ? (
               filteredContent.map((item) => (
-                <div
+                <a
                   key={item.id}
-                  style={{ cursor: 'pointer' }}
-                  onClick={() => setSelectedSourceId(item.source_id)}
+                  href={`/content/${item.id}`}
+                  style={{ cursor: 'pointer', textDecoration: 'none', color: 'inherit', display: 'block' }}
                 >
                   <ContentCard
                     sourceName={item.source.name}
@@ -236,14 +217,13 @@ export default function DailyDigest() {
                     sentiment={item.analysis.sentiment_overall}
                     title={decodeEntities(item.analysis.display_title || item.title)}
                     summary={item.analysis.summary}
-                    keyQuotes={item.analysis.key_quotes}
                     themes={item.analysis.themes}
                     assetsMentioned={item.analysis.assets_mentioned}
                     timestamp={formatTimestamp(item.published_at)}
                     platform={item.platform}
                     url={item.url}
                   />
-                </div>
+                </a>
               ))
             ) : (
               <p style={{ fontSize: 13, color: 'var(--text-tertiary)', padding: 'var(--space-4) 0' }}>
@@ -274,16 +254,12 @@ export default function DailyDigest() {
           )}
         </div>
 
-        {/* Right Panel - Source Analysis */}
-        <div className="panel-right">
-          <div className="panel-header">Source Analysis</div>
-          <SourcePanel
-            source={selectedSource}
-            contentCount={sourceContentCount}
-            predictionCount={sourcePredictions.length}
-            accuracy={0}
-            predictions={sourcePredictions}
-          />
+        {/* Right Panel - Watchlist */}
+        <div className="panel-right" style={{ display: 'flex', flexDirection: 'column' }}>
+          <div className="panel-header">Watchlist</div>
+          <div style={{ flex: 1, minHeight: 0 }}>
+            <WatchlistPanel />
+          </div>
         </div>
       </div>
 

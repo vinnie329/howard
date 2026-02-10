@@ -8,7 +8,6 @@ interface ContentCardProps {
   sentiment: 'bullish' | 'bearish' | 'neutral' | 'mixed';
   title: string;
   summary: string;
-  keyQuotes: string[];
   themes: string[];
   assetsMentioned?: string[];
   timestamp: string;
@@ -23,7 +22,6 @@ export default function ContentCard({
   sentiment,
   title,
   summary,
-  keyQuotes,
   themes,
   assetsMentioned,
   timestamp,
@@ -89,27 +87,6 @@ export default function ContentCard({
         }}>
           {summary}
         </p>
-      )}
-
-      {/* Key quotes */}
-      {keyQuotes.length > 0 && (
-        <div style={{
-          borderLeft: '2px solid var(--border-light)',
-          paddingLeft: 'var(--space-3)',
-          marginBottom: 'var(--space-3)',
-        }}>
-          {keyQuotes.map((quote, i) => (
-            <p key={i} style={{
-              color: 'var(--text-secondary)',
-              fontSize: 12,
-              lineHeight: 1.5,
-              margin: i === 0 ? 0 : 'var(--space-2) 0 0',
-              fontStyle: 'italic',
-            }}>
-              &ldquo;<strong style={{ color: 'var(--text-primary)', fontWeight: 500 }}>{quote}</strong>&rdquo;
-            </p>
-          ))}
-        </div>
       )}
 
       {/* Assets mentioned */}

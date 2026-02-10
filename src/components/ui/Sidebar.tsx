@@ -3,9 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { DOMAINS } from '@/types';
-import type { Domain, Source } from '@/types';
-import { useDomainFilter } from '@/lib/domain-filter-context';
+import type { Source } from '@/types';
 import { getSources } from '@/lib/data';
 
 interface NavItem {
@@ -22,8 +20,6 @@ const intelligence: NavItem[] = [
 
 export default function Sidebar() {
   const pathname = usePathname();
-  const { selectedDomains, toggle, clear } = useDomainFilter();
-  const hasFilters = selectedDomains.length > 0;
   const [sources, setSources] = useState<Source[]>([]);
 
   useEffect(() => {
@@ -46,46 +42,6 @@ export default function Sidebar() {
 
         {/* Intelligence nav group */}
         <NavGroup label="Intelligence" items={intelligence} pathname={pathname} />
-
-        {/* Domains filter group */}
-        <div style={{ marginTop: 'var(--space-8)' }}>
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            marginBottom: 'var(--space-3)',
-            paddingLeft: 'var(--space-2)',
-            paddingRight: 'var(--space-2)',
-          }}>
-            <span className="label">Domains</span>
-            {hasFilters && (
-              <button
-                onClick={clear}
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  cursor: 'pointer',
-                  fontSize: 10,
-                  color: 'var(--text-tertiary)',
-                  padding: 0,
-                  transition: 'color 0.15s ease',
-                }}
-                onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--text-secondary)'; }}
-                onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-tertiary)'; }}
-              >
-                Clear
-              </button>
-            )}
-          </div>
-          {DOMAINS.map((domain) => (
-            <DomainToggle
-              key={domain}
-              domain={domain}
-              active={selectedDomains.includes(domain)}
-              onToggle={() => toggle(domain)}
-            />
-          ))}
-        </div>
       </div>
 
       {/* Footer */}
@@ -172,57 +128,3 @@ function NavItemRow({ label, href, active }: { label: string; href: string; acti
   );
 }
 
-function DomainToggle({
-  domain,
-  active,
-  onToggle,
-}: {
-  domain: Domain;
-  active: boolean;
-  onToggle: () => void;
-}) {
-  return (
-    <button
-      onClick={onToggle}
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: 'var(--space-2)',
-        padding: 'var(--space-2)',
-        borderRadius: 'var(--radius-sm)',
-        color: active ? 'var(--text-primary)' : 'var(--text-secondary)',
-        background: 'transparent',
-        border: 'none',
-        cursor: 'pointer',
-        fontSize: 13,
-        width: '100%',
-        textAlign: 'left',
-        transition: 'all 0.15s ease',
-      }}
-      onMouseEnter={(e) => {
-        if (!active) {
-          e.currentTarget.style.background = 'var(--bg-surface)';
-          e.currentTarget.style.color = 'var(--text-primary)';
-        }
-      }}
-      onMouseLeave={(e) => {
-        if (!active) {
-          e.currentTarget.style.background = 'transparent';
-          e.currentTarget.style.color = 'var(--text-secondary)';
-        }
-      }}
-    >
-      {/* Checkbox square */}
-      <div style={{
-        width: 10,
-        height: 10,
-        borderRadius: 2,
-        border: active ? 'none' : '1px solid var(--border-light)',
-        background: active ? 'var(--accent)' : 'transparent',
-        flexShrink: 0,
-        transition: 'all 0.15s ease',
-      }} />
-      <span>{domain}</span>
-    </button>
-  );
-}
