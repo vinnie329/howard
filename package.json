@@ -16,7 +16,7 @@
     "dotenv": "^17.2.4",
     "lightweight-charts": "^5.1.0",
     "next": "14.2.35",
-    "pdf-parse": "^1.1.1",
+    "pdf-parse": "^1.1.4",
     "react": "^18",
     "react-dom": "^18",
     "recharts": "^3.7.0",
@@ -25,6 +25,7 @@
   "devDependencies": {
     "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^20",
+    "@types/pdf-parse": "^1.1.5",
     "@types/react": "^18",
     "@types/react-dom": "^18",
     "@types/uuid": "^10.0.0",

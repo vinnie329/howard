@@ -49,10 +49,22 @@ async function analyzeAll() {
     (existingAnalyses || []).map((a) => a.content_id)
   );
 
-  // Filter to unanalyzed content with text
-  const toAnalyze = allContent.filter(
-    (c) => !analyzedIds.has(c.id) && c.raw_text && c.raw_text.length > 100
-  );
+  // Filter to unanalyzed content with meaningful text
+  const MIN_CONTENT_LENGTH = 200;
+  const JUNK_PATTERNS = ['This video is unavailable', 'Video unavailable', 'Sign in to confirm your age'];
+  const toAnalyze = allContent
+    .filter(
+      (c) =>
+        !analyzedIds.has(c.id) &&
+        c.raw_text &&
+        c.raw_text.length > MIN_CONTENT_LENGTH &&
+        !JUNK_PATTERNS.some((p) => c.raw_text.includes(p))
+    )
+    .sort((a, b) => {
+      const scoreA = (a.sources as unknown as { weighted_score: number } | null)?.weighted_score || 0;
+      const scoreB = (b.sources as unknown as { weighted_score: number } | null)?.weighted_score || 0;
+      return scoreB - scoreA;
+    });
 
   console.log(`Total content: ${allContent.length}`);
   console.log(`Already analyzed: ${analyzedIds.size}`);
@@ -74,12 +86,25 @@ async function analyzeAll() {
     console.log(`  Text length: ${item.raw_text.length} chars`);
 
     try {
-      const result = await analyzeContent(
-        item.title,
-        item.raw_text,
-        sourceName,
-        anthropicKey
-      );
+      const MAX_RETRIES = 3;
+      let result: Awaited<ReturnType<typeof analyzeContent>> | null = null;
+      for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+        try {
+          result = await analyzeContent(
+            item.title,
+            item.raw_text,
+            sourceName,
+            anthropicKey
+          );
+          break;
+        } catch (retryErr) {
+          if (attempt === MAX_RETRIES) throw retryErr;
+          console.log(`  Attempt ${attempt} failed, retrying in ${BATCH_DELAY_MS * attempt}ms...`);
+          await sleep(BATCH_DELAY_MS * attempt);
+        }
+      }
+
+      if (!result) throw new Error('Analysis returned no result');
 
       console.log(`  Title: ${result.display_title}`);
       console.log(`  Sentiment: ${result.sentiment_overall} (${result.sentiment_score})`);
