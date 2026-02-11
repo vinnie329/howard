@@ -56,12 +56,13 @@ export interface Prediction {
   content_id: string;
   source_id: string;
   claim: string;
-  asset_or_theme: string;
-  direction: string;
+  themes: string[];
+  assets_mentioned: string[];
+  sentiment: 'bullish' | 'bearish' | 'neutral' | 'mixed';
   time_horizon: string;
   confidence: string;
-  status: 'pending' | 'correct' | 'incorrect' | 'unfalsifiable';
-  resolved_at: string | null;
+  specificity: 'hard' | 'directional' | 'thematic';
+  date_made: string;
   notes: string;
   created_at: string;
 }

@@ -7,16 +7,16 @@ interface PredictionRowProps {
   prediction: Prediction;
 }
 
-const statusColors: Record<string, { bg: string; color: string }> = {
-  pending: { bg: 'var(--bg-surface)', color: 'var(--text-secondary)' },
-  correct: { bg: 'rgba(34, 197, 94, 0.12)', color: '#22c55e' },
-  incorrect: { bg: 'rgba(239, 68, 68, 0.12)', color: '#ef4444' },
-  unfalsifiable: { bg: 'var(--bg-surface)', color: 'var(--text-tertiary)' },
+const sentimentColors: Record<string, { bg: string; color: string }> = {
+  bullish: { bg: 'rgba(34, 197, 94, 0.12)', color: '#22c55e' },
+  bearish: { bg: 'rgba(239, 68, 68, 0.12)', color: '#ef4444' },
+  neutral: { bg: 'rgba(136, 136, 136, 0.12)', color: 'var(--text-secondary)' },
+  mixed: { bg: 'rgba(234, 179, 8, 0.12)', color: '#eab308' },
 };
 
 export default function PredictionRow({ prediction }: PredictionRowProps) {
   const [expanded, setExpanded] = useState(false);
-  const colors = statusColors[prediction.status] || statusColors.pending;
+  const colors = sentimentColors[prediction.sentiment] || sentimentColors.neutral;
 
   return (
     <div
@@ -33,8 +33,8 @@ export default function PredictionRow({ prediction }: PredictionRowProps) {
             {prediction.claim}
           </div>
           <div style={{ display: 'flex', gap: 'var(--space-2)', marginTop: 'var(--space-1)', flexWrap: 'wrap' }}>
-            {prediction.asset_or_theme && (
-              <span className="mono" style={{
+            {prediction.themes.map((t) => (
+              <span key={t} className="mono" style={{
                 fontSize: 9,
                 padding: '1px 5px',
                 borderRadius: 2,
@@ -42,24 +42,30 @@ export default function PredictionRow({ prediction }: PredictionRowProps) {
                 color: 'var(--text-tertiary)',
                 border: '1px solid var(--border)',
               }}>
-                {prediction.asset_or_theme}
+                {t}
               </span>
-            )}
-            {prediction.direction && (
-              <span className="mono" style={{
+            ))}
+            {prediction.assets_mentioned.map((a) => (
+              <span key={a} className="mono" style={{
                 fontSize: 9,
                 padding: '1px 5px',
                 borderRadius: 2,
-                background: prediction.direction.toLowerCase().includes('bull')
-                  ? 'rgba(34, 197, 94, 0.12)' : prediction.direction.toLowerCase().includes('bear')
-                    ? 'rgba(239, 68, 68, 0.12)' : 'var(--bg-surface)',
-                color: prediction.direction.toLowerCase().includes('bull')
-                  ? '#22c55e' : prediction.direction.toLowerCase().includes('bear')
-                    ? '#ef4444' : 'var(--text-tertiary)',
+                background: 'var(--bg-surface)',
+                color: 'var(--text-tertiary)',
+                border: '1px solid var(--border)',
               }}>
-                {prediction.direction}
+                {a}
               </span>
-            )}
+            ))}
+            <span className="mono" style={{
+              fontSize: 9,
+              padding: '1px 5px',
+              borderRadius: 2,
+              background: colors.bg,
+              color: colors.color,
+            }}>
+              {prediction.sentiment}
+            </span>
             {prediction.time_horizon && prediction.time_horizon !== 'unspecified' && (
               <span className="mono" style={{ fontSize: 9, color: 'var(--text-tertiary)' }}>
                 {prediction.time_horizon}
@@ -67,18 +73,16 @@ export default function PredictionRow({ prediction }: PredictionRowProps) {
             )}
           </div>
         </div>
-        <span style={{
+        <span className="mono" style={{
           fontSize: 9,
           padding: '2px 6px',
           borderRadius: 'var(--radius-sm)',
-          background: colors.bg,
-          color: colors.color,
-          textTransform: 'uppercase',
-          letterSpacing: '0.05em',
-          fontFamily: 'var(--font-mono)',
+          background: 'var(--bg-surface)',
+          color: 'var(--text-secondary)',
+          textTransform: 'capitalize',
           flexShrink: 0,
         }}>
-          {prediction.status}
+          {prediction.specificity}
         </span>
       </div>
 
@@ -90,9 +94,9 @@ export default function PredictionRow({ prediction }: PredictionRowProps) {
               <div className="mono" style={{ fontSize: 11, marginTop: 2 }}>{prediction.confidence || '—'}</div>
             </div>
             <div>
-              <span className="label" style={{ fontSize: 9 }}>Date</span>
+              <span className="label" style={{ fontSize: 9 }}>Date Made</span>
               <div className="mono" style={{ fontSize: 11, marginTop: 2 }}>
-                {new Date(prediction.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                {new Date(prediction.date_made).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
               </div>
             </div>
             {prediction.notes && (

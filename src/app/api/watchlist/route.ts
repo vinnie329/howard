@@ -4,10 +4,12 @@ const SYMBOLS = [
   { ticker: 'BTC-USD', name: 'Bitcoin', tv: 'BITSTAMP:BTCUSD' },
   { ticker: 'ETH-USD', name: 'Ethereum', tv: 'BITSTAMP:ETHUSD' },
   { ticker: 'SOL-USD', name: 'Solana', tv: 'BITSTAMP:SOLUSD' },
+  { ticker: 'GC=F', name: 'Gold', tv: 'COMEX:GC1!' },
+  { ticker: 'SI=F', name: 'Silver', tv: 'COMEX:SI1!' },
+  { ticker: 'HG=F', name: 'Copper', tv: 'COMEX:HG1!' },
   { ticker: 'NVDA', name: 'NVIDIA', tv: 'NASDAQ:NVDA' },
   { ticker: 'GOOG', name: 'Alphabet', tv: 'NASDAQ:GOOG' },
   { ticker: 'MSTR', name: 'MicroStrategy', tv: 'NASDAQ:MSTR' },
-  { ticker: 'GC=F', name: 'Gold', tv: 'COMEX:GC1!' },
   { ticker: 'DX-Y.NYB', name: 'US Dollar Index', tv: 'TVC:DXY' },
   { ticker: '^TNX', name: 'US 10Y Yield', tv: 'TVC:US10Y' },
 ];

@@ -16,23 +16,39 @@ if (!process.env.ANTHROPIC_API_KEY) {
 }
 
 const anthropicKey: string = process.env.ANTHROPIC_API_KEY;
-
 const supabase = createClient(supabaseUrl, supabaseKey);
 
-const BATCH_DELAY_MS = 2000; // 2 seconds between API calls
+const BATCH_DELAY_MS = 2000;
 
 function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-async function analyzeAll() {
-  console.log('=== Howard Content Analyzer ===\n');
+async function reanalyze() {
+  console.log('=== Howard Content Re-Analyzer ===\n');
   console.log(`Time: ${new Date().toISOString()}\n`);
 
-  // Find content without analyses
+  // Step 1: Delete existing predictions and analyses
+  console.log('Clearing existing predictions...');
+  const { error: predDelErr } = await supabase.from('predictions').delete().not('id', 'is', null);
+  if (predDelErr) {
+    console.error('Failed to delete predictions:', predDelErr.message);
+    process.exit(1);
+  }
+
+  console.log('Clearing existing analyses...');
+  const { error: anaDelErr } = await supabase.from('analyses').delete().not('id', 'is', null);
+  if (anaDelErr) {
+    console.error('Failed to delete analyses:', anaDelErr.message);
+    process.exit(1);
+  }
+
+  console.log('Cleared!\n');
+
+  // Step 2: Load all content
   const { data: allContent, error: contentError } = await supabase
     .from('content')
-    .select('id, title, raw_text, source_id, platform, published_at, sources(name, weighted_score)')
+    .select('id, title, raw_text, source_id, platform, published_at, sources(name)')
     .order('published_at', { ascending: false });
 
   if (contentError || !allContent) {
@@ -40,24 +56,11 @@ async function analyzeAll() {
     process.exit(1);
   }
 
-  // Get existing analysis content_ids
-  const { data: existingAnalyses } = await supabase
-    .from('analyses')
-    .select('content_id');
-
-  const analyzedIds = new Set(
-    (existingAnalyses || []).map((a) => a.content_id)
-  );
-
-  // Filter to unanalyzed content with text
-  const toAnalyze = allContent.filter(
-    (c) => !analyzedIds.has(c.id) && c.raw_text && c.raw_text.length > 100
-  );
+  const toAnalyze = allContent.filter((c) => c.raw_text && c.raw_text.length > 100);
 
   console.log(`Total content: ${allContent.length}`);
-  console.log(`Already analyzed: ${analyzedIds.size}`);
   console.log(`To analyze: ${toAnalyze.length}`);
-  console.log(`Skipped (no text): ${allContent.length - analyzedIds.size - toAnalyze.length}\n`);
+  console.log(`Skipped (no text): ${allContent.length - toAnalyze.length}\n`);
 
   if (toAnalyze.length === 0) {
     console.log('Nothing to analyze. Done!');
@@ -84,6 +87,7 @@ async function analyzeAll() {
       console.log(`  Title: ${result.display_title}`);
       console.log(`  Sentiment: ${result.sentiment_overall} (${result.sentiment_score})`);
       console.log(`  Themes: ${result.themes.join(', ')}`);
+      console.log(`  Assets: ${result.assets_mentioned.join(', ')}`);
       console.log(`  Predictions: ${result.predictions.length}`);
 
       // Insert analysis
@@ -106,6 +110,9 @@ async function analyzeAll() {
       } else {
         // Insert predictions
         for (const pred of result.predictions) {
+          console.log(`    → "${pred.claim}"`);
+          console.log(`      themes: [${pred.themes.join(', ')}]  assets: [${pred.assets_mentioned.join(', ')}]`);
+
           const { error: predError } = await supabase.from('predictions').insert({
             content_id: item.id,
             source_id: item.source_id,
@@ -120,7 +127,7 @@ async function analyzeAll() {
           });
 
           if (predError) {
-            console.error(`  Error inserting prediction:`, predError.message);
+            console.error(`      Error inserting prediction:`, predError.message);
           }
         }
 
@@ -141,4 +148,4 @@ async function analyzeAll() {
   console.log(`\n=== Done! Analyzed: ${analyzed}, Failed: ${failed} ===`);
 }
 
-analyzeAll();
+reanalyze();

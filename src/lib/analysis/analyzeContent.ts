@@ -11,11 +11,48 @@ export interface AnalysisResult {
   referenced_people: string[];
   predictions: Array<{
     claim: string;
-    asset_or_theme: string;
-    direction: string;
+    themes: string[];
+    assets_mentioned: string[];
+    sentiment: 'bullish' | 'bearish' | 'neutral' | 'mixed';
     time_horizon: string;
     confidence: string;
+    specificity: 'hard' | 'directional' | 'thematic';
   }>;
+}
+
+// Stem: strip trailing s/es/ing for fuzzy word comparison
+function stem(word: string): string {
+  return word.replace(/(ing|es|s)$/i, '').toLowerCase();
+}
+
+// Score how well raw matches a canonical label using word overlap
+function overlapScore(raw: string, label: string): number {
+  const rawWords = raw.toLowerCase().split(/[\s/,&-]+/).map(stem).filter(Boolean);
+  const labelWords = label.toLowerCase().split(/[\s/,&-]+/).map(stem).filter(Boolean);
+  // Count how many label words appear in raw words
+  const hits = labelWords.filter((lw) => rawWords.some((rw) => rw === lw || rw.includes(lw) || lw.includes(rw)));
+  if (hits.length === 0) return 0;
+  return hits.length / labelWords.length;
+}
+
+export function matchToCanonical(raw: string, labels: string[]): string {
+  if (!raw || labels.length === 0) return raw;
+  const lower = raw.toLowerCase();
+  // Exact match
+  const exact = labels.find((l) => l.toLowerCase() === lower);
+  if (exact) return exact;
+  // Substring match
+  const contained = labels.filter(
+    (l) => lower.includes(l.toLowerCase()) || l.toLowerCase().includes(lower)
+  );
+  if (contained.length > 0) return contained.sort((a, b) => a.length - b.length)[0];
+  // Word overlap — require all label words to be present in raw (or stemmed equivalent)
+  const scored = labels
+    .map((l) => ({ label: l, score: overlapScore(raw, l) }))
+    .filter((s) => s.score >= 0.8) // at least 80% of label words match
+    .sort((a, b) => b.score - a.score);
+  if (scored.length > 0) return scored[0].label;
+  return raw;
 }
 
 export async function analyzeContent(
@@ -57,10 +94,12 @@ Respond in JSON format only (no markdown fences) with these fields:
   "predictions": [
     {
       "claim": "specific prediction or forward-looking statement made",
-      "asset_or_theme": "what it's about",
-      "direction": "bullish/bearish/specific target",
+      "themes": ["relevant themes from the themes array above — use the EXACT same labels"],
+      "assets_mentioned": ["relevant assets from the assets_mentioned array above — use the EXACT same labels"],
+      "sentiment": "bullish | bearish | neutral | mixed",
       "time_horizon": "timeframe if mentioned, otherwise 'unspecified'",
-      "confidence": "high/medium/low based on language strength"
+      "confidence": "high/medium/low based on language strength",
+      "specificity": "hard (specific price/date target) | directional (clear up/down call) | thematic (broad thesis or narrative)"
     }
   ]
 }
@@ -85,6 +124,14 @@ If the content doesn't contain meaningful financial analysis (e.g. it's an intro
 
   // Clamp sentiment score
   parsed.sentiment_score = Math.max(-1, Math.min(1, parsed.sentiment_score));
+
+  // Normalize prediction themes/assets to match the canonical lists
+  const canonicalThemes = parsed.themes || [];
+  const canonicalAssets = parsed.assets_mentioned || [];
+  for (const pred of parsed.predictions) {
+    pred.themes = (pred.themes || []).map((t) => matchToCanonical(t, canonicalThemes));
+    pred.assets_mentioned = (pred.assets_mentioned || []).map((a) => matchToCanonical(a, canonicalAssets));
+  }
 
   return parsed;
 }

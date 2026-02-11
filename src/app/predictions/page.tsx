@@ -6,13 +6,17 @@ import Tag from '@/components/ui/Tag';
 import SourcePill from '@/components/ui/SourcePill';
 import type { Prediction, Source } from '@/types';
 
-type StatusFilter = 'all' | 'pending' | 'correct' | 'incorrect';
+type SentimentFilter = 'all' | 'bullish' | 'bearish' | 'neutral' | 'mixed';
+
+function formatDate(iso: string): string {
+  return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
 
 export default function PredictionsLedger() {
   const [predictions, setPredictions] = useState<Prediction[]>([]);
   const [sources, setSources] = useState<Source[]>([]);
   const [loading, setLoading] = useState(true);
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
+  const [filter, setFilter] = useState<SentimentFilter>('all');
 
   useEffect(() => {
     Promise.all([getPredictions(), getSources()]).then(([preds, srcs]) => {
@@ -23,9 +27,9 @@ export default function PredictionsLedger() {
   }, []);
 
   const filtered =
-    statusFilter === 'all'
+    filter === 'all'
       ? predictions
-      : predictions.filter((p) => p.status === statusFilter);
+      : predictions.filter((p) => p.sentiment === filter);
 
   return (
     <>
@@ -39,11 +43,11 @@ export default function PredictionsLedger() {
         <h1 style={{ marginBottom: 'var(--space-6)' }}>Predictions Ledger</h1>
 
         <div className="filter-tabs">
-          {(['all', 'pending', 'correct', 'incorrect'] as StatusFilter[]).map((s) => (
+          {(['all', 'bullish', 'bearish', 'neutral', 'mixed'] as SentimentFilter[]).map((s) => (
             <button
               key={s}
-              className={`filter-tab ${statusFilter === s ? 'active' : ''}`}
-              onClick={() => setStatusFilter(s)}
+              className={`filter-tab ${filter === s ? 'active' : ''}`}
+              onClick={() => setFilter(s)}
             >
               {s.charAt(0).toUpperCase() + s.slice(1)}
             </button>
@@ -60,7 +64,6 @@ export default function PredictionsLedger() {
           </div>
         ) : (
           <>
-            {/* Predictions table */}
             <div style={{
               border: '1px solid var(--border)',
               borderRadius: 'var(--radius-md)',
@@ -69,16 +72,17 @@ export default function PredictionsLedger() {
               {/* Header */}
               <div style={{
                 display: 'grid',
-                gridTemplateColumns: '2fr 1fr 80px 100px 80px',
+                gridTemplateColumns: '2fr 1fr 80px 100px 80px 90px',
                 padding: 'var(--space-3) var(--space-4)',
                 background: 'var(--bg-surface)',
                 borderBottom: '1px solid var(--border)',
               }}>
                 <span className="label">Claim</span>
                 <span className="label">Source</span>
-                <span className="label">Direction</span>
+                <span className="label">Sentiment</span>
                 <span className="label">Horizon</span>
-                <span className="label">Status</span>
+                <span className="label">Specificity</span>
+                <span className="label">Date Made</span>
               </div>
 
               {/* Rows */}
@@ -89,7 +93,7 @@ export default function PredictionsLedger() {
                     key={pred.id}
                     style={{
                       display: 'grid',
-                      gridTemplateColumns: '2fr 1fr 80px 100px 80px',
+                      gridTemplateColumns: '2fr 1fr 80px 100px 80px 90px',
                       padding: 'var(--space-3) var(--space-4)',
                       borderBottom: '1px solid var(--border)',
                       alignItems: 'center',
@@ -99,40 +103,41 @@ export default function PredictionsLedger() {
                       <div style={{ fontSize: 13, color: 'var(--text-primary)', marginBottom: 'var(--space-1)' }}>
                         {pred.claim}
                       </div>
-                      <span className="mono" style={{ fontSize: 10, color: 'var(--text-tertiary)' }}>
-                        {pred.asset_or_theme}
-                      </span>
+                      <div style={{ display: 'flex', gap: 'var(--space-1)', flexWrap: 'wrap' }}>
+                        {pred.themes.map((t) => (
+                          <Tag key={t} label={t} />
+                        ))}
+                        {pred.assets_mentioned.map((a) => (
+                          <span key={a} className="mono" style={{
+                            fontSize: 9,
+                            padding: '1px 5px',
+                            borderRadius: 2,
+                            background: 'var(--bg-surface)',
+                            color: 'var(--text-tertiary)',
+                            border: '1px solid var(--border)',
+                          }}>
+                            {a}
+                          </span>
+                        ))}
+                      </div>
                     </div>
                     <div>
                       <SourcePill name={source?.name || 'Unknown'} />
                     </div>
                     <div>
                       <Tag
-                        label={pred.direction}
-                        highlight={pred.direction === 'down' || pred.direction === 'bearish'}
+                        label={pred.sentiment}
+                        highlight={pred.sentiment === 'bearish'}
                       />
                     </div>
                     <span className="mono" style={{ fontSize: 11 }}>
                       {pred.time_horizon}
                     </span>
-                    <span style={{
-                      fontSize: 10,
-                      padding: '2px 6px',
-                      borderRadius: 'var(--radius-sm)',
-                      background: pred.status === 'pending'
-                        ? 'rgba(136, 136, 136, 0.12)'
-                        : pred.status === 'correct'
-                        ? 'rgba(34, 197, 94, 0.12)'
-                        : 'rgba(239, 68, 68, 0.12)',
-                      color: pred.status === 'pending'
-                        ? 'var(--text-secondary)'
-                        : pred.status === 'correct'
-                        ? '#22c55e'
-                        : '#ef4444',
-                      textTransform: 'uppercase',
-                      textAlign: 'center',
-                    }}>
-                      {pred.status}
+                    <span className="mono" style={{ fontSize: 10, color: 'var(--text-secondary)', textTransform: 'capitalize' }}>
+                      {pred.specificity}
+                    </span>
+                    <span className="mono" style={{ fontSize: 10, color: 'var(--text-tertiary)' }}>
+                      {formatDate(pred.date_made)}
                     </span>
                   </div>
                 );

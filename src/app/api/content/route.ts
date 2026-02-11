@@ -89,11 +89,13 @@ export async function POST(request: NextRequest) {
             content_id: contentRow.id,
             source_id,
             claim: pred.claim,
-            asset_or_theme: pred.asset_or_theme,
-            direction: pred.direction,
+            themes: pred.themes,
+            assets_mentioned: pred.assets_mentioned,
+            sentiment: pred.sentiment,
             time_horizon: pred.time_horizon,
             confidence: pred.confidence,
-            status: 'pending',
+            specificity: pred.specificity,
+            date_made: published_at || new Date().toISOString(),
           });
         }
       } catch (err) {

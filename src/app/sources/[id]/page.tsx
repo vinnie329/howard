@@ -25,7 +25,7 @@ function decodeEntities(text: string): string {
     .replace(/&#x27;/g, "'");
 }
 
-type PredFilter = 'all' | 'pending' | 'resolved';
+type PredFilter = 'all' | 'bullish' | 'bearish';
 
 export default function SourceProfile() {
   const params = useParams();
@@ -82,10 +82,8 @@ export default function SourceProfile() {
 
   // Prediction stats
   const totalPreds = predictions.length;
-  const pending = predictions.filter((p) => p.status === 'pending').length;
-  const resolved = predictions.filter((p) => p.status === 'correct' || p.status === 'incorrect').length;
-  const correct = predictions.filter((p) => p.status === 'correct').length;
-  const accuracy = resolved > 0 ? Math.round((correct / resolved) * 100) : 0;
+  const bullish = predictions.filter((p) => p.sentiment === 'bullish').length;
+  const bearish = predictions.filter((p) => p.sentiment === 'bearish').length;
 
   // Sentiment data for chart
   const sentimentData = content
@@ -111,9 +109,7 @@ export default function SourceProfile() {
   // Filtered predictions
   const filteredPreds = predFilter === 'all'
     ? predictions
-    : predFilter === 'pending'
-      ? predictions.filter((p) => p.status === 'pending')
-      : predictions.filter((p) => p.status !== 'pending');
+    : predictions.filter((p) => p.sentiment === predFilter);
 
   return (
     <>
@@ -131,8 +127,8 @@ export default function SourceProfile() {
             source={source}
             contentCount={content.length}
             predictionCount={totalPreds}
-            accuracy={accuracy}
-            predictions={predictions.filter((p) => p.status === 'pending')}
+            accuracy={0}
+            predictions={predictions.slice(0, 5)}
           />
 
           {/* Sentiment History */}
@@ -174,14 +170,14 @@ export default function SourceProfile() {
             <div style={{ padding: 'var(--space-4) var(--space-4) 0' }}>
               <div className="panel-header">Predictions Ledger</div>
               <div className="filter-tabs" style={{ marginBottom: 0 }}>
-                {(['all', 'pending', 'resolved'] as PredFilter[]).map((f) => (
+                {(['all', 'bullish', 'bearish'] as PredFilter[]).map((f) => (
                   <button
                     key={f}
                     className={`filter-tab ${predFilter === f ? 'active' : ''}`}
                     onClick={() => setPredFilter(f)}
                     style={{ textTransform: 'capitalize' }}
                   >
-                    {f} {f === 'all' ? `(${totalPreds})` : f === 'pending' ? `(${pending})` : `(${resolved})`}
+                    {f} {f === 'all' ? `(${totalPreds})` : f === 'bullish' ? `(${bullish})` : `(${bearish})`}
                   </button>
                 ))}
               </div>
@@ -203,9 +199,9 @@ export default function SourceProfile() {
                     borderBottom: '1px solid var(--border)',
                   }}>
                     <span className="label">Claim</span>
-                    <span className="label">Direction</span>
+                    <span className="label">Sentiment</span>
                     <span className="label">Horizon</span>
-                    <span className="label">Status</span>
+                    <span className="label">Specificity</span>
                   </div>
                   {/* Rows */}
                   {filteredPreds.map((pred) => (
@@ -223,37 +219,35 @@ export default function SourceProfile() {
                         <div style={{ fontSize: 13, color: 'var(--text-primary)', marginBottom: 'var(--space-1)' }}>
                           {pred.claim}
                         </div>
-                        <span className="mono" style={{ fontSize: 10, color: 'var(--text-tertiary)' }}>
-                          {pred.asset_or_theme}
-                        </span>
+                        <div style={{ display: 'flex', gap: 'var(--space-1)', flexWrap: 'wrap' }}>
+                          {pred.themes.map((t) => (
+                            <Tag key={t} label={t} />
+                          ))}
+                          {pred.assets_mentioned.map((a) => (
+                            <span key={a} className="mono" style={{
+                              fontSize: 9,
+                              padding: '1px 5px',
+                              borderRadius: 2,
+                              background: 'var(--bg-surface)',
+                              color: 'var(--text-tertiary)',
+                              border: '1px solid var(--border)',
+                            }}>
+                              {a}
+                            </span>
+                          ))}
+                        </div>
                       </div>
                       <div>
                         <Tag
-                          label={pred.direction}
-                          highlight={pred.direction.toLowerCase().includes('bear')}
+                          label={pred.sentiment}
+                          highlight={pred.sentiment === 'bearish'}
                         />
                       </div>
                       <span className="mono" style={{ fontSize: 11 }}>
                         {pred.time_horizon}
                       </span>
-                      <span style={{
-                        fontSize: 10,
-                        padding: '2px 6px',
-                        borderRadius: 'var(--radius-sm)',
-                        background: pred.status === 'pending'
-                          ? 'rgba(136, 136, 136, 0.12)'
-                          : pred.status === 'correct'
-                          ? 'rgba(34, 197, 94, 0.12)'
-                          : 'rgba(239, 68, 68, 0.12)',
-                        color: pred.status === 'pending'
-                          ? 'var(--text-secondary)'
-                          : pred.status === 'correct'
-                          ? '#22c55e'
-                          : '#ef4444',
-                        textTransform: 'uppercase',
-                        textAlign: 'center',
-                      }}>
-                        {pred.status}
+                      <span className="mono" style={{ fontSize: 10, color: 'var(--text-secondary)', textTransform: 'capitalize' }}>
+                        {pred.specificity}
                       </span>
                     </div>
                   ))}

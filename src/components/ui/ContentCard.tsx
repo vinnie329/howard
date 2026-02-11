@@ -77,15 +77,15 @@ export default function ContentCard({
       {/* Title */}
       <h2 style={{ marginBottom: 'var(--space-2)' }}>{title}</h2>
 
-      {/* Summary */}
+      {/* Summary (truncated to first sentence) */}
       {summary && (
         <p style={{
           color: 'var(--text-secondary)',
-          fontSize: 13,
+          fontSize: 12,
           lineHeight: 1.5,
           margin: '0 0 var(--space-3)',
         }}>
-          {summary}
+          {summary.split(/(?<=[.!?])\s+/).slice(0, 1).join(' ')}
         </p>
       )}
 

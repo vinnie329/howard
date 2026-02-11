@@ -86,19 +86,28 @@ export default function SourcePanel({
                   {pred.claim}
                 </div>
                 <div style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'center' }}>
-                  <span className="mono" style={{ fontSize: 10, color: 'var(--text-tertiary)' }}>
-                    {pred.asset_or_theme}
-                  </span>
+                  <div style={{ display: 'flex', gap: 'var(--space-1)', flexWrap: 'wrap' }}>
+                    {pred.themes.map((t) => (
+                      <span key={t} className="mono" style={{ fontSize: 9, color: 'var(--text-tertiary)' }}>{t}</span>
+                    ))}
+                    {pred.assets_mentioned.map((a) => (
+                      <span key={a} className="mono" style={{ fontSize: 9, color: 'var(--text-tertiary)' }}>{a}</span>
+                    ))}
+                  </div>
                   <span style={{
                     fontSize: 9,
                     padding: '1px 4px',
                     borderRadius: 2,
-                    background: pred.direction === 'down'
+                    background: pred.sentiment === 'bearish'
                       ? 'rgba(239, 68, 68, 0.12)'
-                      : 'rgba(34, 197, 94, 0.12)',
-                    color: pred.direction === 'down' ? '#ef4444' : '#22c55e',
+                      : pred.sentiment === 'bullish'
+                      ? 'rgba(34, 197, 94, 0.12)'
+                      : 'rgba(136, 136, 136, 0.12)',
+                    color: pred.sentiment === 'bearish' ? '#ef4444'
+                      : pred.sentiment === 'bullish' ? '#22c55e'
+                      : 'var(--text-secondary)',
                   }}>
-                    {pred.direction}
+                    {pred.sentiment}
                   </span>
                   <span className="mono" style={{ fontSize: 10, color: 'var(--text-tertiary)' }}>
                     {pred.time_horizon}

@@ -299,12 +299,13 @@ export async function getPredictionsForSource(sourceId: string): Promise<Predict
       content_id: p.content_id,
       source_id: p.source_id,
       claim: p.claim,
-      asset_or_theme: p.asset_or_theme || '',
-      direction: p.direction || '',
+      themes: (p.themes || []) as string[],
+      assets_mentioned: (p.assets_mentioned || []) as string[],
+      sentiment: p.sentiment || p.direction || 'neutral',
       time_horizon: p.time_horizon || '',
       confidence: p.confidence || '',
-      status: p.status,
-      resolved_at: p.resolved_at,
+      specificity: p.specificity || 'thematic',
+      date_made: p.date_made || p.created_at,
       notes: p.notes || '',
       created_at: p.created_at,
     }));
@@ -330,12 +331,13 @@ export async function getPredictions(): Promise<Prediction[]> {
       content_id: p.content_id,
       source_id: p.source_id,
       claim: p.claim,
-      asset_or_theme: p.asset_or_theme || '',
-      direction: p.direction || '',
+      themes: (p.themes || []) as string[],
+      assets_mentioned: (p.assets_mentioned || []) as string[],
+      sentiment: p.sentiment || p.direction || 'neutral',
       time_horizon: p.time_horizon || '',
       confidence: p.confidence || '',
-      status: p.status,
-      resolved_at: p.resolved_at,
+      specificity: p.specificity || 'thematic',
+      date_made: p.date_made || p.created_at,
       notes: p.notes || '',
       created_at: p.created_at,
     }));
@@ -432,12 +434,13 @@ export async function getContentById(contentId: string): Promise<ContentDetail |
       content_id: p.content_id,
       source_id: p.source_id,
       claim: p.claim,
-      asset_or_theme: p.asset_or_theme || '',
-      direction: p.direction || '',
+      themes: (p.themes || []) as string[],
+      assets_mentioned: (p.assets_mentioned || []) as string[],
+      sentiment: p.sentiment || p.direction || 'neutral',
       time_horizon: p.time_horizon || '',
       confidence: p.confidence || '',
-      status: p.status,
-      resolved_at: p.resolved_at,
+      specificity: p.specificity || 'thematic',
+      date_made: p.date_made || p.created_at,
       notes: p.notes || '',
       created_at: p.created_at,
     }));
@@ -581,5 +584,36 @@ export async function getOutlookHistory(limit: number = 10): Promise<OutlookHist
     }));
   } catch {
     return [];
+  }
+}
+
+export async function getOutlookHistoryById(id: string): Promise<OutlookHistory | null> {
+  if (!hasSupabase) return null;
+
+  try {
+    const supabase = getSupabaseClient();
+    const { data, error } = await supabase
+      .from('outlook_history')
+      .select('*')
+      .eq('id', id)
+      .single();
+
+    if (error || !data) return null;
+
+    return {
+      id: data.id,
+      outlook_id: data.outlook_id,
+      time_horizon: data.time_horizon,
+      evaluation_reasoning: data.evaluation_reasoning,
+      changes_summary: (data.changes_summary || []) as string[],
+      previous_sentiment: data.previous_sentiment,
+      new_sentiment: data.new_sentiment,
+      previous_confidence: data.previous_confidence,
+      new_confidence: data.new_confidence,
+      analyses_evaluated: data.analyses_evaluated,
+      created_at: data.created_at,
+    };
+  } catch {
+    return null;
   }
 }
