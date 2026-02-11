@@ -4,9 +4,8 @@ import { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import SourcePanel from '@/components/ui/SourcePanel';
-import SentimentChart from '@/components/ui/SentimentChart';
+import ContentCard from '@/components/ui/ContentCard';
 import Tag from '@/components/ui/Tag';
-import ContentArchiveItem from '@/components/ui/ContentArchiveItem';
 import { getSourceBySlug, getContentForSource, getPredictionsForSource } from '@/lib/data';
 import type { Source, ContentWithAnalysis, Prediction } from '@/types';
 
@@ -26,6 +25,17 @@ function decodeEntities(text: string): string {
 }
 
 type PredFilter = 'all' | 'bullish' | 'bearish';
+type RightTab = 'content' | 'predictions';
+
+function formatTimestamp(iso: string): string {
+  const d = new Date(iso);
+  const now = new Date();
+  const diffMs = now.getTime() - d.getTime();
+  const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+  if (diffHours < 24) return `${diffHours}h ago`;
+  const diffDays = Math.floor(diffHours / 24);
+  return `${diffDays}d ago`;
+}
 
 export default function SourceProfile() {
   const params = useParams();
@@ -36,6 +46,7 @@ export default function SourceProfile() {
   const [predictions, setPredictions] = useState<Prediction[]>([]);
   const [loading, setLoading] = useState(true);
   const [predFilter, setPredFilter] = useState<PredFilter>('all');
+  const [rightTab, setRightTab] = useState<RightTab>('content');
 
   const loadData = useCallback(async () => {
     const s = await getSourceBySlug(slug);
@@ -85,15 +96,6 @@ export default function SourceProfile() {
   const bullish = predictions.filter((p) => p.sentiment === 'bullish').length;
   const bearish = predictions.filter((p) => p.sentiment === 'bearish').length;
 
-  // Sentiment data for chart
-  const sentimentData = content
-    .filter((c) => c.analysis.id)
-    .map((c) => ({
-      date: c.published_at,
-      score: c.analysis.sentiment_score,
-      title: decodeEntities(c.analysis.display_title || c.title),
-    }));
-
   // Theme aggregation
   const themeMap = new Map<string, string>();
   for (const c of content) {
@@ -128,20 +130,7 @@ export default function SourceProfile() {
             contentCount={content.length}
             predictionCount={totalPreds}
             accuracy={0}
-            predictions={predictions.slice(0, 5)}
           />
-
-          {/* Sentiment History */}
-          <div style={{
-            background: 'var(--bg-panel)',
-            border: '1px solid var(--border)',
-            borderRadius: 'var(--radius-md)',
-            padding: 'var(--space-4)',
-            marginBottom: 'var(--space-4)',
-          }}>
-            <div className="label" style={{ marginBottom: 'var(--space-3)' }}>Sentiment History</div>
-            <SentimentChart data={sentimentData} />
-          </div>
 
           {/* Theme Timeline */}
           {themeList.length > 0 && (
@@ -165,131 +154,169 @@ export default function SourceProfile() {
 
         {/* Right column */}
         <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
-          {/* Predictions Ledger */}
-          <div style={{ borderBottom: '1px solid var(--border)' }}>
-            <div style={{ padding: 'var(--space-4) var(--space-4) 0' }}>
-              <div className="panel-header">Predictions Ledger</div>
-              <div className="filter-tabs" style={{ marginBottom: 0 }}>
-                {(['all', 'bullish', 'bearish'] as PredFilter[]).map((f) => (
-                  <button
-                    key={f}
-                    className={`filter-tab ${predFilter === f ? 'active' : ''}`}
-                    onClick={() => setPredFilter(f)}
-                    style={{ textTransform: 'capitalize' }}
-                  >
-                    {f} {f === 'all' ? `(${totalPreds})` : f === 'bullish' ? `(${bullish})` : `(${bearish})`}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <div style={{ maxHeight: 400, overflowY: 'auto' }}>
-              {filteredPreds.length > 0 ? (
-                <div style={{
-                  border: '1px solid var(--border)',
-                  borderRadius: 'var(--radius-md)',
-                  overflow: 'hidden',
-                  margin: 'var(--space-3) var(--space-4)',
-                }}>
-                  {/* Table header */}
-                  <div style={{
-                    display: 'grid',
-                    gridTemplateColumns: '2fr 80px 100px 80px',
-                    padding: 'var(--space-3) var(--space-4)',
-                    background: 'var(--bg-surface)',
-                    borderBottom: '1px solid var(--border)',
-                  }}>
-                    <span className="label">Claim</span>
-                    <span className="label">Sentiment</span>
-                    <span className="label">Horizon</span>
-                    <span className="label">Specificity</span>
-                  </div>
-                  {/* Rows */}
-                  {filteredPreds.map((pred) => (
-                    <div
-                      key={pred.id}
-                      style={{
-                        display: 'grid',
-                        gridTemplateColumns: '2fr 80px 100px 80px',
-                        padding: 'var(--space-3) var(--space-4)',
-                        borderBottom: '1px solid var(--border)',
-                        alignItems: 'center',
-                      }}
-                    >
-                      <div>
-                        <div style={{ fontSize: 13, color: 'var(--text-primary)', marginBottom: 'var(--space-1)' }}>
-                          {pred.claim}
-                        </div>
-                        <div style={{ display: 'flex', gap: 'var(--space-1)', flexWrap: 'wrap' }}>
-                          {pred.themes.map((t) => (
-                            <Tag key={t} label={t} />
-                          ))}
-                          {pred.assets_mentioned.map((a) => (
-                            <span key={a} className="mono" style={{
-                              fontSize: 9,
-                              padding: '1px 5px',
-                              borderRadius: 2,
-                              background: 'var(--bg-surface)',
-                              color: 'var(--text-tertiary)',
-                              border: '1px solid var(--border)',
-                            }}>
-                              {a}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-                      <div>
-                        <Tag
-                          label={pred.sentiment}
-                          highlight={pred.sentiment === 'bearish'}
-                        />
-                      </div>
-                      <span className="mono" style={{ fontSize: 11 }}>
-                        {pred.time_horizon}
-                      </span>
-                      <span className="mono" style={{ fontSize: 10, color: 'var(--text-secondary)', textTransform: 'capitalize' }}>
-                        {pred.specificity}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div style={{ padding: 'var(--space-4)', fontSize: 12, color: 'var(--text-tertiary)' }}>
-                  No predictions {predFilter !== 'all' ? `(${predFilter})` : ''} yet.
-                </div>
-              )}
-              <div className="mono" style={{ padding: '0 var(--space-4) var(--space-3)', fontSize: 10, color: 'var(--text-tertiary)' }}>
-                {filteredPreds.length} prediction{filteredPreds.length !== 1 ? 's' : ''}
-              </div>
+          {/* Segmented control */}
+          <div style={{ padding: 'var(--space-4)' }}>
+            <div style={{
+              display: 'inline-flex',
+              background: 'rgba(23,23,23,0.5)',
+              borderRadius: 8,
+              border: '1px solid #262626',
+              padding: 4,
+            }}>
+              {(['content', 'predictions'] as RightTab[]).map((tab) => (
+                <button
+                  key={tab}
+                  onClick={() => setRightTab(tab)}
+                  style={{
+                    padding: '6px 16px',
+                    fontSize: 12,
+                    fontWeight: 500,
+                    border: 'none',
+                    borderRadius: 6,
+                    cursor: 'pointer',
+                    transition: 'color 0.15s, background 0.15s',
+                    background: rightTab === tab ? '#262626' : 'transparent',
+                    color: rightTab === tab ? '#ffffff' : '#a3a3a3',
+                    boxShadow: rightTab === tab ? '0 1px 2px rgba(0,0,0,0.05)' : 'none',
+                  }}
+                >
+                  {tab === 'content' ? `Content (${content.length})` : `Predictions (${totalPreds})`}
+                </button>
+              ))}
             </div>
           </div>
 
-          {/* Content Archive */}
-          <div style={{ flex: 1 }}>
-            <div style={{ padding: 'var(--space-4) var(--space-4) 0' }}>
-              <div className="panel-header">Content Archive ({content.length})</div>
-            </div>
-            <div style={{ overflowY: 'auto' }}>
+          {/* Content view */}
+          {rightTab === 'content' && (
+            <div style={{ flex: 1, padding: '0 var(--space-4) var(--space-4)' }}>
               {content.length > 0 ? (
-                content.map((item) => (
-                  <ContentArchiveItem
-                    key={item.id}
-                    title={decodeEntities(item.analysis.display_title || item.title)}
-                    platform={item.platform}
-                    url={item.url}
-                    publishedAt={item.published_at}
-                    sentiment={item.analysis.sentiment_overall}
-                    summary={item.analysis.summary}
-                    keyQuotes={item.analysis.key_quotes}
-                    themes={item.analysis.themes}
-                  />
-                ))
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
+                  {content.map((item) => (
+                    <a
+                      key={item.id}
+                      href={`/content/${item.id}`}
+                      style={{ cursor: 'pointer', textDecoration: 'none', color: 'inherit', display: 'block' }}
+                    >
+                      <ContentCard
+                        sourceName={item.source.name}
+                        sourceSlug={item.source.slug}
+                        sentiment={item.analysis.sentiment_overall}
+                        title={decodeEntities(item.analysis.display_title || item.title)}
+                        summary={item.analysis.summary}
+                        themes={item.analysis.themes}
+                        assetsMentioned={item.analysis.assets_mentioned}
+                        timestamp={formatTimestamp(item.published_at)}
+                        platform={item.platform}
+                        url={item.url}
+                      />
+                    </a>
+                  ))}
+                </div>
               ) : (
-                <div style={{ padding: 'var(--space-4)', fontSize: 12, color: 'var(--text-tertiary)' }}>
+                <div style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>
                   No content captured yet.
                 </div>
               )}
             </div>
-          </div>
+          )}
+
+          {/* Predictions view */}
+          {rightTab === 'predictions' && (
+            <div style={{ flex: 1 }}>
+              <div style={{ padding: '0 var(--space-4)' }}>
+                <div className="filter-tabs" style={{ marginBottom: 0 }}>
+                  {(['all', 'bullish', 'bearish'] as PredFilter[]).map((f) => (
+                    <button
+                      key={f}
+                      className={`filter-tab ${predFilter === f ? 'active' : ''}`}
+                      onClick={() => setPredFilter(f)}
+                      style={{ textTransform: 'capitalize' }}
+                    >
+                      {f} {f === 'all' ? `(${totalPreds})` : f === 'bullish' ? `(${bullish})` : `(${bearish})`}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div style={{ padding: 'var(--space-3) var(--space-4)' }}>
+                {filteredPreds.length > 0 ? (
+                  <div style={{
+                    border: '1px solid var(--border)',
+                    borderRadius: 'var(--radius-md)',
+                    overflow: 'hidden',
+                  }}>
+                    {/* Table header */}
+                    <div style={{
+                      display: 'grid',
+                      gridTemplateColumns: '2fr 80px 100px 80px',
+                      padding: 'var(--space-3) var(--space-4)',
+                      background: 'var(--bg-surface)',
+                      borderBottom: '1px solid var(--border)',
+                    }}>
+                      <span className="label">Claim</span>
+                      <span className="label">Sentiment</span>
+                      <span className="label">Horizon</span>
+                      <span className="label">Specificity</span>
+                    </div>
+                    {/* Rows */}
+                    {filteredPreds.map((pred) => (
+                      <div
+                        key={pred.id}
+                        style={{
+                          display: 'grid',
+                          gridTemplateColumns: '2fr 80px 100px 80px',
+                          padding: 'var(--space-3) var(--space-4)',
+                          borderBottom: '1px solid var(--border)',
+                          alignItems: 'center',
+                        }}
+                      >
+                        <div>
+                          <div style={{ fontSize: 13, color: 'var(--text-primary)', marginBottom: 'var(--space-1)' }}>
+                            {pred.claim}
+                          </div>
+                          <div style={{ display: 'flex', gap: 'var(--space-1)', flexWrap: 'wrap' }}>
+                            {pred.themes.map((t) => (
+                              <Tag key={t} label={t} />
+                            ))}
+                            {pred.assets_mentioned.map((a) => (
+                              <span key={a} className="mono" style={{
+                                fontSize: 9,
+                                padding: '1px 5px',
+                                borderRadius: 2,
+                                background: 'var(--bg-surface)',
+                                color: 'var(--text-tertiary)',
+                                border: '1px solid var(--border)',
+                              }}>
+                                {a}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                        <div>
+                          <Tag
+                            label={pred.sentiment}
+                            highlight={pred.sentiment === 'bearish'}
+                          />
+                        </div>
+                        <span className="mono" style={{ fontSize: 11 }}>
+                          {pred.time_horizon}
+                        </span>
+                        <span className="mono" style={{ fontSize: 10, color: 'var(--text-secondary)', textTransform: 'capitalize' }}>
+                          {pred.specificity}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>
+                    No predictions {predFilter !== 'all' ? `(${predFilter})` : ''} yet.
+                  </div>
+                )}
+                <div className="mono" style={{ marginTop: 'var(--space-2)', fontSize: 10, color: 'var(--text-tertiary)' }}>
+                  {filteredPreds.length} prediction{filteredPreds.length !== 1 ? 's' : ''}
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </>
