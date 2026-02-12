@@ -161,10 +161,12 @@ export async function getSourceBySlug(slug: string): Promise<Source | null> {
 
   try {
     const supabase = getSupabaseClient();
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(slug);
+    const filter = isUuid ? `slug.eq.${slug},id.eq.${slug}` : `slug.eq.${slug}`;
     const { data, error } = await supabase
       .from('sources')
       .select('*')
-      .or(`slug.eq.${slug},id.eq.${slug}`)
+      .or(filter)
       .limit(1)
       .single();
 
