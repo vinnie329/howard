@@ -7,6 +7,7 @@ import DailyPulse from '@/components/ui/DailyPulse';
 import WatchlistPanel from '@/components/ui/WatchlistPanel';
 import AddContentModal from '@/components/ui/AddContentModal';
 import { useDomainFilter } from '@/lib/domain-filter-context';
+import { useSearch } from '@/components/ui/SearchTrigger';
 import { getSources, getContentWithAnalysis, getTrendingTopics } from '@/lib/data';
 import type { Source, ContentWithAnalysis, TrendingTopic } from '@/types';
 
@@ -46,6 +47,7 @@ export default function DailyDigest() {
   const [hasMore, setHasMore] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const { selectedDomains } = useDomainFilter();
+  const { openSearch } = useSearch();
   const hasFilters = selectedDomains.length > 0;
 
   const loadData = useCallback(async () => {
@@ -151,10 +153,33 @@ export default function DailyDigest() {
           <span className="mono" style={{ fontSize: 10 }}>
             {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}
           </span>
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text-secondary)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <circle cx="11" cy="11" r="8" />
-            <line x1="21" y1="21" x2="16.65" y2="16.65" />
-          </svg>
+          <button
+            onClick={openSearch}
+            style={{
+              background: 'none',
+              border: 'none',
+              cursor: 'pointer',
+              padding: 0,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 'var(--space-1)',
+            }}
+            title="Search (⌘K)"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text-secondary)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="11" cy="11" r="8" />
+              <line x1="21" y1="21" x2="16.65" y2="16.65" />
+            </svg>
+            <kbd style={{
+              fontSize: 9,
+              padding: '1px 4px',
+              borderRadius: 'var(--radius-sm)',
+              background: 'var(--bg-surface)',
+              color: 'var(--text-tertiary)',
+              border: '1px solid var(--border)',
+              fontFamily: 'var(--font-mono)',
+            }}>⌘K</kbd>
+          </button>
         </div>
       </div>
 

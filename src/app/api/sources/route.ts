@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseServiceClient } from '@/lib/supabase';
 import { calculateWeightedScore } from '@/lib/scoring';
 import type { CredibilityScores } from '@/types';
+import { generateEmbedding, prepareSourceText, toVectorString } from '@/lib/embeddings';
 
 export async function POST(request: NextRequest) {
   try {
@@ -42,6 +43,16 @@ export async function POST(request: NextRequest) {
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+
+    // Generate embedding (non-blocking)
+    if (process.env.VOYAGE_API_KEY && data) {
+      try {
+        const emb = await generateEmbedding(prepareSourceText(name, bio || '', domains));
+        await supabase.from('sources').update({ embedding: toVectorString(emb) }).eq('id', data.id);
+      } catch (embErr) {
+        console.error('Source embedding failed:', embErr instanceof Error ? embErr.message : embErr);
+      }
     }
 
     return NextResponse.json(data, { status: 201 });

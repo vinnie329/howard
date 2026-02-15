@@ -5,6 +5,8 @@ import { useParams, useRouter } from 'next/navigation';
 import { getContentById, type ContentDetail } from '@/lib/data';
 import SourcePill from '@/components/ui/SourcePill';
 import Tag from '@/components/ui/Tag';
+import RelatedIntelligence from '@/components/ui/RelatedIntelligence';
+import SimilarPredictions from '@/components/ui/SimilarPredictions';
 
 function decodeEntities(text: string): string {
   const el = typeof document !== 'undefined' ? document.createElement('textarea') : null;
@@ -26,6 +28,7 @@ export default function ContentDetailPage() {
   const router = useRouter();
   const [data, setData] = useState<ContentDetail | null>(null);
   const [loading, setLoading] = useState(true);
+  const [expandedPrediction, setExpandedPrediction] = useState<string | null>(null);
 
   useEffect(() => {
     const id = params.id as string;
@@ -263,55 +266,68 @@ export default function ContentDetailPage() {
 
               {/* Rows */}
               {predictions.map((pred) => (
-                <div
-                  key={pred.id}
-                  style={{
-                    display: 'grid',
-                    gridTemplateColumns: '2fr 80px 100px 80px',
-                    padding: 'var(--space-3) var(--space-4)',
-                    borderBottom: '1px solid var(--border)',
-                    alignItems: 'center',
-                  }}
-                >
-                  <div>
-                    <div style={{ fontSize: 13, color: 'var(--text-primary)', marginBottom: 'var(--space-1)' }}>
-                      {pred.claim}
+                <div key={pred.id}>
+                  <div
+                    onClick={() => setExpandedPrediction(expandedPrediction === pred.id ? null : pred.id)}
+                    style={{
+                      display: 'grid',
+                      gridTemplateColumns: '2fr 80px 100px 80px',
+                      padding: 'var(--space-3) var(--space-4)',
+                      borderBottom: '1px solid var(--border)',
+                      alignItems: 'center',
+                      cursor: 'pointer',
+                      transition: 'background 0.1s ease',
+                      background: expandedPrediction === pred.id ? 'var(--bg-surface)' : 'transparent',
+                    }}
+                  >
+                    <div>
+                      <div style={{ fontSize: 13, color: 'var(--text-primary)', marginBottom: 'var(--space-1)' }}>
+                        {pred.claim}
+                      </div>
+                      <div style={{ display: 'flex', gap: 'var(--space-1)', flexWrap: 'wrap' }}>
+                        {pred.themes.map((t) => (
+                          <Tag key={t} label={t} />
+                        ))}
+                        {pred.assets_mentioned.map((a) => (
+                          <span key={a} className="mono" style={{
+                            fontSize: 9,
+                            padding: '1px 5px',
+                            borderRadius: 2,
+                            background: 'var(--bg-surface)',
+                            color: 'var(--text-tertiary)',
+                            border: '1px solid var(--border)',
+                          }}>
+                            {a}
+                          </span>
+                        ))}
+                      </div>
                     </div>
-                    <div style={{ display: 'flex', gap: 'var(--space-1)', flexWrap: 'wrap' }}>
-                      {pred.themes.map((t) => (
-                        <Tag key={t} label={t} />
-                      ))}
-                      {pred.assets_mentioned.map((a) => (
-                        <span key={a} className="mono" style={{
-                          fontSize: 9,
-                          padding: '1px 5px',
-                          borderRadius: 2,
-                          background: 'var(--bg-surface)',
-                          color: 'var(--text-tertiary)',
-                          border: '1px solid var(--border)',
-                        }}>
-                          {a}
-                        </span>
-                      ))}
+                    <div>
+                      <Tag
+                        label={pred.sentiment}
+                        variant={pred.sentiment === 'bullish' ? 'bullish' : pred.sentiment === 'bearish' ? 'bearish' : 'default'}
+                      />
                     </div>
+                    <span className="mono" style={{ fontSize: 11 }}>
+                      {pred.time_horizon}
+                    </span>
+                    <span className="mono" style={{ fontSize: 10, color: 'var(--text-secondary)', textTransform: 'capitalize' }}>
+                      {pred.specificity}
+                    </span>
                   </div>
-                  <div>
-                    <Tag
-                      label={pred.sentiment}
-                      highlight={pred.sentiment === 'bearish'}
-                    />
-                  </div>
-                  <span className="mono" style={{ fontSize: 11 }}>
-                    {pred.time_horizon}
-                  </span>
-                  <span className="mono" style={{ fontSize: 10, color: 'var(--text-secondary)', textTransform: 'capitalize' }}>
-                    {pred.specificity}
-                  </span>
+                  {expandedPrediction === pred.id && (
+                    <div style={{ padding: 'var(--space-3) var(--space-4)', borderBottom: '1px solid var(--border)', background: 'var(--bg-surface)' }}>
+                      <SimilarPredictions predictionId={pred.id} />
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
           </div>
         )}
+
+        {/* Related Intelligence */}
+        <RelatedIntelligence contentId={data.id} />
       </div>
     </>
   );

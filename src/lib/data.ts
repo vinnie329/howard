@@ -1,4 +1,6 @@
 import { getSupabaseClient } from './supabase';
+import { getSupabaseServiceClient } from './supabase';
+import { generateEmbedding, toVectorString } from './embeddings';
 import type { Source, Analysis, ContentWithAnalysis, Prediction, Outlook, OutlookHistory, TrendingTopic } from '@/types';
 import {
   mockSources,
@@ -617,5 +619,130 @@ export async function getOutlookHistoryById(id: string): Promise<OutlookHistory 
     };
   } catch {
     return null;
+  }
+}
+
+// --- Semantic search / related content ---
+
+export interface SearchResult {
+  id: string;
+  type: 'content' | 'analysis' | 'prediction' | 'source';
+  title: string;
+  summary: string | null;
+  source_id: string | null;
+  content_id: string | null;
+  similarity: number;
+}
+
+/**
+ * Find content semantically related to a given content item.
+ * Uses the content's existing embedding to search across all tables.
+ */
+export async function getRelatedContent(
+  contentId: string,
+  limit: number = 5,
+  threshold: number = 0.5,
+): Promise<SearchResult[]> {
+  if (!hasSupabase || !process.env.VOYAGE_API_KEY) return [];
+
+  try {
+    const supabase = getSupabaseServiceClient();
+
+    // Get the content's embedding
+    const { data: content, error: contentErr } = await supabase
+      .from('content')
+      .select('embedding, title, raw_text')
+      .eq('id', contentId)
+      .single();
+
+    if (contentErr || !content) return [];
+
+    let embeddingStr: string;
+
+    if (content.embedding) {
+      embeddingStr = content.embedding;
+    } else {
+      // Generate embedding on-the-fly if missing
+      const emb = await generateEmbedding(`${content.title}\n\n${content.raw_text || ''}`);
+      embeddingStr = toVectorString(emb);
+    }
+
+    const { data, error } = await supabase.rpc('search_all', {
+      query_embedding: embeddingStr,
+      match_threshold: threshold,
+      match_count: limit + 1, // +1 to account for self-match
+    });
+
+    if (error || !data) return [];
+
+    // Filter out self-match (content with same id, or analysis/prediction belonging to this content)
+    return (data as SearchResult[])
+      .filter((r) => r.id !== contentId && r.content_id !== contentId)
+      .slice(0, limit);
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Find predictions semantically similar to a given prediction.
+ */
+export async function getRelatedPredictions(
+  predictionId: string,
+  limit: number = 5,
+  threshold: number = 0.5,
+): Promise<SearchResult[]> {
+  if (!hasSupabase || !process.env.VOYAGE_API_KEY) return [];
+
+  try {
+    const supabase = getSupabaseServiceClient();
+
+    const { data: prediction, error: predErr } = await supabase
+      .from('predictions')
+      .select('embedding, claim, themes, assets_mentioned, sentiment')
+      .eq('id', predictionId)
+      .single();
+
+    if (predErr || !prediction) return [];
+
+    let embeddingStr: string;
+
+    if (prediction.embedding) {
+      embeddingStr = prediction.embedding;
+    } else {
+      const { generateEmbedding: genEmb, preparePredictionText } = await import('./embeddings');
+      const text = preparePredictionText(
+        prediction.claim,
+        (prediction.themes || []) as string[],
+        (prediction.assets_mentioned || []) as string[],
+        prediction.sentiment || '',
+      );
+      const emb = await genEmb(text);
+      embeddingStr = toVectorString(emb);
+    }
+
+    const { data, error } = await supabase.rpc('match_predictions', {
+      query_embedding: embeddingStr,
+      match_threshold: threshold,
+      match_count: limit + 1,
+    });
+
+    if (error || !data) return [];
+
+    // Filter out self-match and map to SearchResult shape
+    return (data as Array<{ id: string; claim: string; source_id: string; content_id: string; similarity: number }>)
+      .filter((r) => r.id !== predictionId)
+      .slice(0, limit)
+      .map((r) => ({
+        id: r.id,
+        type: 'prediction' as const,
+        title: r.claim,
+        summary: null,
+        source_id: r.source_id,
+        content_id: r.content_id,
+        similarity: r.similarity,
+      }));
+  } catch {
+    return [];
   }
 }

@@ -18,6 +18,9 @@
   --accent: #FF4800;
   --accent-dim: rgba(255, 72, 0, 0.15);
 
+  --green: #22C55E;
+  --green-dim: rgba(34, 197, 94, 0.15);
+
   --font-main: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   --font-mono: 'JetBrains Mono', 'Roboto Mono', monospace;
 

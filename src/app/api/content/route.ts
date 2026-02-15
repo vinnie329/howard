@@ -1,6 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseServiceClient } from '@/lib/supabase';
 import { analyzeContent } from '@/lib/analysis/analyzeContent';
+import {
+  generateEmbedding,
+  prepareContentText,
+  prepareAnalysisText,
+  preparePredictionText,
+  toVectorString,
+} from '@/lib/embeddings';
 
 export async function POST(request: NextRequest) {
   try {
@@ -70,7 +77,7 @@ export async function POST(request: NextRequest) {
         );
 
         // Insert analysis
-        await supabase.from('analyses').insert({
+        const { data: analysisRow } = await supabase.from('analyses').insert({
           content_id: contentRow.id,
           display_title: result.display_title,
           sentiment_overall: result.sentiment_overall,
@@ -81,11 +88,12 @@ export async function POST(request: NextRequest) {
           key_quotes: result.key_quotes,
           referenced_people: result.referenced_people,
           summary: result.summary,
-        });
+        }).select('id').single();
 
         // Insert predictions
+        const predictionRows: { id: string; claim: string; themes: string[]; assets_mentioned: string[]; sentiment: string }[] = [];
         for (const pred of result.predictions) {
-          await supabase.from('predictions').insert({
+          const { data: predRow } = await supabase.from('predictions').insert({
             content_id: contentRow.id,
             source_id,
             claim: pred.claim,
@@ -96,7 +104,34 @@ export async function POST(request: NextRequest) {
             confidence: pred.confidence,
             specificity: pred.specificity,
             date_made: published_at || new Date().toISOString(),
-          });
+          }).select('id').single();
+
+          if (predRow) {
+            predictionRows.push({ id: predRow.id, claim: pred.claim, themes: pred.themes, assets_mentioned: pred.assets_mentioned, sentiment: pred.sentiment });
+          }
+        }
+
+        // Generate embeddings (non-blocking — failures don't prevent content creation)
+        if (process.env.VOYAGE_API_KEY) {
+          try {
+            // Embed content
+            const contentEmb = await generateEmbedding(prepareContentText(title, raw_text));
+            await supabase.from('content').update({ embedding: toVectorString(contentEmb) }).eq('id', contentRow.id);
+
+            // Embed analysis
+            if (analysisRow) {
+              const analysisEmb = await generateEmbedding(prepareAnalysisText(result.summary, result.themes, result.assets_mentioned));
+              await supabase.from('analyses').update({ embedding: toVectorString(analysisEmb) }).eq('id', analysisRow.id);
+            }
+
+            // Embed predictions
+            for (const pred of predictionRows) {
+              const predEmb = await generateEmbedding(preparePredictionText(pred.claim, pred.themes, pred.assets_mentioned, pred.sentiment));
+              await supabase.from('predictions').update({ embedding: toVectorString(predEmb) }).eq('id', pred.id);
+            }
+          } catch (embErr) {
+            console.error('Embedding generation failed:', embErr instanceof Error ? embErr.message : embErr);
+          }
         }
       } catch (err) {
         // Analysis failure shouldn't block content creation

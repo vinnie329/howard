@@ -102,10 +102,18 @@ export async function evaluateOutlook(
   recentAnalyses: AnalysisWithSource[],
   timeHorizon: 'short' | 'medium' | 'long',
   anthropicKey: string,
+  semanticBoostIds?: Set<string>,
 ): Promise<OutlookEvaluation> {
   // Weight and sort analyses by relevance
   const weighted = recentAnalyses
-    .map((a) => ({ analysis: a, weight: getAnalysisWeight(a, timeHorizon) }))
+    .map((a) => {
+      let weight = getAnalysisWeight(a, timeHorizon);
+      // Boost weight by 1.5x for semantically relevant analyses
+      if (semanticBoostIds && semanticBoostIds.has(a.content_id)) {
+        weight *= 1.5;
+      }
+      return { analysis: a, weight };
+    })
     .filter((w) => w.weight > 0.05)
     .sort((a, b) => b.weight - a.weight)
     .slice(0, 15); // Top 15 most relevant

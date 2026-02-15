@@ -294,7 +294,7 @@ export default function SourceProfile() {
                         <div>
                           <Tag
                             label={pred.sentiment}
-                            highlight={pred.sentiment === 'bearish'}
+                            variant={pred.sentiment === 'bullish' ? 'bullish' : pred.sentiment === 'bearish' ? 'bearish' : 'default'}
                           />
                         </div>
                         <span className="mono" style={{ fontSize: 11 }}>

@@ -4,6 +4,9 @@ import type { Outlook } from '../src/types';
 import { config } from 'dotenv';
 config({ path: '.env.local' });
 
+// Optional: Voyage AI for semantic boost
+const hasVoyage = !!process.env.VOYAGE_API_KEY;
+
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 if (!supabaseUrl || !supabaseKey) {
@@ -84,6 +87,44 @@ async function fetchCurrentOutlooks(): Promise<Outlook[]> {
   }));
 }
 
+async function findSemanticRelevantAnalyses(outlook: Outlook): Promise<Set<string>> {
+  if (!hasVoyage) return new Set();
+
+  try {
+    const { generateEmbedding, toVectorString } = await import('../src/lib/embeddings');
+
+    // Embed the outlook thesis text
+    const thesisText = [
+      outlook.title,
+      outlook.thesis_intro,
+      ...outlook.thesis_points.map((p) => `${p.heading}: ${p.content}`),
+      ...outlook.key_themes,
+    ].join('\n');
+
+    const embedding = await generateEmbedding(thesisText);
+    const embeddingStr = toVectorString(embedding);
+
+    // Search for semantically relevant analyses
+    const { data, error } = await supabase.rpc('match_analyses', {
+      query_embedding: embeddingStr,
+      match_threshold: 0.5,
+      match_count: 30,
+    });
+
+    if (error || !data) return new Set();
+
+    // Return the content_ids of matching analyses
+    const ids = new Set<string>();
+    for (const row of data as Array<{ content_id: string }>) {
+      if (row.content_id) ids.add(row.content_id);
+    }
+    return ids;
+  } catch (err) {
+    console.error('  Semantic boost failed (non-fatal):', err instanceof Error ? err.message : err);
+    return new Set();
+  }
+}
+
 async function run() {
   console.log('=== Howard Outlook Updater ===\n');
   console.log(`Time: ${new Date().toISOString()}\n`);
@@ -112,7 +153,13 @@ async function run() {
     console.log(`  Current: "${outlook.title}" (${outlook.sentiment}, ${outlook.confidence}%)`);
 
     try {
-      const evaluation = await evaluateOutlook(outlook, analyses, horizon, anthropicKey);
+      // Find semantically relevant analyses to boost
+      const semanticBoostIds = await findSemanticRelevantAnalyses(outlook);
+      if (semanticBoostIds.size > 0) {
+        console.log(`  Semantic boost: ${semanticBoostIds.size} analyses matched thesis embedding`);
+      }
+
+      const evaluation = await evaluateOutlook(outlook, analyses, horizon, anthropicKey, semanticBoostIds);
 
       console.log(`  Should update: ${evaluation.should_update}`);
       console.log(`  Reasoning: ${evaluation.reasoning}`);

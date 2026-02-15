@@ -4,6 +4,7 @@ import './globals.css';
 import Sidebar from '@/components/ui/Sidebar';
 import TickerTape from '@/components/ui/TickerTape';
 import { DomainFilterProvider } from '@/lib/domain-filter-context';
+import { SearchProvider } from '@/components/ui/SearchTrigger';
 
 const inter = Inter({
   subsets: ['latin'],
@@ -31,15 +32,17 @@ export default function RootLayout({
     <html lang="en" className={`${inter.variable} ${jetbrainsMono.variable}`}>
       <body>
         <DomainFilterProvider>
-          <div className="app-layout">
-            <TickerTape />
-            <div className="app-body">
-              <Sidebar />
-              <div className="main-area">
-                {children}
+          <SearchProvider>
+            <div className="app-layout">
+              <TickerTape />
+              <div className="app-body">
+                <Sidebar />
+                <div className="main-area">
+                  {children}
+                </div>
               </div>
             </div>
-          </div>
+          </SearchProvider>
         </DomainFilterProvider>
       </body>
     </html>

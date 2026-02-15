@@ -1,5 +1,12 @@
 import { createClient } from '@supabase/supabase-js';
 import { analyzeContent } from '../src/lib/analysis/analyzeContent';
+import {
+  generateEmbedding,
+  prepareContentText,
+  prepareAnalysisText,
+  preparePredictionText,
+  toVectorString,
+} from '../src/lib/embeddings';
 import { config } from 'dotenv';
 config({ path: '.env.local' });
 
@@ -130,8 +137,9 @@ async function analyzeAll() {
         failed++;
       } else {
         // Insert predictions
+        const predictionRows: { id: string; claim: string; themes: string[]; assets_mentioned: string[]; sentiment: string }[] = [];
         for (const pred of result.predictions) {
-          const { error: predError } = await supabase.from('predictions').insert({
+          const { data: predRow, error: predError } = await supabase.from('predictions').insert({
             content_id: item.id,
             source_id: item.source_id,
             claim: pred.claim,
@@ -142,15 +150,41 @@ async function analyzeAll() {
             confidence: pred.confidence,
             specificity: pred.specificity,
             date_made: item.published_at || new Date().toISOString(),
-          });
+          }).select('id').single();
 
           if (predError) {
             console.error(`  Error inserting prediction:`, predError.message);
+          } else if (predRow) {
+            predictionRows.push({ id: predRow.id, claim: pred.claim, themes: pred.themes, assets_mentioned: pred.assets_mentioned, sentiment: pred.sentiment });
           }
         }
 
         analyzed++;
         console.log(`  ✓ Saved`);
+
+        // Generate embeddings
+        if (process.env.VOYAGE_API_KEY) {
+          try {
+            const contentEmb = await generateEmbedding(prepareContentText(item.title, item.raw_text));
+            await supabase.from('content').update({ embedding: toVectorString(contentEmb) }).eq('id', item.id);
+
+            // Get analysis id
+            const { data: analysisData } = await supabase.from('analyses').select('id').eq('content_id', item.id).single();
+            if (analysisData) {
+              const analysisEmb = await generateEmbedding(prepareAnalysisText(result.summary, result.themes, result.assets_mentioned));
+              await supabase.from('analyses').update({ embedding: toVectorString(analysisEmb) }).eq('id', analysisData.id);
+            }
+
+            for (const pred of predictionRows) {
+              const predEmb = await generateEmbedding(preparePredictionText(pred.claim, pred.themes, pred.assets_mentioned, pred.sentiment));
+              await supabase.from('predictions').update({ embedding: toVectorString(predEmb) }).eq('id', pred.id);
+            }
+
+            console.log(`  ✓ Embedded`);
+          } catch (embErr) {
+            console.error(`  Embedding failed:`, embErr instanceof Error ? embErr.message : embErr);
+          }
+        }
       }
     } catch (err) {
       console.error(`  ✕ Failed:`, err instanceof Error ? err.message : err);
