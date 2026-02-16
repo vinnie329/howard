@@ -1,17 +1,39 @@
 import { NextResponse } from 'next/server';
 
 const SYMBOLS = [
+  // Crypto
   { ticker: 'BTC-USD', name: 'Bitcoin', tv: 'BITSTAMP:BTCUSD' },
   { ticker: 'ETH-USD', name: 'Ethereum', tv: 'BITSTAMP:ETHUSD' },
-  { ticker: 'SOL-USD', name: 'Solana', tv: 'BITSTAMP:SOLUSD' },
+  { ticker: 'ZEC-USD', name: 'Zcash', tv: 'BINANCE:ZECUSDT' },
+  // Commodities
   { ticker: 'GC=F', name: 'Gold', tv: 'COMEX:GC1!' },
   { ticker: 'SI=F', name: 'Silver', tv: 'COMEX:SI1!' },
   { ticker: 'HG=F', name: 'Copper', tv: 'COMEX:HG1!' },
+  // Indices
+  { ticker: '^GSPC', name: 'S&P 500', tv: 'SP:SPX' },
+  { ticker: '^IXIC', name: 'NASDAQ', tv: 'NASDAQ:IXIC' },
+  // Core Semis
   { ticker: 'NVDA', name: 'NVIDIA', tv: 'NASDAQ:NVDA' },
-  { ticker: 'GOOG', name: 'Alphabet', tv: 'NASDAQ:GOOG' },
-  { ticker: 'MSTR', name: 'MicroStrategy', tv: 'NASDAQ:MSTR' },
-  { ticker: 'DX-Y.NYB', name: 'US Dollar Index', tv: 'TVC:DXY' },
-  { ticker: '^TNX', name: 'US 10Y Yield', tv: 'TVC:US10Y' },
+  { ticker: 'MU', name: 'Micron', tv: 'NASDAQ:MU' },
+  { ticker: 'MRVL', name: 'Marvell', tv: 'NASDAQ:MRVL' },
+  { ticker: 'AVGO', name: 'Broadcom', tv: 'NASDAQ:AVGO' },
+  { ticker: 'ANET', name: 'Arista', tv: 'NYSE:ANET' },
+  { ticker: 'VST', name: 'Vistra', tv: 'NYSE:VST' },
+  // Monitoring
+  { ticker: 'ARM', name: 'ARM Holdings', tv: 'NASDAQ:ARM' },
+  { ticker: 'PLTR', name: 'Palantir', tv: 'NYSE:PLTR' },
+  // Hyperscalers
+  { ticker: 'MSFT', name: 'Microsoft', tv: 'NASDAQ:MSFT' },
+  { ticker: 'GOOGL', name: 'Google', tv: 'NASDAQ:GOOGL' },
+  { ticker: 'AMZN', name: 'Amazon', tv: 'NASDAQ:AMZN' },
+  { ticker: 'META', name: 'Meta', tv: 'NASDAQ:META' },
+  // Other Tech
+  { ticker: 'AMD', name: 'AMD', tv: 'NASDAQ:AMD' },
+  { ticker: 'INTC', name: 'Intel', tv: 'NASDAQ:INTC' },
+  { ticker: 'TSM', name: 'TSMC', tv: 'NYSE:TSM' },
+  { ticker: 'CSCO', name: 'Cisco', tv: 'NASDAQ:CSCO' },
+  { ticker: 'DELL', name: 'Dell', tv: 'NYSE:DELL' },
+  { ticker: 'HPE', name: 'HPE', tv: 'NYSE:HPE' },
 ];
 
 interface QuoteResult {
@@ -52,7 +74,8 @@ async function fetchQuote(ticker: string, name: string, tv: string): Promise<Quo
     const displaySymbol = ticker
       .replace('=F', '')
       .replace('-Y.NYB', '')
-      .replace('^', '');
+      .replace('^', '')
+      .replace('-USD', '');
 
     return {
       symbol: displaySymbol,
