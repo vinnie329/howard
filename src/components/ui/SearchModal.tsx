@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
+import { SkeletonRows } from './Skeleton';
 
 type SearchType = 'all' | 'content' | 'prediction' | 'source';
 
@@ -211,8 +212,8 @@ export default function SearchModal({ onClose }: SearchModalProps) {
           minHeight: 0,
         }}>
           {loading && (
-            <div style={{ padding: 'var(--space-4)', textAlign: 'center' }}>
-              <span className="mono" style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>Searching...</span>
+            <div style={{ padding: 'var(--space-4)' }}>
+              <SkeletonRows count={3} />
             </div>
           )}
 

@@ -7,6 +7,7 @@ import { mockUntrackedSignals } from '@/lib/mock-data';
 import SourcePill from '@/components/ui/SourcePill';
 import StatsGrid from '@/components/ui/StatsGrid';
 import AddSourceModal from '@/components/ui/AddSourceModal';
+import { SkeletonRows } from '@/components/ui/Skeleton';
 import type { Source, CredibilityDimension } from '@/types';
 
 const dimensionKeys = Object.keys(DIMENSION_LABELS) as CredibilityDimension[];
@@ -103,9 +104,7 @@ export default function DiscoveryPipeline() {
           </div>
 
           {loading ? (
-            <div className="mono" style={{ fontSize: 12, color: 'var(--text-tertiary)', padding: 'var(--space-4) 0' }}>
-              Loading...
-            </div>
+            <SkeletonRows count={5} />
           ) : (
             <>
               <StatsGrid stats={[
@@ -113,7 +112,7 @@ export default function DiscoveryPipeline() {
                 { value: String(uniqueDomains.length), label: 'Domains' },
               ]} />
 
-              <div style={{ marginTop: 'var(--space-6)' }}>
+              <div className="stagger-in" style={{ marginTop: 'var(--space-6)' }}>
                 {sources.map((source, i) => {
                   const isExpanded = expandedId === source.id;
                   return (

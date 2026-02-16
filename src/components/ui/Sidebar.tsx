@@ -1,8 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { usePageTransition } from '@/lib/transition-context';
 import type { Source } from '@/types';
 import { getSources } from '@/lib/data';
 
@@ -13,9 +13,11 @@ interface NavItem {
 
 const intelligence: NavItem[] = [
   { label: 'Data Feed', href: '/' },
+  { label: 'Signals', href: '/signals' },
   { label: 'Outlook', href: '/outlook' },
   { label: 'Predictions Ledger', href: '/predictions' },
   { label: 'Discovery Pipeline', href: '/discovery' },
+  { label: 'Technicals', href: '/technicals' },
 ];
 
 export default function Sidebar() {
@@ -86,9 +88,15 @@ function NavGroup({ label, items, pathname }: { label: string; items: NavItem[];
 }
 
 function NavItemRow({ label, href, active }: { label: string; href: string; active: boolean }) {
+  const { navigateTo } = usePageTransition();
+
   return (
-    <Link
+    <a
       href={href}
+      onClick={(e) => {
+        e.preventDefault();
+        navigateTo(href);
+      }}
       style={{
         display: 'flex',
         alignItems: 'center',
@@ -100,6 +108,7 @@ function NavItemRow({ label, href, active }: { label: string; href: string; acti
         textDecoration: 'none',
         fontSize: 13,
         transition: 'all 0.15s ease',
+        cursor: 'pointer',
       }}
       onMouseEnter={(e) => {
         if (!active) {
@@ -124,7 +133,6 @@ function NavItemRow({ label, href, active }: { label: string; href: string; acti
         }} />
       )}
       <span>{label}</span>
-    </Link>
+    </a>
   );
 }
-

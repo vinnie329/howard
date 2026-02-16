@@ -5,6 +5,7 @@ import { getPredictions, getSources } from '@/lib/data';
 import Tag from '@/components/ui/Tag';
 import SourcePill from '@/components/ui/SourcePill';
 import SimilarPredictions from '@/components/ui/SimilarPredictions';
+import { SkeletonRows } from '@/components/ui/Skeleton';
 import type { Prediction, Source } from '@/types';
 
 type SentimentFilter = 'all' | 'bullish' | 'bearish' | 'neutral' | 'mixed';
@@ -146,9 +147,7 @@ export default function PredictionsLedger() {
         </div>
 
         {loading ? (
-          <div className="mono" style={{ fontSize: 12, color: 'var(--text-tertiary)', padding: 'var(--space-4) 0' }}>
-            Loading...
-          </div>
+          <SkeletonRows count={6} />
         ) : filtered.length === 0 ? (
           <div className="mono" style={{ fontSize: 12, color: 'var(--text-tertiary)', padding: 'var(--space-4) 0' }}>
             No predictions found.
@@ -177,7 +176,7 @@ export default function PredictionsLedger() {
               </div>
 
               {/* Rows */}
-              {filtered.map((pred) => {
+              <div className="stagger-in">{filtered.map((pred) => {
                 const source = sources.find((s) => s.id === pred.source_id);
                 return (
                   <div key={pred.id}>
@@ -242,7 +241,7 @@ export default function PredictionsLedger() {
                     )}
                   </div>
                 );
-              })}
+              })}</div>
             </div>
 
             <div className="mono" style={{ marginTop: 'var(--space-4)', fontSize: 10, color: 'var(--text-tertiary)' }}>

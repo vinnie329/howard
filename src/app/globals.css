@@ -245,6 +245,24 @@ h2 {
   gap: var(--space-4);
 }
 
+/* Staggered children fade-in — apply to any list/table/card container */
+.content-stack > *,
+.stagger-in > * {
+  animation: fade-in 250ms ease-out both;
+}
+
+.content-stack > *:nth-child(1),  .stagger-in > *:nth-child(1)  { animation-delay: 0ms; }
+.content-stack > *:nth-child(2),  .stagger-in > *:nth-child(2)  { animation-delay: 40ms; }
+.content-stack > *:nth-child(3),  .stagger-in > *:nth-child(3)  { animation-delay: 80ms; }
+.content-stack > *:nth-child(4),  .stagger-in > *:nth-child(4)  { animation-delay: 120ms; }
+.content-stack > *:nth-child(5),  .stagger-in > *:nth-child(5)  { animation-delay: 160ms; }
+.content-stack > *:nth-child(6),  .stagger-in > *:nth-child(6)  { animation-delay: 200ms; }
+.content-stack > *:nth-child(7),  .stagger-in > *:nth-child(7)  { animation-delay: 240ms; }
+.content-stack > *:nth-child(8),  .stagger-in > *:nth-child(8)  { animation-delay: 280ms; }
+.content-stack > *:nth-child(9),  .stagger-in > *:nth-child(9)  { animation-delay: 320ms; }
+.content-stack > *:nth-child(10), .stagger-in > *:nth-child(10) { animation-delay: 360ms; }
+.content-stack > *:nth-child(n+11),.stagger-in > *:nth-child(n+11) { animation-delay: 400ms; }
+
 /* Section within panels */
 .panel-section {
   margin-bottom: var(--space-8);
@@ -257,4 +275,18 @@ h2 {
   text-transform: uppercase;
   letter-spacing: 0.04em;
   margin-bottom: var(--space-4);
+}
+
+@keyframes skeleton-pulse {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 0.15; }
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.fade-in {
+  animation: fade-in 150ms ease-out both;
 }

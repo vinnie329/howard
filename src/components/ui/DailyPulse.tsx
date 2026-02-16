@@ -2,69 +2,71 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 
-interface PulseSlide {
-  sentiment: string;
-  sentimentColor: string;
-  theme: string;
-  headline: string;
-  meta: string;
+interface NewsItem {
+  id: string;
+  title: string;
+  publisher: string;
+  url: string;
+  publishedAt: string;
+  ago: string;
+  tickers: string[];
 }
 
-const DUMMY_DATA: PulseSlide[] = [
+interface PulseSlide {
+  headline: string;
+  publisher: string;
+  ago: string;
+  tickers: string[];
+}
+
+const FALLBACK: PulseSlide[] = [
   {
-    sentiment: 'Leaning Bullish (0.84)',
-    sentimentColor: 'var(--accent)',
-    theme: 'Artificial Intelligence',
-    headline: 'Nvidia shatters earnings expectations, citing unprecedented demand for Blackwell chips.',
-    meta: 'Bloomberg \u00b7 12 mins ago \u00b7 42 analysts',
-  },
-  {
-    sentiment: 'Bearish Divergence (-0.45)',
-    sentimentColor: '#ef4444',
-    theme: 'Consumer Discretionary',
-    headline: 'Retail sales unexpectedly drop as consumer spending cools ahead of holiday season.',
-    meta: 'Reuters \u00b7 1 hour ago \u00b7 15 datasets',
-  },
-  {
-    sentiment: 'Neutral / Wait-and-See',
-    sentimentColor: '#eab308',
-    theme: 'Macroeconomics',
-    headline: 'Federal Reserve holds rates steady, signaling data-dependent approach for Q4.',
-    meta: 'WSJ \u00b7 3 hours ago \u00b7 FOMC Minutes',
-  },
-  {
-    sentiment: 'Extreme Greed (0.92)',
-    sentimentColor: '#22c55e',
-    theme: 'Crypto Assets',
-    headline: 'Bitcoin breaks $70k resistance level as institutional inflows hit record highs.',
-    meta: 'CoinDesk \u00b7 25 mins ago \u00b7 On-chain data',
-  },
-  {
-    sentiment: 'Cautious (0.12)',
-    sentimentColor: '#60a5fa',
-    theme: 'Energy Sector',
-    headline: 'Oil prices stabilize after sharp decline, OPEC+ considers production cut extension.',
-    meta: 'Financial Times \u00b7 4 hours ago \u00b7 Futures Market',
+    headline: 'Loading market headlines...',
+    publisher: '',
+    ago: '',
+    tickers: [],
   },
 ];
 
-const DURATION = 5000;
+const DURATION = 8000;
 
 export default function DailyPulse() {
+  const [slides, setSlides] = useState<PulseSlide[]>(FALLBACK);
   const [index, setIndex] = useState(0);
   const [visible, setVisible] = useState(true);
+  const [paused, setPaused] = useState(false);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const progressRef = useRef<HTMLDivElement>(null);
 
-  const data = DUMMY_DATA;
-  const slide = data[index];
+  // Fetch news on mount
+  useEffect(() => {
+    let cancelled = false;
+    fetch('/api/news')
+      .then((res) => res.json())
+      .then((data: NewsItem[]) => {
+        if (!cancelled && data.length > 0) {
+          setSlides(data.map((n) => ({
+            headline: n.title,
+            publisher: n.publisher,
+            ago: n.ago,
+            tickers: n.tickers,
+          })));
+          setIndex(0);
+        }
+      })
+      .catch(() => {
+        // Keep fallback
+      });
+    return () => { cancelled = true; };
+  }, []);
+
+  const slide = slides[index];
 
   const resetProgress = useCallback(() => {
     const bar = progressRef.current;
     if (!bar) return;
     bar.style.transition = 'none';
     bar.style.width = '0%';
-    // Force reflow
     void bar.offsetWidth;
     bar.style.transition = `width ${DURATION}ms linear`;
     bar.style.width = '100%';
@@ -79,35 +81,50 @@ export default function DailyPulse() {
   }, []);
 
   const next = useCallback(() => {
-    goTo((index + 1) % data.length);
-  }, [index, data.length, goTo]);
+    goTo((index + 1) % slides.length);
+  }, [index, slides.length, goTo]);
 
   const prev = useCallback(() => {
-    goTo((index - 1 + data.length) % data.length);
-  }, [index, data.length, goTo]);
+    goTo((index - 1 + slides.length) % slides.length);
+  }, [index, slides.length, goTo]);
 
-  // Auto-advance timer
+  // Auto-advance timer (pauses on hover)
   useEffect(() => {
+    if (paused) {
+      const bar = progressRef.current;
+      if (bar) {
+        const w = bar.getBoundingClientRect().width;
+        const parentW = bar.parentElement?.getBoundingClientRect().width ?? 1;
+        bar.style.transition = 'none';
+        bar.style.width = `${(w / parentW) * 100}%`;
+      }
+      if (timerRef.current) clearInterval(timerRef.current);
+      return;
+    }
+
     resetProgress();
     if (timerRef.current) clearInterval(timerRef.current);
     timerRef.current = setInterval(() => {
-      goTo((index + 1) % data.length);
+      goTo((index + 1) % slides.length);
     }, DURATION);
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
     };
-  }, [index, data.length, goTo, resetProgress]);
+  }, [index, slides.length, goTo, resetProgress, paused]);
 
   return (
-    <div style={{
-      marginBottom: 'var(--space-6)',
-      borderRadius: 'var(--radius-md)',
-      border: '1px solid var(--border)',
-      background: 'var(--bg-panel)',
-      overflow: 'hidden',
-      display: 'flex',
-      flexDirection: 'column',
-    }}>
+    <div
+      onMouseEnter={() => setPaused(true)}
+      onMouseLeave={() => setPaused(false)}
+      style={{
+        marginBottom: 'var(--space-6)',
+        borderRadius: 'var(--radius-md)',
+        border: '1px solid var(--border)',
+        background: 'var(--bg-panel)',
+        overflow: 'hidden',
+        display: 'flex',
+        flexDirection: 'column',
+      }}>
       {/* Header */}
       <div style={{
         display: 'flex',
@@ -161,19 +178,7 @@ export default function DailyPulse() {
           transition: 'opacity 180ms ease-out, transform 180ms ease-out',
         }}>
           <div>
-            <div className="label" style={{ marginBottom: 'var(--space-2)' }}>Sentiment</div>
-            <div style={{
-              fontSize: 14,
-              fontWeight: 500,
-              letterSpacing: '-0.01em',
-              lineHeight: 1.3,
-              color: slide.sentimentColor,
-            }}>
-              {slide.sentiment}
-            </div>
-          </div>
-          <div>
-            <div className="label" style={{ marginBottom: 'var(--space-2)' }}>Key Theme</div>
+            <div className="label" style={{ marginBottom: 'var(--space-2)' }}>Source</div>
             <div style={{
               fontSize: 14,
               fontWeight: 500,
@@ -181,9 +186,22 @@ export default function DailyPulse() {
               lineHeight: 1.3,
               color: 'var(--text-primary)',
             }}>
-              {slide.theme}
+              {slide.publisher}
             </div>
           </div>
+          {slide.tickers.length > 0 && (
+            <div>
+              <div className="label" style={{ marginBottom: 'var(--space-2)' }}>Related</div>
+              <div className="mono" style={{
+                fontSize: 12,
+                fontWeight: 500,
+                lineHeight: 1.5,
+                color: 'var(--accent)',
+              }}>
+                {slide.tickers.join(', ')}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Right content */}
@@ -199,7 +217,7 @@ export default function DailyPulse() {
             transform: visible ? 'translateY(0)' : 'translateY(6px)',
             transition: 'opacity 180ms ease-out, transform 180ms ease-out',
           }}>
-            <div className="label" style={{ marginBottom: 'var(--space-3)' }}>Active Analysis</div>
+            <div className="label" style={{ marginBottom: 'var(--space-3)' }}>Headlines</div>
             <div style={{
               fontSize: 16,
               lineHeight: 1.4,
@@ -228,13 +246,13 @@ export default function DailyPulse() {
                 transition: 'opacity 180ms ease-out',
               }}
             >
-              {slide.meta}
+              {slide.ago}
             </span>
 
             <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
               {/* Pagination dots */}
               <div style={{ display: 'flex', gap: 'var(--space-1)' }}>
-                {data.map((_, i) => (
+                {slides.map((_, i) => (
                   <button
                     key={i}
                     onClick={() => { if (i !== index) goTo(i); }}

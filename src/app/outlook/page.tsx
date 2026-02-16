@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { getOutlook, getOutlookHistory } from '@/lib/data';
 import OutlookCard from '@/components/ui/OutlookCard';
+import { SkeletonCards, SkeletonRows } from '@/components/ui/Skeleton';
 import type { Outlook, OutlookHistory } from '@/types';
 
 const horizonLabels: Record<string, string> = {
@@ -73,11 +74,9 @@ export default function OutlookPage() {
           </div>
 
           {loading ? (
-            <div className="mono" style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>
-              Loading outlook...
-            </div>
+            <SkeletonCards count={3} />
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
+            <div className="stagger-in" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
               {outlooks.map((outlook) => (
                 <OutlookCard key={outlook.id} outlook={outlook} />
               ))}
@@ -98,15 +97,13 @@ export default function OutlookPage() {
           </div>
 
           {loading ? (
-            <div className="mono" style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>
-              Loading...
-            </div>
+            <SkeletonRows count={4} />
           ) : changesHistory.length === 0 ? (
             <div className="mono" style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>
               No updates yet.
             </div>
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
+            <div className="stagger-in" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
               {changesHistory.map((entry) => (
                 <a
                   key={entry.id}

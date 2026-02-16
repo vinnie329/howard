@@ -7,6 +7,7 @@ import SourcePill from '@/components/ui/SourcePill';
 import Tag from '@/components/ui/Tag';
 import RelatedIntelligence from '@/components/ui/RelatedIntelligence';
 import SimilarPredictions from '@/components/ui/SimilarPredictions';
+import { Skeleton, SkeletonLines } from '@/components/ui/Skeleton';
 
 function decodeEntities(text: string): string {
   const el = typeof document !== 'undefined' ? document.createElement('textarea') : null;
@@ -47,11 +48,10 @@ export default function ContentDetailPage() {
           <span style={{ color: 'var(--text-tertiary)', fontSize: 12 }}>Intelligence</span>
           <span style={{ color: 'var(--text-tertiary)', fontSize: 12 }}>/</span>
           <span style={{ color: 'var(--text-tertiary)', fontSize: 12 }}>Data Feed</span>
-          <span style={{ color: 'var(--text-tertiary)', fontSize: 12 }}>/</span>
-          <span style={{ fontSize: 12 }}>Loading...</span>
         </div>
-        <div style={{ padding: 'var(--space-6)', flex: 1 }}>
-          <span className="mono" style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>Loading...</span>
+        <div style={{ padding: 'var(--space-6)', flex: 1, display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
+          <Skeleton height={20} width="70%" />
+          <SkeletonLines count={4} />
         </div>
       </>
     );

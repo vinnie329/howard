@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { SkeletonRows } from './Skeleton';
 
 interface SimilarPrediction {
   id: string;
@@ -24,11 +25,7 @@ export default function SimilarPredictions({ predictionId }: { predictionId: str
   }, [predictionId]);
 
   if (loading) {
-    return (
-      <div className="mono" style={{ fontSize: 10, color: 'var(--text-tertiary)', padding: 'var(--space-1) 0' }}>
-        Finding similar predictions...
-      </div>
-    );
+    return <SkeletonRows count={3} />;
   }
 
   if (items.length === 0) {

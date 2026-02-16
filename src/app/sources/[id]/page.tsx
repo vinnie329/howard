@@ -7,6 +7,7 @@ import SourcePanel from '@/components/ui/SourcePanel';
 import ContentCard from '@/components/ui/ContentCard';
 import Tag from '@/components/ui/Tag';
 import { getSourceBySlug, getContentForSource, getPredictionsForSource } from '@/lib/data';
+import { SkeletonCards } from '@/components/ui/Skeleton';
 import type { Source, ContentWithAnalysis, Prediction } from '@/types';
 
 function decodeEntities(text: string): string {
@@ -69,8 +70,9 @@ export default function SourceProfile() {
       <>
         <div className="top-bar">
           <span style={{ color: 'var(--text-tertiary)', fontSize: 12 }}>Sources</span>
-          <span style={{ color: 'var(--text-tertiary)', fontSize: 12 }}>/</span>
-          <span style={{ fontSize: 12 }}>Loading...</span>
+        </div>
+        <div style={{ padding: 'var(--space-6)', flex: 1 }}>
+          <SkeletonCards count={3} />
         </div>
       </>
     );

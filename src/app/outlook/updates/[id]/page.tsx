@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { getOutlookHistoryById } from '@/lib/data';
+import { Skeleton, SkeletonLines } from '@/components/ui/Skeleton';
 import type { OutlookHistory } from '@/types';
 
 const horizonLabels: Record<string, string> = {
@@ -35,11 +36,10 @@ export default function OutlookUpdateDetail() {
           <span style={{ color: 'var(--text-tertiary)', fontSize: 12 }}>Intelligence</span>
           <span style={{ color: 'var(--text-tertiary)', fontSize: 12 }}>/</span>
           <span style={{ color: 'var(--text-tertiary)', fontSize: 12 }}>Outlook</span>
-          <span style={{ color: 'var(--text-tertiary)', fontSize: 12 }}>/</span>
-          <span style={{ fontSize: 12 }}>Loading...</span>
         </div>
-        <div style={{ padding: 'var(--space-6)', flex: 1 }}>
-          <span className="mono" style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>Loading...</span>
+        <div style={{ padding: 'var(--space-6)', flex: 1, display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
+          <Skeleton height={20} width="60%" />
+          <SkeletonLines count={5} />
         </div>
       </>
     );

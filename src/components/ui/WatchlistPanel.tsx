@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Sparkline from './Sparkline';
+import { SkeletonRows } from './Skeleton';
 
 interface Quote {
   symbol: string;
@@ -43,11 +44,7 @@ export default function WatchlistPanel() {
   }, []);
 
   if (loading) {
-    return (
-      <div className="mono" style={{ fontSize: 10, color: 'var(--text-tertiary)', padding: 'var(--space-2) 0' }}>
-        Loading quotes...
-      </div>
-    );
+    return <SkeletonRows count={5} />;
   }
 
   if (quotes.length === 0) {
@@ -59,7 +56,7 @@ export default function WatchlistPanel() {
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
+    <div className="stagger-in" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
       {quotes.map((q) => {
         const isPositive = q.changePercent >= 0;
         const changeColor = isPositive ? '#22c55e' : '#ef4444';

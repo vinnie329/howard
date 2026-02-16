@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { SkeletonCards } from '@/components/ui/Skeleton';
 import ContentCard from '@/components/ui/ContentCard';
 import ListRow from '@/components/ui/ListRow';
 import DailyPulse from '@/components/ui/DailyPulse';
@@ -37,6 +38,7 @@ function formatTimestamp(iso: string): string {
 }
 
 export default function DailyDigest() {
+  const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<'all' | 'high'>('all');
   const [sources, setSources] = useState<Source[]>([]);
   const [contentItems, setContentItems] = useState<ContentWithAnalysis[]>([]);
@@ -61,6 +63,7 @@ export default function DailyDigest() {
     setHasMore(contentResult.hasMore);
     setTrendingTopics(topics);
     setPage(1);
+    setLoading(false);
   }, []);
 
   const loadMore = useCallback(async () => {
@@ -190,7 +193,7 @@ export default function DailyDigest() {
           <div className="panel-section">
             <div className="panel-section-title">Trending Topics</div>
             {trendingTopics.length > 0 ? (
-              trendingTopics.map((topic, i) => (
+              <div className="stagger-in">{trendingTopics.map((topic, i) => (
                 <ListRow
                   key={topic.title}
                   rank={i + 1}
@@ -198,7 +201,7 @@ export default function DailyDigest() {
                   meta={`${topic.mentions} mentions`}
                   trend={topic.trend}
                 />
-              ))
+              ))}</div>
             ) : (
               <p style={{ fontSize: 12, color: 'var(--text-tertiary)', padding: 'var(--space-3) 0' }}>
                 No trending topics yet.
@@ -229,7 +232,9 @@ export default function DailyDigest() {
           </div>
 
           <div className="content-stack">
-            {filteredContent.length > 0 ? (
+            {loading ? (
+              <SkeletonCards count={4} />
+            ) : filteredContent.length > 0 ? (
               filteredContent.map((item) => (
                 <a
                   key={item.id}
