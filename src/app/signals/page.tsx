@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { SkeletonCards } from '@/components/ui/Skeleton';
+import { SkeletonSignalCards } from '@/components/ui/Skeleton';
 import WatchlistPanel from '@/components/ui/WatchlistPanel';
 
 interface Signal {
@@ -110,7 +110,7 @@ export default function SignalsPage() {
         )}
 
         {loading ? (
-          <SkeletonCards count={4} />
+          <SkeletonSignalCards count={4} />
         ) : signals.length === 0 ? (
           <div className="mono" style={{ fontSize: 12, color: 'var(--text-tertiary)', padding: 'var(--space-4) 0' }}>
             No signals detected.

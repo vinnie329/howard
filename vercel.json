@@ -1,0 +1,8 @@
+{
+  "crons": [
+    {
+      "path": "/api/technicals/signals?refresh=true",
+      "schedule": "0 6 * * *"
+    }
+  ]
+}
