@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseServiceClient } from '@/lib/supabase';
 import { analyzeContent } from '@/lib/analysis/analyzeContent';
+
+export const dynamic = 'force-dynamic';
 import {
   generateEmbedding,
   prepareContentText,

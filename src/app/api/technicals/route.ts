@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { getSupabaseServiceClient } from '@/lib/supabase';
 
+export const dynamic = 'force-dynamic';
+
 const SYMBOLS = [
   // Core
   { ticker: 'NVDA', name: 'NVIDIA', tv: 'NASDAQ:NVDA' },

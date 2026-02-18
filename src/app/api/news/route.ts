@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server';
 
+export const dynamic = 'force-dynamic';
+
 const QUERIES = ['stock market', 'commodities gold', 'crypto bitcoin', 'semiconductor AI'];
 
 interface YahooNewsItem {

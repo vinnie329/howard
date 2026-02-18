@@ -4,6 +4,8 @@ import { calculateWeightedScore } from '@/lib/scoring';
 import type { CredibilityScores } from '@/types';
 import { generateEmbedding, prepareSourceText, toVectorString } from '@/lib/embeddings';
 
+export const dynamic = 'force-dynamic';
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();

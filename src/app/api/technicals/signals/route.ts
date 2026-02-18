@@ -3,6 +3,8 @@ import { headers } from 'next/headers';
 import Anthropic from '@anthropic-ai/sdk';
 import { getSupabaseServiceClient } from '@/lib/supabase';
 
+export const dynamic = 'force-dynamic';
+
 export interface Signal {
   type: string;
   severity: 'high' | 'medium' | 'low';

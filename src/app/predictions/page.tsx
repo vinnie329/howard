@@ -31,19 +31,36 @@ export default function PredictionsLedger() {
       return;
     }
     setSearching(true);
+
+    const lower = q.toLowerCase();
+
+    // Client-side text search — catches all predictions regardless of embedding status
+    const textMatchIds = new Set<string>(
+      predictions
+        .filter((p) =>
+          p.claim.toLowerCase().includes(lower) ||
+          p.themes.some((t) => t.toLowerCase().includes(lower)) ||
+          p.assets_mentioned.some((a) => a.toLowerCase().includes(lower))
+        )
+        .map((p) => p.id)
+    );
+
+    // Also run vector search for semantic matches (e.g. "precious metals" → gold)
     try {
-      const res = await fetch(`/api/search?q=${encodeURIComponent(q)}&type=prediction&limit=50&threshold=0.2`);
+      const res = await fetch(`/api/search?q=${encodeURIComponent(q)}&type=prediction&limit=50&threshold=0.3`);
       if (res.ok) {
         const data = await res.json();
-        const ids = new Set<string>((data.results || []).map((r: { id: string }) => r.id));
-        setSearchMatchIds(ids);
+        for (const r of (data.results || []) as { id: string }[]) {
+          textMatchIds.add(r.id);
+        }
       }
     } catch {
-      // silently fail
-    } finally {
-      setSearching(false);
+      // vector search failed — text results still apply
     }
-  }, []);
+
+    setSearchMatchIds(textMatchIds);
+    setSearching(false);
+  }, [predictions]);
 
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
@@ -100,7 +117,7 @@ export default function PredictionsLedger() {
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Semantic search predictions..."
+            placeholder="Search predictions..."
             style={{
               flex: 1,
               background: 'none',

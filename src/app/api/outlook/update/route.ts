@@ -3,6 +3,8 @@ import { createClient } from '@supabase/supabase-js';
 import { evaluateOutlook, type AnalysisWithSource } from '@/lib/analysis/evaluateOutlook';
 import type { Outlook } from '@/types';
 
+export const dynamic = 'force-dynamic';
+
 const TIME_HORIZONS = ['short', 'medium', 'long'] as const;
 
 export async function POST(request: Request) {
