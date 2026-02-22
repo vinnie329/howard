@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { SkeletonCards } from '@/components/ui/Skeleton';
 import ContentCard from '@/components/ui/ContentCard';
 import ListRow from '@/components/ui/ListRow';
-import DailyPulse from '@/components/ui/DailyPulse';
+
 import WatchlistPanel from '@/components/ui/WatchlistPanel';
 import AddContentModal from '@/components/ui/AddContentModal';
 import { useDomainFilter } from '@/lib/domain-filter-context';
@@ -213,8 +213,6 @@ export default function DailyDigest() {
         {/* Main Panel - Captured Intelligence */}
         <div className="panel-main">
           <div className="panel-header">Captured Intelligence</div>
-
-          <DailyPulse />
 
           <div className="filter-tabs">
             <button

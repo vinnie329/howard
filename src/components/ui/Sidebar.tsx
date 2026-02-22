@@ -11,13 +11,13 @@ interface NavItem {
   href: string;
 }
 
-const intelligence: NavItem[] = [
+const navItems: NavItem[] = [
   { label: 'Data Feed', href: '/' },
+  { label: 'Technicals', href: '/technicals' },
   { label: 'Signals', href: '/signals' },
   { label: 'Outlook', href: '/outlook' },
   { label: 'Predictions Ledger', href: '/predictions' },
-  { label: 'Discovery Pipeline', href: '/discovery' },
-  { label: 'Technicals', href: '/technicals' },
+  { label: 'Sources', href: '/discovery' },
 ];
 
 export default function Sidebar() {
@@ -42,8 +42,17 @@ export default function Sidebar() {
           <span style={{ fontSize: 15, fontWeight: 500, letterSpacing: '-0.02em' }}>Howard</span>
         </div>
 
-        {/* Intelligence nav group */}
-        <NavGroup label="Intelligence" items={intelligence} pathname={pathname} />
+        {/* Nav items */}
+        <div>
+          {navItems.map((item) => (
+            <NavItemRow
+              key={item.href}
+              label={item.label}
+              href={item.href}
+              active={pathname === item.href}
+            />
+          ))}
+        </div>
       </div>
 
       {/* Footer */}

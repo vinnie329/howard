@@ -63,14 +63,13 @@ export async function GET(request: NextRequest) {
       supabase.from('analyses')
         .select('sentiment_overall, sentiment_score, assets_mentioned, themes, summary, content:content_id(title, published_at, source:source_id(name))')
         .order('created_at', { ascending: false })
-        .limit(50)
+
     ).then(r => r.data ?? []).catch(() => []),
 
     Promise.resolve(
       supabase.from('predictions')
         .select('claim, assets_mentioned, themes, sentiment, time_horizon, confidence, specificity, source:source_id(name)')
         .order('created_at', { ascending: false })
-        .limit(100)
     ).then(r => r.data ?? []).catch(() => []),
 
     fetch(`${origin}/api/technicals`, { next: { revalidate: 3600 } })

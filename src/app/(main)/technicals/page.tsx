@@ -76,9 +76,9 @@ export default function TechnicalsPage() {
         case 'price':
           return dir * (a.currentPrice - b.currentPrice);
         case 'dev200d':
-          return dir * (Math.abs(a.devFromMa200d ?? 0) - Math.abs(b.devFromMa200d ?? 0));
+          return dir * ((a.devFromMa200d ?? 0) - (b.devFromMa200d ?? 0));
         case 'dev200w':
-          return dir * (Math.abs(a.devFromMa200w ?? 0) - Math.abs(b.devFromMa200w ?? 0));
+          return dir * ((a.devFromMa200w ?? 0) - (b.devFromMa200w ?? 0));
         default:
           return 0;
       }
