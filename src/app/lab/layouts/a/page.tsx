@@ -46,7 +46,7 @@ function PageContent() {
   const [trendingTopics, setTrendingTopics] = useState<TrendingTopic[]>([]);
 
   const loadData = useCallback(async () => {
-    const [_s, contentResult, topics] = await Promise.all([
+    const [, contentResult, topics] = await Promise.all([
       getSources(),
       getContentWithAnalysis(1, 10),
       getTrendingTopics(),

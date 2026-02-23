@@ -78,24 +78,6 @@ export default function Sidebar() {
   );
 }
 
-function NavGroup({ label, items, pathname }: { label: string; items: NavItem[]; pathname: string }) {
-  return (
-    <div>
-      <div className="label" style={{ marginBottom: 'var(--space-3)', paddingLeft: 'var(--space-2)' }}>
-        {label}
-      </div>
-      {items.map((item) => (
-        <NavItemRow
-          key={item.href}
-          label={item.label}
-          href={item.href}
-          active={pathname === item.href}
-        />
-      ))}
-    </div>
-  );
-}
-
 function NavItemRow({ label, href, active }: { label: string; href: string; active: boolean }) {
   const { navigateTo } = usePageTransition();
 

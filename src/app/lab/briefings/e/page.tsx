@@ -1,6 +1,6 @@
 'use client';
 
-import { useBriefingData, decode, timeAgo, sentimentColor, horizonLabel, t } from '../_shared';
+import { useBriefingData, decode, timeAgo, sentimentColor, t } from '../_shared';
 
 /* Variant E — Terminal
    Monospace everything. Data-dense. No cards, no borders, no radius.

@@ -7,7 +7,7 @@ import { useBriefingData, decode, timeAgo, sentimentColor, horizonLabel, t } fro
    Editorial feel. The most important thing is big. Everything else supports it. */
 
 export default function BriefingD() {
-  const { content, outlooks, trending, predictions, history, loading } = useBriefingData();
+  const { content, outlooks, history, loading } = useBriefingData();
 
   if (loading) return <Shell><p style={{ color: t.text3 }}>Loading...</p></Shell>;
 

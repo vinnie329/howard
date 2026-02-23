@@ -84,7 +84,7 @@ export default function BriefingC() {
         <BentoCard>
           <Label>Trending</Label>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-            {trending.slice(0, 4).map((topic, i) => (
+            {trending.slice(0, 4).map((topic) => (
               <div key={topic.title} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span style={{ fontSize: 12, color: t.text }}>{topic.title}</span>
                 <span style={{ fontSize: 10, fontFamily: t.mono, color: topic.trend === 'up' ? '#22c55e' : t.text3 }}>
