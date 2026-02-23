@@ -1,14 +1,16 @@
 /**
- * pipeline.ts — Run the full processing pipeline (without fetching content).
+ * pipeline.ts — Run the full processing pipeline.
  *
  * Steps:
- *   1. Analyze unprocessed content (Claude)
- *   2. Generate missing embeddings (Voyage AI)
- *   3. Evaluate & update outlooks (Claude)
- *   4. Generate signals (Claude + Yahoo Finance)
+ *   1. Fetch new content (YouTube, Oaktree, etc.)
+ *   2. Analyze unprocessed content (Claude)
+ *   3. Generate missing embeddings (Voyage AI)
+ *   4. Evaluate & update outlooks (Claude)
+ *   5. Generate signals (Claude + Yahoo Finance)
  *
  * Usage:
  *   npx tsx scripts/pipeline.ts            # run all steps
+ *   npx tsx scripts/pipeline.ts --fetch    # only fetch
  *   npx tsx scripts/pipeline.ts --analyze  # only analyze
  *   npx tsx scripts/pipeline.ts --embed    # only embeddings
  *   npx tsx scripts/pipeline.ts --outlook  # only outlook
@@ -21,6 +23,7 @@ import path from 'path';
 const root = path.resolve(__dirname, '..');
 const args = process.argv.slice(2);
 const runAll = args.length === 0;
+const runFetch = runAll || args.includes('--fetch');
 const runAnalyze = runAll || args.includes('--analyze');
 const runEmbed = runAll || args.includes('--embed');
 const runOutlook = runAll || args.includes('--outlook');
@@ -48,14 +51,14 @@ function run(label: string, script: string) {
   }
 }
 
-console.log('\n  Howard Pipeline');
-console.log('  Skipping content fetch — processing existing content\n');
+console.log('\n  Howard Pipeline\n');
 
 const steps: [boolean, string, string][] = [
-  [runAnalyze, 'Step 1/4 — Analyze content', 'scripts/analyze-content.ts'],
-  [runEmbed, 'Step 2/4 — Generate embeddings', 'scripts/generate-embeddings.ts'],
-  [runOutlook, 'Step 3/4 — Update outlooks', 'scripts/update-outlook.ts'],
-  [runSignals, 'Step 4/4 — Generate signals', 'scripts/generate-signals.ts'],
+  [runFetch, 'Step 1/5 — Fetch content', 'scripts/fetch-all.ts'],
+  [runAnalyze, 'Step 2/5 — Analyze content', 'scripts/analyze-content.ts'],
+  [runEmbed, 'Step 3/5 — Generate embeddings', 'scripts/generate-embeddings.ts'],
+  [runOutlook, 'Step 4/5 — Update outlooks', 'scripts/update-outlook.ts'],
+  [runSignals, 'Step 5/5 — Generate signals', 'scripts/generate-signals.ts'],
 ];
 
 const active = steps.filter(([enabled]) => enabled);

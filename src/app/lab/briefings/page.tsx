@@ -2,36 +2,22 @@ import Link from 'next/link';
 import '../lab.css';
 
 const variants = [
-  {
-    id: 'a',
-    title: 'Current',
-    description: 'Three-panel dashboard — trending, feed, watchlist',
-  },
-  {
-    id: 'b',
-    title: 'Quiet Two-Panel',
-    description: 'Wider feed with expand-on-click cards, tabbed right panel',
-  },
-  {
-    id: 'c',
-    title: 'Card Grid',
-    description: 'Full-width grid of vertical cards, no pulse, no trending',
-  },
-  {
-    id: 'd',
-    title: 'Vercel / Geist',
-    description: 'Minimal top-nav, content-first feed, sticky sidebar panels',
-  },
+  { id: 'a', title: 'Widget Grid', description: 'Mixed-size cards, iOS widget density' },
+  { id: 'b', title: 'Morning Brief', description: 'Narrow centered column, stacked cards' },
+  { id: 'c', title: 'Bento', description: 'Strict 2x3 grid, equal weight per card' },
+  { id: 'd', title: 'Magazine', description: 'Hero outlook card, supporting grid below' },
+  { id: 'e', title: 'Terminal', description: 'Monospace, data-dense, no chrome' },
+  { id: 'f', title: 'Sparse Canvas', description: 'Generous whitespace, asymmetric placement' },
 ];
 
-export default function LayoutsIndex() {
+export default function BriefingsIndex() {
   return (
     <div className="lab">
       <Link href="/lab" className="lab-back">
         &larr; Lab
       </Link>
       <div className="lab-title">
-        Layouts <span>({variants.length})</span>
+        Daily Briefings <span>({variants.length})</span>
       </div>
       <div className="lab-layout-grid">
         {variants.map((v) => (
@@ -42,7 +28,7 @@ export default function LayoutsIndex() {
                 <p>{v.description}</p>
               </div>
               <a
-                href={`/lab/layouts/${v.id}`}
+                href={`/lab/briefings/${v.id}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="lab-open-btn"
@@ -51,7 +37,7 @@ export default function LayoutsIndex() {
               </a>
             </div>
             <div className="lab-iframe-wrap">
-              <iframe src={`/lab/layouts/${v.id}`} tabIndex={-1} />
+              <iframe src={`/lab/briefings/${v.id}`} tabIndex={-1} />
             </div>
           </div>
         ))}

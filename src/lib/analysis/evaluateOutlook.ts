@@ -162,7 +162,7 @@ export async function evaluateOutlook(
 
   const response = await client.messages.create({
     model: 'claude-opus-4-6',
-    max_tokens: 3000,
+    max_tokens: 8000,
     messages: [
       {
         role: 'user',

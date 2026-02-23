@@ -131,7 +131,7 @@ export default function DiscoveryPipeline() {
                           <span className="mono" style={{ fontSize: 10, color: 'var(--text-tertiary)', width: 16, textAlign: 'right' }}>
                             {String(i + 1).padStart(2, '0')}
                           </span>
-                          <SourcePill name={source.name} />
+                          <SourcePill name={source.name} slug={source.slug} />
                         </div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-4)' }}>
                           <span className="mono" style={{ fontSize: 10, color: 'var(--text-tertiary)' }}>

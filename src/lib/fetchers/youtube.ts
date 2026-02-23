@@ -16,6 +16,10 @@ const WHITELISTED_CHANNELS = [
   'forwardguidancebw',
   'the monetary matters network',
   'no priors: ai, machine learning, tech, & startups',
+  'the david lin report',
+  'david lin',
+  'thedavidlinreport',
+  'metals and miners',
 ];
 
 function isWhitelistedChannel(channelTitle: string): boolean {

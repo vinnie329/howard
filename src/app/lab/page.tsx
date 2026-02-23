@@ -2,7 +2,8 @@ import Link from 'next/link';
 import './lab.css';
 
 const sections = [
-  { name: 'Layouts', href: '/lab/layouts', count: 3 },
+  { name: 'Daily Briefings', href: '/lab/briefings', count: 6 },
+  { name: 'Layouts', href: '/lab/layouts', count: 5 },
   { name: 'Components', href: '/lab/components', count: 3 },
 ];
 

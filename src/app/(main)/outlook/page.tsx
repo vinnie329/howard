@@ -77,9 +77,10 @@ export default function OutlookPage() {
             <SkeletonCards count={3} />
           ) : (
             <div className="stagger-in" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
-              {outlooks.map((outlook) => (
-                <OutlookCard key={outlook.id} outlook={outlook} />
-              ))}
+              {outlooks.map((outlook) => {
+                const latestUpdate = changesHistory.find((h) => h.outlook_id === outlook.id);
+                return <OutlookCard key={outlook.id} outlook={outlook} latestUpdate={latestUpdate} />;
+              })}
             </div>
           )}
         </div>

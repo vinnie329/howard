@@ -1,5 +1,8 @@
+'use client';
+
+import { useState } from 'react';
 import Tag from './Tag';
-import type { Outlook } from '@/types';
+import type { Outlook, OutlookHistory } from '@/types';
 
 const sentimentColors: Record<string, { bg: string; color: string; border: string }> = {
   bullish: { bg: 'rgba(34, 197, 94, 0.12)', color: '#22c55e', border: 'rgba(34, 197, 94, 0.2)' },
@@ -8,7 +11,7 @@ const sentimentColors: Record<string, { bg: string; color: string; border: strin
   neutral: { bg: 'rgba(136, 136, 136, 0.12)', color: 'var(--text-secondary)', border: 'var(--border)' },
 };
 
-export default function OutlookCard({ outlook }: { outlook: Outlook }) {
+export default function OutlookCard({ outlook, latestUpdate }: { outlook: Outlook; latestUpdate?: OutlookHistory }) {
   const sColors = sentimentColors[outlook.sentiment] || sentimentColors.neutral;
 
   return (
@@ -50,6 +53,9 @@ export default function OutlookCard({ outlook }: { outlook: Outlook }) {
         </div>
         <span className="label" style={{ fontSize: 9 }}>{outlook.subtitle}</span>
       </div>
+
+      {/* Latest Changes */}
+      {latestUpdate && <ChangesSummary entry={latestUpdate} />}
 
       {/* Thesis */}
       <div style={{ padding: 'var(--space-6)' }}>
@@ -144,6 +150,88 @@ export default function OutlookCard({ outlook }: { outlook: Outlook }) {
               </span>
             ))}
           </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ChangesSummary({ entry }: { entry: OutlookHistory }) {
+  const [expanded, setExpanded] = useState(false);
+  const changeCount = entry.changes_summary.length;
+  const date = new Date(entry.created_at).toLocaleDateString('en-US', {
+    month: 'short', day: 'numeric',
+  });
+
+  const sentimentChanged = entry.previous_sentiment !== entry.new_sentiment;
+  const confidenceChanged = entry.previous_confidence !== entry.new_confidence;
+
+  return (
+    <div style={{
+      borderBottom: '1px solid var(--border)',
+      background: 'var(--bg-surface)',
+    }}>
+      <button
+        onClick={() => setExpanded(!expanded)}
+        style={{
+          width: '100%',
+          padding: 'var(--space-3) var(--space-6)',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 'var(--space-2)',
+          background: 'none',
+          border: 'none',
+          cursor: 'pointer',
+          color: 'var(--text-tertiary)',
+          fontSize: 11,
+          textAlign: 'left',
+        }}
+      >
+        <span style={{
+          fontSize: 8,
+          transition: 'transform 0.15s',
+          transform: expanded ? 'rotate(90deg)' : 'rotate(0deg)',
+          display: 'inline-block',
+        }}>
+          &#9654;
+        </span>
+        <span className="mono" style={{ fontSize: 10 }}>
+          {changeCount} change{changeCount !== 1 ? 's' : ''}
+        </span>
+        <span style={{ color: 'var(--border-light)' }}>&middot;</span>
+        <span className="mono" style={{ fontSize: 10 }}>{date}</span>
+
+        {sentimentChanged && (
+          <>
+            <span style={{ color: 'var(--border-light)' }}>&middot;</span>
+            <span className="mono" style={{ fontSize: 10, color: 'var(--text-secondary)' }}>
+              {entry.previous_sentiment} &rarr; {entry.new_sentiment}
+            </span>
+          </>
+        )}
+        {confidenceChanged && (
+          <>
+            <span style={{ color: 'var(--border-light)' }}>&middot;</span>
+            <span className="mono" style={{ fontSize: 10, color: 'var(--text-secondary)' }}>
+              {entry.previous_confidence}% &rarr; {entry.new_confidence}%
+            </span>
+          </>
+        )}
+      </button>
+
+      {expanded && (
+        <div style={{
+          padding: '0 var(--space-6) var(--space-3)',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 'var(--space-1)',
+        }}>
+          {entry.changes_summary.map((change, i) => (
+            <div key={i} style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'baseline' }}>
+              <span style={{ color: 'var(--text-tertiary)', fontSize: 9, flexShrink: 0 }}>&bull;</span>
+              <span style={{ color: 'var(--text-primary)', fontSize: 11, lineHeight: 1.4 }}>{change}</span>
+            </div>
+          ))}
         </div>
       )}
     </div>
