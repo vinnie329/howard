@@ -10,7 +10,7 @@ const sb = createClient(
 
 function parseTranscript(file: string): string {
   const xml = readFileSync(file, 'utf-8');
-  const texts = [...xml.matchAll(/<text[^>]*>(.*?)<\/text>/gs)].map(m => m[1]);
+  const texts = Array.from(xml.matchAll(/<text[^>]*>(.*?)<\/text>/gs)).map(m => m[1]);
   return texts.join(' ')
     .replace(/<[^>]+>/g, '')
     .replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>')

@@ -45,7 +45,7 @@ async function main() {
 
   // 2. Parse transcript
   const xml = readFileSync('/tmp/leopold.en.srv1', 'utf-8');
-  const texts = [...xml.matchAll(/<text[^>]*>(.*?)<\/text>/gs)].map(m => m[1]);
+  const texts = Array.from(xml.matchAll(/<text[^>]*>(.*?)<\/text>/gs)).map(m => m[1]);
   const transcript = texts.join(' ')
     .replace(/<[^>]+>/g, '')
     .replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>')
