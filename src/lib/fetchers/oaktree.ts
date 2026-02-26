@@ -49,7 +49,6 @@ export async function fetchOaktreeMemos(
         const { data: existing } = await supabase
           .from('content')
           .select('id')
-          .eq('platform', 'memo')
           .eq('url', memo.url)
           .single();
 
@@ -67,8 +66,9 @@ export async function fetchOaktreeMemos(
         const memoHtml = await memoRes.text();
         const memo$ = cheerio.load(memoHtml);
 
-        // Extract content — try common selectors
+        // Extract content — try Oaktree-specific selectors first, then fallbacks
         const bodyText =
+          memo$('.article-content').text().trim() ||
           memo$('.article-body').text().trim() ||
           memo$('.memo-content').text().trim() ||
           memo$('.content-body').text().trim() ||
@@ -85,7 +85,7 @@ export async function fetchOaktreeMemos(
 
         const { error } = await supabase.from('content').insert({
           source_id: sourceId,
-          platform: 'memo',
+          platform: 'oaktree',
           external_id: memo.url,
           title: memo.title,
           url: memo.url,
