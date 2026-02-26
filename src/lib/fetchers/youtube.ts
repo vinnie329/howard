@@ -241,7 +241,7 @@ async function geminiTranscribeViaFileAPI(
         'Content-Type': 'audio/mpeg',
         'X-Goog-Upload-Protocol': 'raw',
       },
-      body: audioData,
+      body: new Uint8Array(audioData),
     }
   );
 
