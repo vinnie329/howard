@@ -177,6 +177,27 @@ export const mockSources: Source[] = [
     created_at: '2026-01-15T00:00:00Z',
     updated_at: '2026-02-12T00:00:00Z',
   },
+  {
+    id: 'src-009',
+    name: 'Dan Sundheim',
+    slug: 'dan-sundheim',
+    bio: 'Founder and CIO of D1 Capital Partners. Former CIO of Viking Global Investors. Known for concentrated bets across public and private markets with exceptional long-term returns.',
+    avatar_url: '/avatars/dan-sundheim.jpg',
+    domains: ['Macro / Liquidity'],
+    scores: {
+      intelligence: 4,
+      intuition_eq: 4,
+      sincerity: 4,
+      access: 4,
+      independence: 4,
+      capital_at_risk: 5,
+      reputational_sensitivity: 4,
+      performance: 4,
+    },
+    weighted_score: 4.12,
+    created_at: '2026-01-15T00:00:00Z',
+    updated_at: '2026-02-25T00:00:00Z',
+  },
 ];
 
 export const mockContentWithAnalysis: ContentWithAnalysis[] = [

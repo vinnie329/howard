@@ -1,6 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { execFile } from 'child_process';
-import { readFile, unlink } from 'fs/promises';
+import { readFile, unlink, stat } from 'fs/promises';
 import { tmpdir } from 'os';
 import { join } from 'path';
 import { analyzeContent } from '../src/lib/analysis/analyzeContent';
@@ -69,6 +69,80 @@ async function fetchTranscript(videoId: string): Promise<string | null> {
   return segments.length > 0 ? segments.join(' ') : null;
 }
 
+const GEMINI_MODEL = 'gemini-2.5-flash';
+
+async function fetchTranscriptGemini(videoId: string): Promise<string | null> {
+  const geminiApiKey = process.env.GEMINI_API_KEY;
+  if (!geminiApiKey) {
+    console.log('  Gemini fallback skipped (no GEMINI_API_KEY)');
+    return null;
+  }
+
+  const tempBase = join(tmpdir(), `howard-audio-${videoId}-${Date.now()}`);
+  const tempFile = `${tempBase}.mp3`;
+  const url = `https://www.youtube.com/watch?v=${videoId}`;
+
+  console.log('  Gemini fallback: downloading audio...');
+
+  try {
+    await new Promise<void>((resolve, reject) => {
+      execFile('yt-dlp', [
+        '-x', '--audio-format', 'mp3',
+        '--postprocessor-args', 'ffmpeg:-ac 1 -b:a 48k',
+        '-o', `${tempBase}.%(ext)s`, url,
+      ], { timeout: 180000 }, (error) => {
+        if (error) { reject(error); return; }
+        resolve();
+      });
+    });
+
+    const stats = await stat(tempFile);
+    console.log(`  Audio: ${(stats.size / (1024 * 1024)).toFixed(1)}MB`);
+
+    const audioData = await readFile(tempFile);
+
+    // Upload via File API
+    console.log('  Uploading to Gemini...');
+    const uploadRes = await fetch(
+      `https://generativelanguage.googleapis.com/upload/v1beta/files?key=${geminiApiKey}`,
+      { method: 'POST', headers: { 'Content-Type': 'audio/mpeg', 'X-Goog-Upload-Protocol': 'raw' }, body: audioData }
+    );
+    if (!uploadRes.ok) {
+      console.log(`  Gemini upload error: ${uploadRes.status}`);
+      return null;
+    }
+    const fileUri = (await uploadRes.json()).file?.uri;
+    if (!fileUri) return null;
+
+    await new Promise(r => setTimeout(r, 5000));
+
+    // Transcribe
+    console.log('  Transcribing...');
+    const res = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${geminiApiKey}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [
+            { file_data: { mime_type: 'audio/mpeg', file_uri: fileUri } },
+            { text: 'Transcribe this audio verbatim. Return only the transcript text. No timestamps, no speaker labels, no markdown formatting.' },
+          ]}],
+        }),
+      }
+    );
+    if (!res.ok) return null;
+
+    const data = await res.json();
+    return data.candidates?.[0]?.content?.parts?.[0]?.text || null;
+  } catch (err) {
+    console.log(`  Gemini fallback failed: ${err instanceof Error ? err.message : err}`);
+    return null;
+  } finally {
+    try { await unlink(tempFile); } catch {}
+  }
+}
+
 async function main() {
   console.log('=== Fetch Missing Transcripts & Analyze ===\n');
 
@@ -94,7 +168,11 @@ async function main() {
     }
 
     try {
-      const transcript = await fetchTranscript(item.external_id);
+      let transcript = await fetchTranscript(item.external_id);
+      if (!transcript || transcript.length < 100) {
+        console.log(`  No subtitles — trying Gemini audio transcription...`);
+        transcript = await fetchTranscriptGemini(item.external_id);
+      }
       if (!transcript || transcript.length < 100) {
         console.log(`  No usable transcript (${transcript?.length || 0} chars)\n`);
         continue;
