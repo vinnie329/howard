@@ -101,6 +101,166 @@ const CUSIP_TICKER_MAP: Record<string, string> = {
   '74347M108': 'PUMP',    // ProPetro Holding
   '683344105': 'ONTO',    // Onto Innovation
   'G96115103': 'WFBR',    // WhiteFiber Inc
+  // Altimeter Capital portfolio
+  '042068205': 'ARM',     // ARM Holdings
+  '01609W102': 'BABA',    // Alibaba Group
+  '565394103': 'CART',    // Maplebear (Instacart)
+  '20717M103': 'CFLT',    // Confluent
+  '22266T109': 'CPNG',    // Coupang
+  '23804L103': 'DDOG',    // Datadog
+  'G0370L116': 'GRAB',    // Grab Holdings
+  'G0370L108': 'GRAB',    // Grab Holdings (alt CUSIP)
+  '770700102': 'HOOD',    // Robinhood
+  '79589L106': 'IOT',     // Samsara
+  '58733R102': 'MELI',    // MercadoLibre
+  '833445109': 'SNOW',    // Snowflake
+  '90353T100': 'UBER',    // Uber Technologies
+  '98954M200': 'Z',       // Zillow Group
+  '98954M101': 'Z',       // Zillow Group (alt CUSIP)
+  '82509L107': 'SHOP',    // Shopify
+  '36866J105': 'GMNI',    // Gemini Space Station
+  '64119N608': 'NSKU',    // Netskope
+  '722304102': 'PDD',     // PDD Holdings
+  '70339W104': 'PTRN',    // Pattern Group
+  '871607107': 'SNPS',    // Synopsys
+  '04626A103': 'ALAB',    // Astera Labs
+  '781154109': 'RBRK',    // Rubrik
+  '81764X103': 'TTAN',    // ServiceTitan
+  '78781J109': 'SAIL',    // SailPoint
+  '46090E103': 'QQQ',     // Invesco QQQ Trust
+  '26603R106': 'DUOL',    // Duolingo
+  'G3643J108': 'FLUT',    // Flutter Entertainment
+  'G0370L124': 'AGC',     // Altimeter Growth Corp
+  // Altimeter historical holdings
+  '79466L302': 'CRM',     // Salesforce
+  '64110L106': 'NFLX',    // Netflix
+  '98980L101': 'ZM',      // Zoom Video
+  '70450Y103': 'PYPL',    // PayPal
+  '55087P104': 'LYFT',    // Lyft
+  '25809K105': 'DASH',    // DoorDash
+  '443573100': 'HUBS',    // HubSpot
+  '679295105': 'OKTA',    // Okta
+  '67059N108': 'NTNX',    // Nutanix
+  '74624M102': 'PSTG',    // Pure Storage
+  '268150109': 'DT',      // Dynatrace
+  '338307101': 'FIVN',    // Five9
+  '771049103': 'RBLX',    // Roblox
+  '91332U101': 'U',       // Unity Software
+  '888787108': 'TOST',    // Toast
+  '90364P105': 'PATH',    // UiPath
+  '83406F102': 'SOFI',    // SoFi Technologies
+  '81762P102': 'NOW',     // ServiceNow
+  '98138H101': 'WDAY',    // Workday
+  '910047109': 'UAL',     // United Airlines
+  '30212P303': 'EXPE',    // Expedia
+  '896945201': 'TRIP',    // TripAdvisor
+  '741503403': 'BKNG',    // Booking Holdings (fka Priceline)
+  '009066101': 'ABNB',    // Airbnb
+  '247361702': 'DAL',     // Delta Air Lines
+  '056752108': 'BIDU',    // Baidu
+  '22943F100': 'TCOM',    // Trip.com (fka Ctrip)
+  '146869102': 'CVNA',    // Carvana
+  '26210C104': 'DBX',     // Dropbox
+  '852234103': 'SQ',      // Block (fka Square)
+  '418100103': 'HCP',     // HashiCorp
+  '683712103': 'OPEN',    // Opendoor Technologies
+  '94419L101': 'W',       // Wayfair
+  '985817105': 'YELP',    // Yelp
+  '70614W100': 'PTON',    // Peloton
+  '90138F102': 'TWLO',    // Twilio
+  '37637K108': 'GTLB',    // GitLab
+  '25402D102': 'DOCN',    // DigitalOcean
+  '10576N102': 'BRZE',    // Braze
+  '747525103': 'QCOM',    // Qualcomm
+  '032095101': 'APH',     // Amphenol
+  '315616102': 'FFIV',    // F5 Networks
+  '24703L202': 'DELL',    // Dell Technologies
+  '81141R100': 'SE',      // Sea Ltd
+  'G68707101': 'PAGS',    // PagSeguro Digital
+  'N14506104': 'ESTC',    // Elastic NV
+  '163092109': 'CHGG',    // Chegg
+  '399473107': 'GRPN',    // Groupon
+  '860897107': 'SFIX',    // Stitch Fix
+  '687793109': 'OSCR',    // Oscar Health
+  '98936J101': 'ZEN',     // Zendesk
+  '60937P106': 'MDB',     // MongoDB (alt CUSIP)
+  '22788C105': 'CRWD',    // CrowdStrike
+  '226718104': 'CRTO',    // Criteo
+  '25862V105': 'DV',      // DoubleVerify
+  'G66721104': 'NCLH',    // Norwegian Cruise Line
+  'V7780T103': 'RCL',     // Royal Caribbean
+  '911363109': 'URI',     // United Rentals
+  '171484108': 'CHDN',    // Churchill Downs
+  '053774105': 'CAR',     // Avis Budget Group
+  '400110102': 'GRUB',    // Grubhub
+  '830879102': 'SKYW',    // SkyWest
+  '90138Q108': 'ME',      // 23andMe
+  '94845U105': 'WBTN',    // Webtoon Entertainment
+  '70451X104': 'PAYO',    // Payoneer Global
+  '60938K106': 'ML',      // MoneyLion
+  '12047B105': 'BMBL',    // Bumble
+  '747601201': 'XM',      // Qualtrics
+  'M7S64H106': 'MNDY',    // Monday.com
+  '001176213': 'MNDY',    // Monday.com (alt CUSIP)
+  // Altimeter historical (many delisted/acquired)
+  '011659109': 'ALK',     // Alaska Air Group
+  '103304101': 'BYD',     // Boyd Gaming
+  '13123E500': 'CALD',    // Callidus Software (acquired by SAP)
+  '24802Y105': 'DWRE',    // Demandware (acquired by Salesforce)
+  '290138205': 'LONG',    // eLong (delisted)
+  '31787A507': 'FNSR',    // Finisar (acquired by II-VI)
+  '419870100': 'HA',      // Hawaiian Holdings
+  '419879101': 'HA',      // Hawaiian Holdings (alt CUSIP)
+  '42805T105': 'HTZ',     // Hertz Global Holdings
+  'N47279109': 'INXN',    // Interxion (acquired by Digital Realty)
+  '594901100': 'MCRS',    // MICROS Systems (acquired by Oracle)
+  '64118U108': 'NQ',      // NQ Mobile (delisted)
+  '68557K109': 'OWW',     // Orbitz Worldwide (acquired by Expedia)
+  '75606N109': 'RP',      // RealPage (acquired by Thoma Bravo)
+  '756577102': 'RHT',     // Red Hat (acquired by IBM)
+  '848577102': 'SAVE',    // Spirit Airlines
+  '848574109': 'SAVE',    // Spirit Airlines (alt CUSIP)
+  '87582Y108': 'TNGO',    // Tangoe (delisted)
+  '90341W108': 'LCC',     // US Airways Group (merged with AA)
+  'N97284108': 'YNDX',    // Yandex NV (delisted)
+  '64051M402': 'NEON',    // Neonode
+  '02376R102': 'AAL',     // American Airlines
+  'M0854Q105': 'ALLT',    // Allot Communications
+  '034754101': 'ANGI',    // Angie's List (merged into ANGI)
+  '043176106': 'ARUN',    // Aruba Networks (acquired by HPE)
+  '206708109': 'CNQR',    // Concur Technologies (acquired by SAP)
+  '37951D102': 'ENT',     // Global Eagle Entertainment (delisted)
+  '45672H104': 'BLOX',    // Infoblox (acquired)
+  '607525102': 'MODN',    // Model N
+  'P31076105': 'CPA',     // Copa Holdings
+  '37518B102': 'GIMO',    // Gigamon (acquired)
+  '57063L107': 'MKTO',    // Marketo (acquired by Adobe)
+  '21240E105': 'VLRS',    // Volaris (Controladora Vuela)
+  '36118L106': 'FUTU',    // Futu Holdings
+  '98954A107': 'Z',       // Zillow (old class)
+  '74906P104': 'QUNR',    // Qunar (delisted)
+  '10316T104': 'BOX',     // Box
+  '87336U105': 'DATA',    // Tableau Software (acquired by Salesforce)
+  '01748X102': 'ALGT',    // Allegiant Travel
+  'V5633W109': 'MMYT',    // MakeMyTrip
+  '625207105': 'MULE',    // MuleSoft (acquired by Salesforce)
+  '89686D105': 'TRVG',    // trivago
+  '46267X108': 'IQ',      // iQIYI
+  '590479135': 'MESA',    // Mesa Air Group (delisted)
+  '0G6672104': 'NCLH',    // Norwegian Cruise Line (alt CUSIP)
+  '44919P508': 'IAC',     // IAC InterActiveCorp
+  '75321W103': 'PACK',    // Ranpak Holdings
+  '00183L102': 'ANGI',    // ANGI Homeservices
+  '30744W107': 'FTCH',    // Farfetch (delisted)
+  'G28302126': 'DGRO',    // Dragoneer Growth Opportunities
+  'G28302100': 'DGRO',    // Dragoneer Growth Opportunities
+  'G28302118': 'DGRO',    // Dragoneer Growth Opportunities
+  '92918V109': 'VRM',     // Vroom (delisted)
+  '22266L106': 'COUP',    // Coupa Software (acquired by Thoma Bravo)
+  '126677103': 'CVT',     // Cvent (acquired by Blackstone)
+  'G2007L105': 'CZOO',    // Cazoo Group (delisted)
+  '500767306': 'KWEB',    // KraneShares CSI China Internet ETF
+  '53566V106': 'LCTX',    // Lineage Cell Therapeutics
 };
 
 interface EdgarFiling {
@@ -463,6 +623,27 @@ async function main() {
     // Check for sold positions (in previous quarter but not in latest)
     // This is handled implicitly — if a position disappears, it's simply not in the new filing
     // We don't insert "sold" records since 13Fs only report current holdings
+  }
+
+  // Backfill: update any holdings rows with NULL tickers using the CUSIP map
+  console.log('\n--- Backfilling missing tickers from CUSIP map ---');
+  const { data: nullTickers } = await supabase
+    .from('holdings')
+    .select('id, cusip, company_name')
+    .is('ticker', null);
+
+  if (nullTickers && nullTickers.length > 0) {
+    let updated = 0;
+    for (const row of nullTickers) {
+      const ticker = CUSIP_TICKER_MAP[row.cusip];
+      if (ticker) {
+        await supabase.from('holdings').update({ ticker }).eq('id', row.id);
+        updated++;
+      }
+    }
+    console.log(`  Updated ${updated} of ${nullTickers.length} rows with NULL tickers`);
+  } else {
+    console.log('  No NULL tickers to backfill');
   }
 
   console.log('\n=== Done! ===');
