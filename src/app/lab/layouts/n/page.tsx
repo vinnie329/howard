@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { useBriefingData, decode, timeAgo, sentimentColor, horizonLabel as _horizonLabel } from '../../briefings/_shared';
+import { useBriefingData, decode, timeAgo, sentimentColor } from '../../briefings/_shared';
 
 /* Variant N — Specimen Manager
    Three-panel dark app: left nav, center list, right inspector.

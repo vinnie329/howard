@@ -18,7 +18,7 @@ const v = {
 };
 
 export default function LayoutE7() {
-  const { content, outlooks, trending: _trending, predictions, loading } = useBriefingData();
+  const { content, outlooks, predictions, loading } = useBriefingData();
   const [horizon, setHorizon] = useState<string>('medium');
 
   if (loading) return <div style={{ minHeight: '100vh', background: v.bg, fontFamily: v.mono, fontSize: 12, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>Loading...</div>;

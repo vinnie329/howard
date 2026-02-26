@@ -196,7 +196,8 @@ const GEMINI_MODEL = 'gemini-2.5-flash';
 const GEMINI_PROMPT =
   'Transcribe this audio verbatim. Return only the transcript text. No timestamps, no speaker labels, no markdown formatting.';
 
-async function _geminiTranscribeInline(
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+async function geminiTranscribeInline(
   audioData: Buffer,
   apiKey: string
 ): Promise<string | null> {
