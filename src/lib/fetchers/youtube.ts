@@ -1,5 +1,5 @@
 import { execFile } from 'child_process';
-import { readFile, unlink } from 'fs/promises';
+import { readFile, unlink, stat } from 'fs/promises';
 import { tmpdir } from 'os';
 import { join } from 'path';
 import type { SupabaseClient } from '@supabase/supabase-js';
@@ -20,6 +20,7 @@ const WHITELISTED_CHANNELS = [
   'david lin',
   'thedavidlinreport',
   'metals and miners',
+  'goldman sachs',
 ];
 
 function isWhitelistedChannel(channelTitle: string): boolean {
@@ -122,6 +123,171 @@ async function fetchTranscript(videoId: string): Promise<string | null> {
     console.log(`      [transcript] Failed: ${msg}`);
     return null;
   }
+}
+
+/**
+ * Fallback: download audio via yt-dlp and transcribe with Gemini.
+ * Used when YouTube captions/auto-subs aren't available.
+ */
+async function fetchTranscriptGemini(videoId: string): Promise<string | null> {
+  const geminiApiKey = process.env.GEMINI_API_KEY;
+  if (!geminiApiKey) {
+    console.log('      [transcript] Gemini fallback skipped (no GEMINI_API_KEY)');
+    return null;
+  }
+
+  const tempBase = join(tmpdir(), `howard-audio-${videoId}-${Date.now()}`);
+  const tempFile = `${tempBase}.mp3`;
+  const url = `https://www.youtube.com/watch?v=${videoId}`;
+
+  console.log('      [transcript] Gemini fallback: downloading audio...');
+
+  try {
+    // Download audio as mono mp3 at 48kbps to keep file size reasonable
+    await new Promise<void>((resolve, reject) => {
+      execFile(
+        'yt-dlp',
+        [
+          '-x',
+          '--audio-format', 'mp3',
+          '--postprocessor-args', 'ffmpeg:-ac 1 -b:a 48k',
+          '-o', `${tempBase}.%(ext)s`,
+          url,
+        ],
+        { timeout: 180000 },
+        (error, _stdout, stderr) => {
+          if (error) {
+            console.log(`      [transcript] yt-dlp audio error: ${error.message}`);
+            if (stderr) console.log(`      [transcript] stderr: ${stderr.substring(0, 300)}`);
+            reject(error);
+            return;
+          }
+          resolve();
+        }
+      );
+    });
+
+    const stats = await stat(tempFile);
+    const fileSizeMB = stats.size / (1024 * 1024);
+    console.log(`      [transcript] Audio downloaded: ${fileSizeMB.toFixed(1)}MB`);
+
+    const audioData = await readFile(tempFile);
+
+    // Always use File API — podcast audio is typically large
+    const transcript = await geminiTranscribeViaFileAPI(audioData, geminiApiKey);
+
+    if (transcript) {
+      console.log(`      [transcript] Gemini transcription: ${transcript.length} chars`);
+    } else {
+      console.log('      [transcript] Gemini returned no transcript');
+    }
+
+    return transcript;
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.log(`      [transcript] Gemini fallback failed: ${msg}`);
+    return null;
+  } finally {
+    try { await unlink(tempFile); } catch {}
+  }
+}
+
+const GEMINI_MODEL = 'gemini-2.5-flash';
+const GEMINI_PROMPT =
+  'Transcribe this audio verbatim. Return only the transcript text. No timestamps, no speaker labels, no markdown formatting.';
+
+async function geminiTranscribeInline(
+  audioData: Buffer,
+  apiKey: string
+): Promise<string | null> {
+  const res = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${apiKey}`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{
+          parts: [
+            { inline_data: { mime_type: 'audio/mpeg', data: audioData.toString('base64') } },
+            { text: GEMINI_PROMPT },
+          ],
+        }],
+      }),
+    }
+  );
+
+  if (!res.ok) {
+    const body = await res.text();
+    console.log(`      [transcript] Gemini API error: ${res.status} ${body.substring(0, 300)}`);
+    return null;
+  }
+
+  const data = await res.json();
+  return data.candidates?.[0]?.content?.parts?.[0]?.text || null;
+}
+
+async function geminiTranscribeViaFileAPI(
+  audioData: Buffer,
+  apiKey: string
+): Promise<string | null> {
+  // Step 1: Upload file
+  console.log('      [transcript] Uploading to Gemini File API...');
+  const uploadRes = await fetch(
+    `https://generativelanguage.googleapis.com/upload/v1beta/files?key=${apiKey}`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'audio/mpeg',
+        'X-Goog-Upload-Protocol': 'raw',
+      },
+      body: audioData,
+    }
+  );
+
+  if (!uploadRes.ok) {
+    const body = await uploadRes.text();
+    console.log(`      [transcript] Gemini upload error: ${uploadRes.status} ${body.substring(0, 300)}`);
+    return null;
+  }
+
+  const uploadData = await uploadRes.json();
+  const fileUri = uploadData.file?.uri;
+
+  if (!fileUri) {
+    console.log('      [transcript] Gemini upload: no file URI returned');
+    return null;
+  }
+
+  console.log(`      [transcript] Uploaded: ${fileUri}`);
+
+  // Wait for file processing
+  await new Promise(r => setTimeout(r, 5000));
+
+  // Step 2: Generate transcription from uploaded file
+  const res = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${apiKey}`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{
+          parts: [
+            { file_data: { mime_type: 'audio/mpeg', file_uri: fileUri } },
+            { text: GEMINI_PROMPT },
+          ],
+        }],
+      }),
+    }
+  );
+
+  if (!res.ok) {
+    const body = await res.text();
+    console.log(`      [transcript] Gemini API error: ${res.status} ${body.substring(0, 300)}`);
+    return null;
+  }
+
+  const data = await res.json();
+  return data.candidates?.[0]?.content?.parts?.[0]?.text || null;
 }
 
 interface YouTubeSearchItem {
@@ -233,15 +399,21 @@ export async function fetchYouTubeVideos(
         console.log(`\n    Processing: "${video.title}" [${video.channelTitle}]`);
         console.log(`    Video ID: ${video.videoId}`);
 
-        // Fetch transcript
+        // Fetch transcript (subtitles first, then Gemini audio fallback)
         let rawText: string | null = null;
         try {
           rawText = await fetchTranscript(video.videoId);
           if (rawText && rawText.length > 0) {
-            console.log(`    ✓ Transcript OK: ${rawText.length} chars`);
+            console.log(`    ✓ Transcript OK (subtitles): ${rawText.length} chars`);
           } else {
-            console.log(`    ⚠ No transcript available`);
-            rawText = null;
+            console.log(`    ⚠ No subtitles — trying Gemini audio transcription...`);
+            rawText = await fetchTranscriptGemini(video.videoId);
+            if (rawText && rawText.length > 0) {
+              console.log(`    ✓ Transcript OK (Gemini): ${rawText.length} chars`);
+            } else {
+              console.log(`    ⚠ No transcript available`);
+              rawText = null;
+            }
           }
         } catch (err) {
           const msg = err instanceof Error ? err.message : String(err);
