@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { useBriefingData, decode, timeAgo, sentimentColor } from '../../briefings/_shared';
+import { useBriefingData, sentimentColor } from '../../briefings/_shared';
 
 /* Variant P — Predictions Tracker
    Two-panel: scrollable prediction list + detail inspector.
@@ -18,7 +18,7 @@ const g = {
 };
 
 export default function LayoutP() {
-  const { content, predictions, trending, loading } = useBriefingData();
+  const { predictions, loading } = useBriefingData();
   const [selected, setSelected] = useState(0);
   const [filter, setFilter] = useState<string | null>(null);
 

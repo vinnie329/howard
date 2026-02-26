@@ -20,7 +20,7 @@ const v = {
 };
 
 export default function LayoutJ() {
-  const { content, outlooks, trending, predictions, loading } = useBriefingData();
+  const { content, outlooks, trending, predictions: _predictions, loading } = useBriefingData();
   const [activeHorizon, setActiveHorizon] = useState<string>('medium');
 
   if (loading) return <div style={{ minHeight: '100vh', background: v.bg, fontFamily: v.mono, fontSize: 12, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>Loading...</div>;

@@ -412,7 +412,7 @@ function FundView({ holdings, funds, selectedFund }: { holdings: Holding[]; fund
 
 function OverlapView({
   data,
-  funds,
+  funds: _funds,
   expandedTicker,
   onToggle,
   getFundName,

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { useBriefingData, decode, timeAgo, sentimentColor, horizonLabel } from '../../briefings/_shared';
+import { useBriefingData, sentimentColor, horizonLabel } from '../../briefings/_shared';
 
 /* Variant O — Outlook Inspector
    Three-panel: left nav (sources/filters), center (outlook list), right (deep detail).
