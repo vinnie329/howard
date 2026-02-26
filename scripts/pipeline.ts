@@ -7,6 +7,7 @@
  *   3. Generate missing embeddings (Voyage AI)
  *   4. Evaluate & update outlooks (Claude)
  *   5. Generate signals (Claude + Yahoo Finance)
+ *   6. Fetch 13F holdings (SEC EDGAR)
  *
  * Usage:
  *   npx tsx scripts/pipeline.ts            # run all steps
@@ -15,6 +16,7 @@
  *   npx tsx scripts/pipeline.ts --embed    # only embeddings
  *   npx tsx scripts/pipeline.ts --outlook  # only outlook
  *   npx tsx scripts/pipeline.ts --signals  # only signals
+ *   npx tsx scripts/pipeline.ts --13f      # only 13F holdings
  */
 
 import { execSync } from 'child_process';
@@ -28,6 +30,7 @@ const runAnalyze = runAll || args.includes('--analyze');
 const runEmbed = runAll || args.includes('--embed');
 const runOutlook = runAll || args.includes('--outlook');
 const runSignals = runAll || args.includes('--signals');
+const run13f = runAll || args.includes('--13f');
 
 function run(label: string, script: string) {
   const divider = '─'.repeat(50);
@@ -54,11 +57,12 @@ function run(label: string, script: string) {
 console.log('\n  Howard Pipeline\n');
 
 const steps: [boolean, string, string][] = [
-  [runFetch, 'Step 1/5 — Fetch content', 'scripts/fetch-all.ts'],
-  [runAnalyze, 'Step 2/5 — Analyze content', 'scripts/analyze-content.ts'],
-  [runEmbed, 'Step 3/5 — Generate embeddings', 'scripts/generate-embeddings.ts'],
-  [runOutlook, 'Step 4/5 — Update outlooks', 'scripts/update-outlook.ts'],
-  [runSignals, 'Step 5/5 — Generate signals', 'scripts/generate-signals.ts'],
+  [runFetch, 'Step 1/6 — Fetch content', 'scripts/fetch-all.ts'],
+  [runAnalyze, 'Step 2/6 — Analyze content', 'scripts/analyze-content.ts'],
+  [runEmbed, 'Step 3/6 — Generate embeddings', 'scripts/generate-embeddings.ts'],
+  [runOutlook, 'Step 4/6 — Update outlooks', 'scripts/update-outlook.ts'],
+  [runSignals, 'Step 5/6 — Generate signals', 'scripts/generate-signals.ts'],
+  [run13f, 'Step 6/6 — Fetch 13F holdings', 'scripts/fetch-13f.ts'],
 ];
 
 const active = steps.filter(([enabled]) => enabled);

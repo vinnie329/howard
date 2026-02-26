@@ -622,6 +622,91 @@ export async function getOutlookHistoryById(id: string): Promise<OutlookHistory 
   }
 }
 
+// --- 13F Holdings ---
+
+export interface Fund {
+  id: string;
+  name: string;
+  slug: string;
+  cik: string;
+  manager_name: string | null;
+}
+
+export interface Holding {
+  id: string;
+  fund_id: string;
+  filing_date: string;
+  cusip: string;
+  ticker: string | null;
+  company_name: string;
+  title_of_class: string | null;
+  value: number;
+  shares: number;
+  share_change: number;
+  change_type: string;
+  option_type: string | null;
+  investment_discretion: string;
+}
+
+export async function getFunds(): Promise<Fund[]> {
+  if (!hasSupabase) return [];
+
+  try {
+    const supabase = getSupabaseClient();
+    const { data, error } = await supabase
+      .from('funds')
+      .select('*')
+      .order('name');
+
+    if (error || !data) return [];
+    return data;
+  } catch {
+    return [];
+  }
+}
+
+export async function getHoldings(fundId?: string, filingDate?: string): Promise<Holding[]> {
+  if (!hasSupabase) return [];
+
+  try {
+    const supabase = getSupabaseClient();
+    let query = supabase
+      .from('holdings')
+      .select('*')
+      .order('value', { ascending: false });
+
+    if (fundId) query = query.eq('fund_id', fundId);
+    if (filingDate) query = query.eq('filing_date', filingDate);
+
+    const { data, error } = await query;
+    if (error || !data) return [];
+    return data;
+  } catch {
+    return [];
+  }
+}
+
+export async function getFilingDates(fundId?: string): Promise<string[]> {
+  if (!hasSupabase) return [];
+
+  try {
+    const supabase = getSupabaseClient();
+    let query = supabase
+      .from('holdings')
+      .select('filing_date');
+
+    if (fundId) query = query.eq('fund_id', fundId);
+
+    const { data, error } = await query;
+    if (error || !data) return [];
+
+    const unique = Array.from(new Set(data.map((d: { filing_date: string }) => d.filing_date)));
+    return unique.sort().reverse();
+  } catch {
+    return [];
+  }
+}
+
 // --- Semantic search / related content ---
 
 export interface SearchResult {
