@@ -26,6 +26,16 @@ const SYMBOLS = [
   { ticker: 'CSCO', name: 'Cisco', tv: 'NASDAQ:CSCO' },
   { ticker: 'DELL', name: 'Dell', tv: 'NYSE:DELL' },
   { ticker: 'HPE', name: 'HPE', tv: 'NYSE:HPE' },
+  // Data & Cybersecurity (GS Software Opportunities thesis)
+  { ticker: 'SNOW', name: 'Snowflake', tv: 'NYSE:SNOW' },
+  { ticker: 'MDB', name: 'MongoDB', tv: 'NASDAQ:MDB' },
+  { ticker: 'CFLT', name: 'Confluent', tv: 'NASDAQ:CFLT' },
+  { ticker: 'INFA', name: 'Informatica', tv: 'NYSE:INFA' },
+  { ticker: 'CRWD', name: 'CrowdStrike', tv: 'NASDAQ:CRWD' },
+  { ticker: 'PANW', name: 'Palo Alto Networks', tv: 'NASDAQ:PANW' },
+  { ticker: 'ZS', name: 'Zscaler', tv: 'NASDAQ:ZS' },
+  { ticker: 'FTNT', name: 'Fortinet', tv: 'NASDAQ:FTNT' },
+  { ticker: 'S', name: 'SentinelOne', tv: 'NYSE:S' },
   // Crypto & Commodities
   { ticker: 'BTC-USD', name: 'Bitcoin', tv: 'BITSTAMP:BTCUSD' },
   { ticker: 'ETH-USD', name: 'Ethereum', tv: 'BITSTAMP:ETHUSD' },

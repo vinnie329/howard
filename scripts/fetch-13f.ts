@@ -23,6 +23,12 @@ const FUNDS = [
     cik: '0002045724',
     manager_name: 'Leopold Aschenbrenner',
   },
+  {
+    name: 'Altimeter Capital Management',
+    slug: 'altimeter-capital',
+    cik: '0001541617',
+    manager_name: 'Brad Gerstner',
+  },
 ];
 
 // CUSIP → ticker mapping (common ones for SA's portfolio)

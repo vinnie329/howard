@@ -14,6 +14,16 @@ const SYMBOLS = [
   // Indices
   { ticker: '^GSPC', name: 'S&P 500', tv: 'SP:SPX' },
   { ticker: '^IXIC', name: 'NASDAQ', tv: 'NASDAQ:IXIC' },
+  // Data & Cybersecurity
+  { ticker: 'SNOW', name: 'Snowflake', tv: 'NYSE:SNOW' },
+  { ticker: 'MDB', name: 'MongoDB', tv: 'NASDAQ:MDB' },
+  { ticker: 'CFLT', name: 'Confluent', tv: 'NASDAQ:CFLT' },
+  { ticker: 'INFA', name: 'Informatica', tv: 'NYSE:INFA' },
+  { ticker: 'CRWD', name: 'CrowdStrike', tv: 'NASDAQ:CRWD' },
+  { ticker: 'PANW', name: 'Palo Alto Networks', tv: 'NASDAQ:PANW' },
+  { ticker: 'ZS', name: 'Zscaler', tv: 'NASDAQ:ZS' },
+  { ticker: 'FTNT', name: 'Fortinet', tv: 'NASDAQ:FTNT' },
+  { ticker: 'S', name: 'SentinelOne', tv: 'NYSE:S' },
   // Core Semis
   { ticker: 'NVDA', name: 'NVIDIA', tv: 'NASDAQ:NVDA' },
   { ticker: 'MU', name: 'Micron', tv: 'NASDAQ:MU' },
