@@ -3,51 +3,109 @@ import { getSupabaseServiceClient } from '@/lib/supabase';
 
 export const dynamic = 'force-dynamic';
 
-const SYMBOLS = [
+interface SymbolEntry {
+  ticker: string;
+  name: string;
+  tv: string;
+  source: 'core' | '13f';
+}
+
+const CORE_SYMBOLS: SymbolEntry[] = [
   // Core
-  { ticker: 'NVDA', name: 'NVIDIA', tv: 'NASDAQ:NVDA' },
-  { ticker: 'MU', name: 'Micron', tv: 'NASDAQ:MU' },
-  { ticker: 'MRVL', name: 'Marvell', tv: 'NASDAQ:MRVL' },
-  { ticker: 'AVGO', name: 'Broadcom', tv: 'NASDAQ:AVGO' },
-  { ticker: 'ANET', name: 'Arista', tv: 'NYSE:ANET' },
-  { ticker: 'VST', name: 'Vistra', tv: 'NYSE:VST' },
+  { ticker: 'NVDA', name: 'NVIDIA', tv: 'NASDAQ:NVDA', source: 'core' },
+  { ticker: 'MU', name: 'Micron', tv: 'NASDAQ:MU', source: 'core' },
+  { ticker: 'MRVL', name: 'Marvell', tv: 'NASDAQ:MRVL', source: 'core' },
+  { ticker: 'AVGO', name: 'Broadcom', tv: 'NASDAQ:AVGO', source: 'core' },
+  { ticker: 'ANET', name: 'Arista', tv: 'NYSE:ANET', source: 'core' },
+  { ticker: 'VST', name: 'Vistra', tv: 'NYSE:VST', source: 'core' },
   // Monitoring
-  { ticker: 'ARM', name: 'ARM Holdings', tv: 'NASDAQ:ARM' },
-  { ticker: 'PLTR', name: 'Palantir', tv: 'NYSE:PLTR' },
+  { ticker: 'ARM', name: 'ARM Holdings', tv: 'NASDAQ:ARM', source: 'core' },
+  { ticker: 'CRWV', name: 'CoreWeave', tv: 'NASDAQ:CRWV', source: 'core' },
+  { ticker: 'PLTR', name: 'Palantir', tv: 'NYSE:PLTR', source: 'core' },
   // Hyperscalers
-  { ticker: 'MSFT', name: 'Microsoft', tv: 'NASDAQ:MSFT' },
-  { ticker: 'GOOGL', name: 'Google', tv: 'NASDAQ:GOOGL' },
-  { ticker: 'AMZN', name: 'Amazon', tv: 'NASDAQ:AMZN' },
-  { ticker: 'META', name: 'Meta', tv: 'NASDAQ:META' },
+  { ticker: 'MSFT', name: 'Microsoft', tv: 'NASDAQ:MSFT', source: 'core' },
+  { ticker: 'GOOGL', name: 'Google', tv: 'NASDAQ:GOOGL', source: 'core' },
+  { ticker: 'AMZN', name: 'Amazon', tv: 'NASDAQ:AMZN', source: 'core' },
+  { ticker: 'META', name: 'Meta', tv: 'NASDAQ:META', source: 'core' },
   // Other Tech
-  { ticker: 'AMD', name: 'AMD', tv: 'NASDAQ:AMD' },
-  { ticker: 'INTC', name: 'Intel', tv: 'NASDAQ:INTC' },
-  { ticker: 'TSM', name: 'TSMC', tv: 'NYSE:TSM' },
-  { ticker: 'CSCO', name: 'Cisco', tv: 'NASDAQ:CSCO' },
-  { ticker: 'DELL', name: 'Dell', tv: 'NYSE:DELL' },
-  { ticker: 'HPE', name: 'HPE', tv: 'NYSE:HPE' },
+  { ticker: 'AMD', name: 'AMD', tv: 'NASDAQ:AMD', source: 'core' },
+  { ticker: 'INTC', name: 'Intel', tv: 'NASDAQ:INTC', source: 'core' },
+  { ticker: 'TSM', name: 'TSMC', tv: 'NYSE:TSM', source: 'core' },
+  { ticker: 'CSCO', name: 'Cisco', tv: 'NASDAQ:CSCO', source: 'core' },
+  { ticker: 'DELL', name: 'Dell', tv: 'NYSE:DELL', source: 'core' },
+  { ticker: 'HPE', name: 'HPE', tv: 'NYSE:HPE', source: 'core' },
   // Data & Cybersecurity (GS Software Opportunities thesis)
-  { ticker: 'SNOW', name: 'Snowflake', tv: 'NYSE:SNOW' },
-  { ticker: 'MDB', name: 'MongoDB', tv: 'NASDAQ:MDB' },
-  { ticker: 'CFLT', name: 'Confluent', tv: 'NASDAQ:CFLT' },
-  { ticker: 'INFA', name: 'Informatica', tv: 'NYSE:INFA' },
-  { ticker: 'CRWD', name: 'CrowdStrike', tv: 'NASDAQ:CRWD' },
-  { ticker: 'PANW', name: 'Palo Alto Networks', tv: 'NASDAQ:PANW' },
-  { ticker: 'ZS', name: 'Zscaler', tv: 'NASDAQ:ZS' },
-  { ticker: 'FTNT', name: 'Fortinet', tv: 'NASDAQ:FTNT' },
-  { ticker: 'S', name: 'SentinelOne', tv: 'NYSE:S' },
+  { ticker: 'SNOW', name: 'Snowflake', tv: 'NYSE:SNOW', source: 'core' },
+  { ticker: 'MDB', name: 'MongoDB', tv: 'NASDAQ:MDB', source: 'core' },
+  { ticker: 'CFLT', name: 'Confluent', tv: 'NASDAQ:CFLT', source: 'core' },
+  { ticker: 'INFA', name: 'Informatica', tv: 'NYSE:INFA', source: 'core' },
+  { ticker: 'CRWD', name: 'CrowdStrike', tv: 'NASDAQ:CRWD', source: 'core' },
+  { ticker: 'PANW', name: 'Palo Alto Networks', tv: 'NASDAQ:PANW', source: 'core' },
+  { ticker: 'ZS', name: 'Zscaler', tv: 'NASDAQ:ZS', source: 'core' },
+  { ticker: 'FTNT', name: 'Fortinet', tv: 'NASDAQ:FTNT', source: 'core' },
+  { ticker: 'S', name: 'SentinelOne', tv: 'NYSE:S', source: 'core' },
   // Crypto & Commodities
-  { ticker: 'BTC-USD', name: 'Bitcoin', tv: 'BITSTAMP:BTCUSD' },
-  { ticker: 'ETH-USD', name: 'Ethereum', tv: 'BITSTAMP:ETHUSD' },
-  { ticker: 'ZEC-USD', name: 'Zcash', tv: 'BINANCE:ZECUSDT' },
-  { ticker: 'GC=F', name: 'Gold', tv: 'COMEX:GC1!' },
-  { ticker: 'SI=F', name: 'Silver', tv: 'COMEX:SI1!' },
-  { ticker: 'HG=F', name: 'Copper', tv: 'COMEX:HG1!' },
+  { ticker: 'BTC-USD', name: 'Bitcoin', tv: 'BITSTAMP:BTCUSD', source: 'core' },
+  { ticker: 'ETH-USD', name: 'Ethereum', tv: 'BITSTAMP:ETHUSD', source: 'core' },
+  { ticker: 'ZEC-USD', name: 'Zcash', tv: 'BINANCE:ZECUSDT', source: 'core' },
+  { ticker: 'GC=F', name: 'Gold', tv: 'COMEX:GC1!', source: 'core' },
+  { ticker: 'SI=F', name: 'Silver', tv: 'COMEX:SI1!', source: 'core' },
+  { ticker: 'HG=F', name: 'Copper', tv: 'COMEX:HG1!', source: 'core' },
   // Indices
-  { ticker: '^GSPC', name: 'S&P 500', tv: 'SP:SPX' },
-  { ticker: '^DJI', name: 'Dow Jones', tv: 'DJ:DJI' },
-  { ticker: '^IXIC', name: 'NASDAQ', tv: 'NASDAQ:IXIC' },
+  { ticker: '^GSPC', name: 'S&P 500', tv: 'SP:SPX', source: 'core' },
+  { ticker: '^DJI', name: 'Dow Jones', tv: 'DJ:DJI', source: 'core' },
+  { ticker: '^IXIC', name: 'NASDAQ', tv: 'NASDAQ:IXIC', source: 'core' },
 ];
+
+// Guess a TradingView symbol from a plain ticker
+function guessTvSymbol(ticker: string): string {
+  // Common NYSE-listed tickers
+  const nyse = new Set(['UBER', 'SNOW', 'HOOD', 'Z', 'CART', 'GRAB', 'RBLX', 'U', 'SOFI', 'NOW', 'WDAY', 'ABNB', 'SQ', 'SE', 'ARM', 'ALAB', 'RBRK', 'TTAN', 'FLUT', 'S', 'VST', 'ANET', 'PLTR', 'DELL', 'HPE', 'INFA', 'VRT']);
+  const exchange = nyse.has(ticker) ? 'NYSE' : 'NASDAQ';
+  return `${exchange}:${ticker}`;
+}
+
+async function get13FTickers(supabase: ReturnType<typeof getSupabaseServiceClient>): Promise<SymbolEntry[]> {
+  try {
+    // Get the latest filing date
+    const { data: latestFiling } = await supabase
+      .from('holdings')
+      .select('filing_date')
+      .order('filing_date', { ascending: false })
+      .limit(1);
+
+    if (!latestFiling || latestFiling.length === 0) return [];
+
+    const latestDate = latestFiling[0].filing_date;
+
+    // Get unique tickers from that filing date (equity positions only, skip options)
+    const { data: holdings } = await supabase
+      .from('holdings')
+      .select('ticker, company_name')
+      .eq('filing_date', latestDate)
+      .is('option_type', null)
+      .not('ticker', 'is', null);
+
+    if (!holdings) return [];
+
+    // Deduplicate by ticker
+    const seen = new Set<string>();
+    const entries: SymbolEntry[] = [];
+    for (const h of holdings) {
+      if (!h.ticker || seen.has(h.ticker)) continue;
+      seen.add(h.ticker);
+      entries.push({
+        ticker: h.ticker,
+        name: h.company_name,
+        tv: guessTvSymbol(h.ticker),
+        source: '13f',
+      });
+    }
+    return entries;
+  } catch {
+    return [];
+  }
+}
 
 interface MaExtremesRow {
   ticker: string;
@@ -94,12 +152,14 @@ interface TechnicalResult {
   devFromMa200w: number | null;
   historicalMaxDev200w: number | null;
   historicalMinDev200w: number | null;
+  source: 'core' | '13f';
 }
 
 async function fetchTechnicals(
   ticker: string,
   name: string,
   tv: string,
+  source: 'core' | '13f',
   extremes: MaExtremesRow | undefined,
 ): Promise<{ result: TechnicalResult; update: MaExtremesRow | null } | null> {
   try {
@@ -164,6 +224,7 @@ async function fetchTechnicals(
       devFromMa200w,
       historicalMaxDev200w: maxDev200w,
       historicalMinDev200w: minDev200w,
+      source,
     };
 
     const update = needsUpdate
@@ -179,6 +240,12 @@ async function fetchTechnicals(
 export async function GET() {
   const supabase = getSupabaseServiceClient();
 
+  // Merge core symbols with 13F holdings tickers
+  const holdingsTickers = await get13FTickers(supabase);
+  const coreTickers = new Set(CORE_SYMBOLS.map((s) => s.ticker));
+  const extraFromHoldings = holdingsTickers.filter((h) => !coreTickers.has(h.ticker));
+  const SYMBOLS = [...CORE_SYMBOLS, ...extraFromHoldings];
+
   // Load stored extremes from Supabase
   const extremesMap = new Map<string, MaExtremesRow>();
   try {
@@ -192,9 +259,16 @@ export async function GET() {
     // Non-fatal — will proceed without stored extremes
   }
 
-  const fetched = await Promise.all(
-    SYMBOLS.map((s) => fetchTechnicals(s.ticker, s.name, s.tv, extremesMap.get(s.ticker)))
-  );
+  // Fetch in batches of 15 to avoid hammering Yahoo Finance
+  const BATCH_SIZE = 15;
+  const fetched: (Awaited<ReturnType<typeof fetchTechnicals>>)[] = [];
+  for (let i = 0; i < SYMBOLS.length; i += BATCH_SIZE) {
+    const batch = SYMBOLS.slice(i, i + BATCH_SIZE);
+    const results = await Promise.all(
+      batch.map((s) => fetchTechnicals(s.ticker, s.name, s.tv, s.source, extremesMap.get(s.ticker)))
+    );
+    fetched.push(...results);
+  }
 
   const technicals: TechnicalResult[] = [];
   const updates: Array<{ ticker: string; name: string; tv_symbol: string; max_dev_200d: number | null; min_dev_200d: number | null; max_dev_200w: number | null; min_dev_200w: number | null }> = [];

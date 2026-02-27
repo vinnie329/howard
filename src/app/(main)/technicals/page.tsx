@@ -17,8 +17,10 @@ interface TechnicalData {
   devFromMa200w: number | null;
   historicalMaxDev200w: number | null;
   historicalMinDev200w: number | null;
+  source: 'core' | '13f';
 }
 
+type SourceFilter = 'all' | 'core' | '13f';
 type SortKey = 'name' | 'price' | 'dev200d' | 'dev200w';
 type SortDir = 'asc' | 'desc';
 
@@ -46,6 +48,7 @@ export default function TechnicalsPage() {
   const [loading, setLoading] = useState(true);
   const [sortKey, setSortKey] = useState<SortKey>('dev200d');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
+  const [sourceFilter, setSourceFilter] = useState<SourceFilter>('all');
 
   useEffect(() => {
     fetch('/api/technicals')
@@ -66,8 +69,13 @@ export default function TechnicalsPage() {
     }
   };
 
+  const filtered = useMemo(() => {
+    if (sourceFilter === 'all') return data;
+    return data.filter((d) => d.source === sourceFilter);
+  }, [data, sourceFilter]);
+
   const sorted = useMemo(() => {
-    const arr = [...data];
+    const arr = [...filtered];
     const dir = sortDir === 'desc' ? -1 : 1;
     arr.sort((a, b) => {
       switch (sortKey) {
@@ -84,10 +92,11 @@ export default function TechnicalsPage() {
       }
     });
     return arr;
-  }, [data, sortKey, sortDir]);
+  }, [filtered, sortKey, sortDir]);
 
-  const above200d = data.filter((d) => d.devFromMa200d !== null && d.devFromMa200d > 0).length;
-  const above200w = data.filter((d) => d.devFromMa200w !== null && d.devFromMa200w > 0).length;
+  const above200d = filtered.filter((d) => d.devFromMa200d !== null && d.devFromMa200d > 0).length;
+  const above200w = filtered.filter((d) => d.devFromMa200w !== null && d.devFromMa200w > 0).length;
+  const holdingsCount = data.filter((d) => d.source === '13f').length;
 
   const sortIndicator = (key: SortKey) => {
     if (sortKey !== key) return '';
@@ -105,21 +114,45 @@ export default function TechnicalsPage() {
       <div style={{ padding: 'var(--space-6)', overflowY: 'auto', flex: 1 }}>
         <h1 style={{ marginBottom: 'var(--space-3)' }}>Moving Average Deviation</h1>
 
-        {/* Summary row */}
-        <div className="mono" style={{
-          fontSize: 11,
-          color: 'var(--text-secondary)',
-          marginBottom: 'var(--space-6)',
-          display: 'flex',
-          gap: 'var(--space-4)',
-        }}>
-          <span>
-            <span style={{ color: 'var(--green)' }}>{above200d}</span>/{data.length} above 200d MA
-          </span>
-          <span style={{ color: 'var(--text-tertiary)' }}>|</span>
-          <span>
-            <span style={{ color: 'var(--green)' }}>{above200w}</span>/{data.length} above 200w MA
-          </span>
+        {/* Filter tabs */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-4)', marginBottom: 'var(--space-4)' }}>
+          <div className="filter-tabs" style={{ marginBottom: 0 }}>
+            <button
+              className={`filter-tab ${sourceFilter === 'all' ? 'active' : ''}`}
+              onClick={() => setSourceFilter('all')}
+            >
+              All ({data.length})
+            </button>
+            <button
+              className={`filter-tab ${sourceFilter === 'core' ? 'active' : ''}`}
+              onClick={() => setSourceFilter('core')}
+            >
+              Core
+            </button>
+            <button
+              className={`filter-tab ${sourceFilter === '13f' ? 'active' : ''}`}
+              onClick={() => setSourceFilter('13f')}
+            >
+              13F Holdings ({holdingsCount})
+            </button>
+          </div>
+
+          {/* Summary */}
+          <div className="mono" style={{
+            fontSize: 11,
+            color: 'var(--text-secondary)',
+            display: 'flex',
+            gap: 'var(--space-4)',
+            marginLeft: 'auto',
+          }}>
+            <span>
+              <span style={{ color: 'var(--green)' }}>{above200d}</span>/{filtered.length} above 200d MA
+            </span>
+            <span style={{ color: 'var(--text-tertiary)' }}>|</span>
+            <span>
+              <span style={{ color: 'var(--green)' }}>{above200w}</span>/{filtered.length} above 200w MA
+            </span>
+          </div>
         </div>
 
         {loading ? (
@@ -175,11 +208,23 @@ export default function TechnicalsPage() {
                 onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
               >
                 {/* Asset */}
-                <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
                   <span style={{ fontSize: 13, color: 'var(--text-primary)' }}>{item.name}</span>
-                  <span className="mono" style={{ fontSize: 10, color: 'var(--text-tertiary)', marginLeft: 'var(--space-2)' }}>
+                  <span className="mono" style={{ fontSize: 10, color: 'var(--text-tertiary)' }}>
                     {item.symbol}
                   </span>
+                  {item.source === '13f' && (
+                    <span style={{
+                      fontSize: 9,
+                      padding: '1px 4px',
+                      borderRadius: 2,
+                      background: 'var(--accent-dim)',
+                      color: 'var(--accent)',
+                      fontFamily: 'var(--font-mono)',
+                    }}>
+                      13F
+                    </span>
+                  )}
                 </div>
 
                 {/* Price */}

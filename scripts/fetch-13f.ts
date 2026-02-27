@@ -581,14 +581,40 @@ async function main() {
 
       if (rawHoldings.length === 0) continue;
 
+      // Deduplicate by cusip + option_type (some filings list same security multiple times)
+      const dedupMap = new Map<string, Holding13F>();
+      for (const h of rawHoldings) {
+        const key = `${h.cusip}:${h.option_type || 'equity'}`;
+        const existing = dedupMap.get(key);
+        if (existing) {
+          // Merge: sum values and shares for same position
+          existing.value += h.value;
+          existing.shares += h.shares;
+          console.log(`    Merged duplicate: ${h.company_name} (${h.cusip}) - ${h.shares} shares`);
+        } else {
+          dedupMap.set(key, { ...h });
+        }
+      }
+      const dedupedHoldings = Array.from(dedupMap.values());
+      if (dedupedHoldings.length < rawHoldings.length) {
+        console.log(`  Deduplicated: ${rawHoldings.length} → ${dedupedHoldings.length} holdings`);
+      }
+
       // Resolve tickers and prepare records
-      const holdingsWithTickers = rawHoldings.map((h) => ({
+      const holdingsWithTickers = dedupedHoldings.map((h) => ({
         ...h,
         ticker: resolveTickerFromCusip(h.cusip, h.company_name),
       }));
 
       // Compute share changes relative to previous quarter
       const records = await computeShareChanges(fundRow.id, reportDate, holdingsWithTickers);
+
+      // Delete any existing holdings for this fund+date (idempotent re-runs)
+      await supabase
+        .from('holdings')
+        .delete()
+        .eq('fund_id', fundRow.id)
+        .eq('filing_date', reportDate);
 
       // Insert holdings
       const { error: insertError } = await supabase.from('holdings').insert(records);
