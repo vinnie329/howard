@@ -16,6 +16,7 @@ const navItems: NavItem[] = [
   { label: 'Technicals', href: '/technicals' },
   { label: 'Signals', href: '/signals' },
   { label: 'Outlook', href: '/outlook' },
+  { label: 'Positioning', href: '/positioning' },
   { label: 'Predictions Ledger', href: '/predictions' },
   { label: '13F Holdings', href: '/holdings' },
   { label: 'Sources', href: '/discovery' },
