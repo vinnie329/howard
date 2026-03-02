@@ -162,7 +162,7 @@ export default function TechnicalsPage() {
             No data available.
           </div>
         ) : (
-          <div style={{
+          <div className="table-scroll"><div style={{
             border: '1px solid var(--border)',
             borderRadius: 'var(--radius-md)',
             overflow: 'hidden',
@@ -265,7 +265,7 @@ export default function TechnicalsPage() {
                 </div>
               </a>
             ))}</div>
-          </div>
+          </div></div>
         )}
 
         <div className="mono" style={{ marginTop: 'var(--space-4)', fontSize: 10, color: 'var(--text-tertiary)' }}>

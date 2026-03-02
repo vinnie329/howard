@@ -69,7 +69,7 @@ export default function TickerTape() {
 
   if (tickers.length === 0) {
     return (
-      <div style={{
+      <div className="ticker-tape" style={{
         height: 32,
         minHeight: 32,
         maxWidth: 1728,
@@ -87,7 +87,7 @@ export default function TickerTape() {
   const repeated = [...tickers, ...tickers, ...tickers, ...tickers];
 
   return (
-    <div style={{
+    <div className="ticker-tape" style={{
       height: 32,
       minHeight: 32,
       maxWidth: 1728,

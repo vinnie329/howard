@@ -831,3 +831,27 @@ export async function getRelatedPredictions(
     return [];
   }
 }
+
+// --- Positioning ---
+
+export interface PositioningData {
+  narrative: string;
+  opportunities: Array<{ ticker: string; name: string; rationale: string }>;
+  fat_pitches: Array<{ ticker: string; name: string; dev200d: number }>;
+  avoids: string[];
+  posture: 'aggressive' | 'lean-in' | 'neutral' | 'cautious' | 'defensive';
+  generated_at: string;
+}
+
+export async function getPositioning(refresh = false): Promise<PositioningData | null> {
+  try {
+    const url = refresh ? '/api/positioning?refresh=true' : '/api/positioning';
+    const res = await fetch(url);
+    if (!res.ok) return null;
+    const data = await res.json();
+    if (!data || !data.narrative) return null;
+    return data as PositioningData;
+  } catch {
+    return null;
+  }
+}

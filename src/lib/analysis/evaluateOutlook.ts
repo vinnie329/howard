@@ -31,33 +31,29 @@ export interface OutlookEvaluation {
 
 // --- Weighting functions ---
 
-const SHORT_TERM_THEMES = [
-  'liquidity', 'fed', 'repo', 'volatility', 'sentiment', 'crypto',
-  'positioning', 'options', 'vix', 'flows', 'short-term', 'catalyst',
-  'earnings', 'bitcoin', 'risk-off', 'risk-on',
-];
-
 const MEDIUM_TERM_THEMES = [
   'cycle', 'policy', 'gold', 'inflation', 'rates', 'rotation',
   'yield', 'semiconductor', 'energy', 'commodities', 'capex',
   'fiscal', 'manufacturing', 'grid', 'memory', 'copper', 'uranium',
+  'liquidity', 'fed', 'earnings', 'positioning', 'flows', 'crypto',
+  'bitcoin', 'options', 'catalyst',
 ];
 
 const LONG_TERM_THEMES = [
   'structural', 'demographics', 'debt', 'ai transformation', 'deglobalization',
   'energy transition', 'sovereignty', 'nationalism', 'nuclear', 'labor',
   'ubi', 'monetary reset', 'regime change', 'geopolitics', 'rare earth',
+  'ai capex', 'robotics', 'space', 'currency debasement', 'de-dollarization',
+  'fiscal deficits', 'debt crisis',
 ];
 
 export function getTimeHorizonRelevance(
   themes: string[],
   timeHorizon: 'short' | 'medium' | 'long',
 ): number {
-  const themeSet = timeHorizon === 'short'
-    ? SHORT_TERM_THEMES
-    : timeHorizon === 'medium'
-      ? MEDIUM_TERM_THEMES
-      : LONG_TERM_THEMES;
+  const themeSet = timeHorizon === 'medium'
+    ? MEDIUM_TERM_THEMES
+    : LONG_TERM_THEMES;
 
   const lowerThemes = themes.map((t) => t.toLowerCase());
   let matches = 0;
@@ -70,8 +66,9 @@ export function getTimeHorizonRelevance(
     }
   }
 
-  // Base relevance of 0.2 (all content has some relevance) + match bonus
-  return Math.min(1, 0.2 + (matches / Math.max(themes.length, 1)) * 0.8);
+  // Zero base — only content with matching themes gets included
+  if (matches === 0) return 0;
+  return Math.min(1, matches / Math.max(themes.length, 1));
 }
 
 export function getRecencyWeight(publishedAt: string): number {
@@ -152,11 +149,24 @@ export async function evaluateOutlook(
     .map((p) => `  - ${p}`)
     .join('\n');
 
-  const horizonDesc = timeHorizon === 'short'
-    ? 'short-term (30 days) — Focus on immediate catalysts, liquidity, sentiment'
-    : timeHorizon === 'medium'
-      ? 'medium-term (12 months) — Focus on cyclical factors, policy shifts, sector rotations'
-      : 'long-term (5+ years) — Focus on structural trends, regime changes, secular shifts';
+  const horizonDesc = timeHorizon === 'medium'
+    ? 'medium-term (12 months) — Focus on cyclical factors, policy shifts, sector rotations, current positioning'
+    : 'long-term (5+ years) — Focus ONLY on structural/secular trends, regime changes, demographic shifts';
+
+  const horizonRules = timeHorizon === 'medium'
+    ? `MEDIUM-TERM RULES:
+- Include: cyclical positioning, rate/policy outlook, sector rotation calls, commodity cycles, earnings-driven theses
+- Include: specific trade ideas with 6-12 month timeframes
+- EXCLUDE: multi-decade structural shifts (those belong in long-term)
+- EXCLUDE: vague generalities — every point must be actionable within 12 months
+- Keep thesis_points to 3-5 maximum. Each must be distinct and non-overlapping.
+- Keep positioning to 4-6 items maximum. Be specific (e.g. "Overweight gold miners" not "Consider commodities").`
+    : `LONG-TERM RULES:
+- Include ONLY: structural regime changes, demographic megatrends, technological paradigm shifts, monetary system evolution
+- EXCLUDE: anything with a 12-month or shorter timeframe (that belongs in medium-term)
+- EXCLUDE: specific trade ideas or cyclical positioning
+- Keep thesis_points to 3-4 maximum. Each should describe a multi-year structural force.
+- Keep positioning to 3-5 items maximum. These are decade-long portfolio tilts, not trades.`;
 
   const client = new Anthropic({ apiKey: anthropicKey });
 
@@ -166,7 +176,7 @@ export async function evaluateOutlook(
     messages: [
       {
         role: 'user',
-        content: `You are Howard, a financial intelligence system that maintains market outlooks across three time horizons. You synthesize insights from trusted sources, weighted by their credibility scores.
+        content: `You are Howard, a financial intelligence system that maintains market outlooks across two time horizons (12-month and 5-year). You synthesize insights from trusted sources, weighted by their credibility scores.
 
 ## Current ${timeHorizon.toUpperCase()} Outlook
 Title: ${currentOutlook.title}
@@ -185,24 +195,33 @@ Key themes: ${currentOutlook.key_themes.join(', ')}
 ## Recent Intelligence (Last 30 Days)
 ${analysesText}
 
+## Horizon Rules
+${horizonRules}
+
 ## Your Task
 Evaluate whether the ${horizonDesc} outlook should be updated based on this new intelligence.
+
+CRITICAL — Precision over volume:
+- Less is more. Remove weak or redundant points rather than accumulating.
+- Each thesis point must be DISTINCT — no overlapping ideas across points.
+- Positioning items must be specific and actionable, not vague.
+- If two thesis points say similar things, merge them or drop the weaker one.
+- key_themes should be 4-6 items maximum.
 
 Consider:
 1. **Confirmation**: Does new information strengthen existing thesis points?
 2. **Contradiction**: Does anything challenge or invalidate current views?
 3. **New signals**: Are there important themes or risks not currently captured?
 4. **Source weighting**: Higher credibility sources (4.0+) should carry more weight
-5. **Recency**: More recent analyses are more relevant
-6. **Time horizon fit**: Only include information relevant to the ${timeHorizon}-term view
+5. **Pruning**: Are any existing points stale, redundant, or better suited to the other time horizon? Remove them.
 
 Respond in JSON only (no markdown fences):
 {
   "should_update": boolean,
   "reasoning": "Explain why update is or isn't warranted",
   "updated_title": "New title if changed, otherwise null",
-  "updated_thesis_intro": "New intro if changed, otherwise null",
-  "updated_thesis_points": [{"heading": "Point title", "content": "Point content"}] or null if unchanged,
+  "updated_thesis_intro": "New intro if changed, otherwise null — keep to 1-2 sentences max",
+  "updated_thesis_points": [{"heading": "Point title", "content": "Point content — 1-2 sentences"}] or null if unchanged,
   "updated_positioning": ["Position 1", "Position 2"] or null if unchanged,
   "updated_key_themes": ["theme1", "theme2"] or null if unchanged,
   "updated_sentiment": "bullish|bearish|cautious|neutral" or null if unchanged,
@@ -212,9 +231,8 @@ Respond in JSON only (no markdown fences):
 
 Important:
 - Only recommend updates when there's meaningful new information
-- Preserve the structure and format of thesis points
-- Maintain consistency in tone and style
 - If updating, provide the COMPLETE updated field, not just the changes
+- Prune aggressively — remove anything that doesn't earn its place
 - Be specific in your reasoning`,
       },
     ],

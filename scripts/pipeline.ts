@@ -7,16 +7,18 @@
  *   3. Generate missing embeddings (Voyage AI)
  *   4. Evaluate & update outlooks (Claude)
  *   5. Generate signals (Claude + Yahoo Finance)
- *   6. Fetch 13F holdings (SEC EDGAR)
+ *   6. Generate positioning (Claude synthesis)
+ *   7. Fetch 13F holdings (SEC EDGAR)
  *
  * Usage:
- *   npx tsx scripts/pipeline.ts            # run all steps
- *   npx tsx scripts/pipeline.ts --fetch    # only fetch
- *   npx tsx scripts/pipeline.ts --analyze  # only analyze
- *   npx tsx scripts/pipeline.ts --embed    # only embeddings
- *   npx tsx scripts/pipeline.ts --outlook  # only outlook
- *   npx tsx scripts/pipeline.ts --signals  # only signals
- *   npx tsx scripts/pipeline.ts --13f      # only 13F holdings
+ *   npx tsx scripts/pipeline.ts                # run all steps
+ *   npx tsx scripts/pipeline.ts --fetch        # only fetch
+ *   npx tsx scripts/pipeline.ts --analyze      # only analyze
+ *   npx tsx scripts/pipeline.ts --embed        # only embeddings
+ *   npx tsx scripts/pipeline.ts --outlook      # only outlook
+ *   npx tsx scripts/pipeline.ts --signals      # only signals
+ *   npx tsx scripts/pipeline.ts --positioning  # only positioning
+ *   npx tsx scripts/pipeline.ts --13f          # only 13F holdings
  */
 
 import { execSync } from 'child_process';
@@ -30,7 +32,10 @@ const runAnalyze = runAll || args.includes('--analyze');
 const runEmbed = runAll || args.includes('--embed');
 const runOutlook = runAll || args.includes('--outlook');
 const runSignals = runAll || args.includes('--signals');
+const runPositioning = runAll || args.includes('--positioning');
 const run13f = runAll || args.includes('--13f');
+
+const failures: string[] = [];
 
 function run(label: string, script: string) {
   const divider = '─'.repeat(50);
@@ -49,20 +54,21 @@ function run(label: string, script: string) {
     console.log(`\n  ✓ ${label} completed in ${elapsed}s`);
   } catch (err) {
     const elapsed = ((Date.now() - start) / 1000).toFixed(1);
-    console.error(`\n  ✗ ${label} failed after ${elapsed}s`);
-    process.exit(1);
+    console.error(`\n  ✗ ${label} failed after ${elapsed}s — continuing pipeline`);
+    failures.push(label);
   }
 }
 
 console.log('\n  Howard Pipeline\n');
 
 const steps: [boolean, string, string][] = [
-  [runFetch, 'Step 1/6 — Fetch content', 'scripts/fetch-all.ts'],
-  [runAnalyze, 'Step 2/6 — Analyze content', 'scripts/analyze-content.ts'],
-  [runEmbed, 'Step 3/6 — Generate embeddings', 'scripts/generate-embeddings.ts'],
-  [runOutlook, 'Step 4/6 — Update outlooks', 'scripts/update-outlook.ts'],
-  [runSignals, 'Step 5/6 — Generate signals', 'scripts/generate-signals.ts'],
-  [run13f, 'Step 6/6 — Fetch 13F holdings', 'scripts/fetch-13f.ts'],
+  [runFetch, 'Step 1/7 — Fetch content', 'scripts/fetch-all.ts'],
+  [runAnalyze, 'Step 2/7 — Analyze content', 'scripts/analyze-content.ts'],
+  [runEmbed, 'Step 3/7 — Generate embeddings', 'scripts/generate-embeddings.ts'],
+  [runOutlook, 'Step 4/7 — Update outlooks', 'scripts/update-outlook.ts'],
+  [runSignals, 'Step 5/7 — Generate signals', 'scripts/generate-signals.ts'],
+  [runPositioning, 'Step 6/7 — Generate positioning', 'scripts/generate-positioning.ts'],
+  [run13f, 'Step 7/7 — Fetch 13F holdings', 'scripts/fetch-13f.ts'],
 ];
 
 const active = steps.filter(([enabled]) => enabled);
@@ -74,5 +80,12 @@ for (const [, label, script] of active) {
 
 const total = ((Date.now() - pipelineStart) / 1000).toFixed(1);
 console.log(`\n${'─'.repeat(50)}`);
-console.log(`  Pipeline complete — ${active.length} step${active.length !== 1 ? 's' : ''} in ${total}s`);
-console.log(`${'─'.repeat(50)}\n`);
+if (failures.length > 0) {
+  console.log(`  Pipeline finished with ${failures.length} failure${failures.length !== 1 ? 's' : ''} in ${total}s`);
+  for (const f of failures) console.log(`    ✗ ${f}`);
+  console.log(`${'─'.repeat(50)}\n`);
+  process.exit(1);
+} else {
+  console.log(`  Pipeline complete — ${active.length} step${active.length !== 1 ? 's' : ''} in ${total}s`);
+  console.log(`${'─'.repeat(50)}\n`);
+}

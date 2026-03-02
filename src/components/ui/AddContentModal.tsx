@@ -144,7 +144,7 @@ export default function AddContentModal({ sources, onClose, onSuccess }: AddCont
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div style={{
+      <div className="modal-panel" style={{
         width: 480,
         maxHeight: '80vh',
         overflowY: 'auto',

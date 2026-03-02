@@ -124,6 +124,7 @@ export default function SearchModal({ onClose }: SearchModalProps) {
       }}
     >
       <div
+        className="modal-panel"
         style={{
           width: 560,
           maxHeight: 'calc(100vh - 160px)',

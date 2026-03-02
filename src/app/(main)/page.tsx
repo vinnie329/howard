@@ -131,7 +131,7 @@ export default function DailyDigest() {
             {selectedTheme} ×
           </span>
         )}
-        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
+        <div className="top-bar-actions" style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
           <button
             onClick={() => setShowAddModal(true)}
             style={{

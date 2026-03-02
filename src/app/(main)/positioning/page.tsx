@@ -1,22 +1,19 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
-import { getOutlook } from '@/lib/data';
+import { useState, useEffect } from 'react';
+import { getPositioning } from '@/lib/data';
+import type { PositioningData } from '@/lib/data';
 import { SkeletonRows } from '@/components/ui/Skeleton';
-import type { Outlook } from '@/types';
 
-interface TechnicalData {
-  symbol: string;
-  name: string;
-  currentPrice: number;
-  devFromMa200d: number | null;
-  devFromMa200w: number | null;
-  historicalMinDev200d: number | null;
-  historicalMinDev200w: number | null;
-  source: 'core' | '13f';
-}
+const POSTURE_CONFIG: Record<string, { label: string; color: string }> = {
+  aggressive: { label: 'AGGRESSIVE', color: '#22c55e' },
+  'lean-in':  { label: 'LEAN IN',    color: '#4ade80' },
+  neutral:    { label: 'NEUTRAL',    color: '#eab308' },
+  cautious:   { label: 'CAUTIOUS',   color: '#f97316' },
+  defensive:  { label: 'DEFENSIVE',  color: '#ef4444' },
+};
 
-function AssetPill({ name, price }: { name: string; price?: number }) {
+function AssetPill({ name, detail }: { ticker?: string; name: string; detail?: string }) {
   const letter = name.charAt(0);
   return (
     <span style={{
@@ -49,30 +46,13 @@ function AssetPill({ name, price }: { name: string; price?: number }) {
       <span style={{ fontSize: 10, color: 'var(--text-primary)', fontWeight: 500 }}>
         {name}
       </span>
-      {price != null && (
+      {detail && (
         <span className="mono" style={{ fontSize: 10, color: 'var(--text-tertiary)' }}>
-          ${price >= 1000 ? price.toLocaleString('en-US', { maximumFractionDigits: 0 }) : price.toFixed(2)}
+          {detail}
         </span>
       )}
     </span>
   );
-}
-
-// Identify assets trading well below their moving averages — potential fat pitches
-function findFatPitches(technicals: TechnicalData[]): TechnicalData[] {
-  return technicals
-    .filter((t) => {
-      // Must have MA data and be meaningfully below 200d or 200w MA
-      const below200d = t.devFromMa200d !== null && t.devFromMa200d < -15;
-      const below200w = t.devFromMa200w !== null && t.devFromMa200w < -20;
-      // Near historical lows relative to MA
-      const nearFloor200d = t.devFromMa200d !== null && t.historicalMinDev200d !== null
-        && t.historicalMinDev200d < 0
-        && t.devFromMa200d < t.historicalMinDev200d * 0.6;
-      return below200d || below200w || nearFloor200d;
-    })
-    .sort((a, b) => (a.devFromMa200d ?? 0) - (b.devFromMa200d ?? 0))
-    .slice(0, 8);
 }
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
@@ -83,211 +63,31 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
   );
 }
 
-// Build positioning narrative from outlook data + technicals
-// Returns an array of "sections" — each section is a React node rendered as its own block
-function buildNarrative(
-  outlooks: Outlook[],
-  technicals: TechnicalData[],
-): React.ReactNode[] {
-  const short = outlooks.find((o) => o.time_horizon === 'short');
-  const all = outlooks.flatMap((o) => o.positioning);
-  const allThemes = outlooks.flatMap((o) => o.key_themes);
-
-  const techMap = new Map<string, TechnicalData>();
-  for (const t of technicals) techMap.set(t.symbol, t);
-
-  const lookup = (t: string): TechnicalData | undefined => {
-    const clean = t.replace('=F', '').replace('-USD', '').replace('^', '');
-    return techMap.get(t) || techMap.get(clean);
-  };
-
-  // Fallback names for tickers not in technicals
-  const NAMES: Record<string, string> = {
-    'GC=F': 'Gold', 'SI=F': 'Silver', 'HG=F': 'Copper',
-    'BTC-USD': 'Bitcoin', 'ETH-USD': 'Ethereum',
-    MU: 'Micron', WDC: 'Western Digital', PAVE: 'PAVE', GEV: 'GE Vernova',
-  };
-
-  const pill = (ticker: string) => {
-    const t = lookup(ticker);
-    const name = t?.name || NAMES[ticker] || ticker;
-    return (
-      <AssetPill key={ticker} name={name} price={t?.currentPrice} />
-    );
-  };
-
-  const sections: React.ReactNode[] = [];
-
-  // --- Prose section ---
-  const prose: React.ReactNode[] = [];
-
-  // Opening posture — reference Howell's liquidity cycle
-  if (short) {
-    const hasLiquidity = allThemes.some((t) => /liquidity/i.test(t))
-      || all.some((p) => /liquidity/i.test(p));
-    const posture: Record<string, string> = {
-      bearish: hasLiquidity
-        ? 'Howell\'s global liquidity cycle is contracting — favor patience and capital preservation. '
-        : 'The near-term environment favors patience and capital preservation. ',
-      cautious: hasLiquidity
-        ? 'Howell\'s liquidity cycle signals caution — we are in the tightening phase. '
-        : 'Conditions warrant caution. ',
-      bullish: hasLiquidity
-        ? 'Howell\'s liquidity cycle is turning up — conditions favor leaning in. '
-        : 'Conditions favor leaning in. ',
-      neutral: hasLiquidity
-        ? 'Howell\'s liquidity indicators are mixed. '
-        : 'Near-term signals are mixed. ',
-    };
-    prose.push(posture[short.sentiment] || '');
-  }
-
-  // Cash
-  if (all.some((p) => /cash|dry powder|t-bill/i.test(p))) {
-    prose.push('Hold dry powder and wait for fat pitches. ');
-  }
-
-  // Gold anchor
-  if (all.some((p) => /gold/i.test(p))) {
-    prose.push(pill('GC=F'));
-    prose.push(' anchors the portfolio');
-    if (all.some((p) => /gold.*repricing|gold.*5,?000|\$10,?000/i.test(p))) {
-      prose.push(' — structural repricing potential remains significant');
-    }
-    prose.push('. ');
-  }
-
-  // Commodities
-  if (all.some((p) => /copper|uranium|rare earth/i.test(p))) {
-    prose.push('Strategic commodities — ');
-    prose.push(pill('HG=F'));
-    prose.push(', uranium, rare earths — are the resource scarcity bet. ');
-  }
-
-  // Energy / infrastructure
-  if (all.some((p) => /energy infrastructure|nuclear|natural gas/i.test(p))) {
-    prose.push('Energy infrastructure is the bottleneck as AI scales. ');
-  }
-
-  if (prose.length > 0) {
-    sections.push(
-      <p key="prose" style={{ fontSize: 14, color: 'var(--text-secondary)', lineHeight: 2, margin: 0 }}>
-        {prose}
-      </p>
-    );
-  }
-
-  // --- Opportunity sections ---
-  const ovTickers: string[] = [];
-  for (const p of all) {
-    if (/overweight.*memory|overweight.*micron/i.test(p)) {
-      if (!ovTickers.includes('MU')) ovTickers.push('MU');
-    }
-    if (/western digital/i.test(p)) {
-      if (!ovTickers.includes('WDC')) ovTickers.push('WDC');
-    }
-    if (/infrastructure.*PAVE/i.test(p)) {
-      if (!ovTickers.includes('PAVE')) ovTickers.push('PAVE');
-    }
-    if (/GE Vernova|gas turbine/i.test(p)) {
-      if (!ovTickers.includes('GEV')) ovTickers.push('GEV');
-    }
-  }
-
-  // Fat pitches from technicals — assets meaningfully below MAs
-  const fatPitches = findFatPitches(technicals);
-  const fatPitchSymbols = fatPitches.map((fp) => fp.symbol);
-
-  // Register fat pitch names for pill lookup
-  for (const fp of fatPitches) {
-    if (!NAMES[fp.symbol]) NAMES[fp.symbol] = fp.name;
-  }
-
-  // Merge outlook-driven picks with technical fat pitches (dedup)
-  const allOpps = [...ovTickers];
-  for (const sym of fatPitchSymbols) {
-    if (!allOpps.includes(sym)) allOpps.push(sym);
-  }
-
-  if (ovTickers.length > 0) {
-    const pills: React.ReactNode[] = [];
-    ovTickers.forEach((t, i) => {
-      if (i > 0) pills.push(' ');
-      pills.push(pill(t));
-    });
-    sections.push(
-      <div key="thesis">
-        <SectionLabel>Thesis-driven opportunities:</SectionLabel>
-        <div style={{ marginTop: 6 }}>{pills}</div>
-      </div>
-    );
-  }
-
-  const purelyTechnical = fatPitchSymbols.filter((s) => !ovTickers.includes(s));
-  if (purelyTechnical.length > 0) {
-    const pills: React.ReactNode[] = [];
-    purelyTechnical.forEach((t, i) => {
-      if (i > 0) pills.push(' ');
-      pills.push(pill(t));
-    });
-    sections.push(
-      <div key="fat-pitches">
-        <SectionLabel>Fat pitches on MA deviation:</SectionLabel>
-        <div style={{ marginTop: 6 }}>{pills}</div>
-      </div>
-    );
-  }
-
-  // Avoids
-  const avoids: string[] = [];
-  if (all.some((p) => /high.multiple tech|underweight.*tech/i.test(p))) avoids.push('high-multiple tech');
-  if (all.some((p) => /long.duration.*debt|sovereign debt/i.test(p))) avoids.push('long-duration sovereign debt');
-  if (avoids.length > 0) {
-    sections.push(
-      <div key="avoids" style={{ fontSize: 14, color: 'var(--text-secondary)' }}>
-        Avoid {avoids.join(' and ')}.
-      </div>
-    );
-  }
-
-  return sections;
-}
-
 export default function PositioningPage() {
-  const [outlooks, setOutlooks] = useState<Outlook[]>([]);
-  const [technicals, setTechnicals] = useState<TechnicalData[]>([]);
+  const [positioning, setPositioning] = useState<PositioningData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
-  useEffect(() => {
-    Promise.all([
-      getOutlook(),
-      fetch('/api/technicals').then((r) => r.json()).catch(() => []),
-    ]).then(([outlookData, techData]) => {
-      setOutlooks(outlookData);
-      if (Array.isArray(techData)) {
-        setTechnicals(techData as TechnicalData[]);
-      }
-      setLoading(false);
-    });
-  }, []);
+  const fetchData = (refresh = false) => {
+    if (refresh) setRefreshing(true);
+    else setLoading(true);
+    getPositioning(refresh)
+      .then((data) => setPositioning(data))
+      .catch(() => {})
+      .finally(() => {
+        setLoading(false);
+        setRefreshing(false);
+      });
+  };
 
-  const narrative = useMemo(
-    () => buildNarrative(outlooks, technicals),
-    [outlooks, technicals],
-  );
+  useEffect(() => { fetchData(); }, []);
 
-  const fatPitchCount = useMemo(
-    () => findFatPitches(technicals).length,
-    [technicals],
-  );
+  const posture = positioning?.posture
+    ? POSTURE_CONFIG[positioning.posture] ?? POSTURE_CONFIG.neutral
+    : null;
 
-  const avgConfidence = outlooks.length > 0
-    ? Math.round(outlooks.reduce((sum, o) => sum + o.confidence, 0) / outlooks.length)
-    : 0;
-
-  const lastUpdated = outlooks.length > 0
-    ? new Date(Math.max(...outlooks.map((o) => new Date(o.last_updated).getTime())))
-        .toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+  const generatedAt = positioning?.generated_at
+    ? new Date(positioning.generated_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
     : '';
 
   return (
@@ -305,23 +105,130 @@ export default function PositioningPage() {
         display: 'flex',
         justifyContent: 'center',
       }}>
-        <div style={{ width: '100%', maxWidth: 520 }}>
+        <div style={{ width: '100%', maxWidth: 600 }}>
           {loading ? (
-            <SkeletonRows count={3} />
-          ) : outlooks.length === 0 ? (
+            <SkeletonRows count={5} />
+          ) : !positioning ? (
             <div className="mono" style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>
-              No outlook data.
+              No positioning data. Run the pipeline to generate.
             </div>
           ) : (
             <>
-              <h1 style={{ fontSize: 18, marginBottom: 'var(--space-6)' }}>Positioning</h1>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-8)' }}>
-                {narrative}
+              {/* Header */}
+              <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 'var(--space-2)' }}>
+                <h1 style={{ fontSize: 18 }}>Positioning</h1>
+                <button
+                  onClick={() => fetchData(true)}
+                  disabled={refreshing}
+                  className="mono"
+                  style={{
+                    fontSize: 10,
+                    padding: 'var(--space-1) var(--space-3)',
+                    borderRadius: 'var(--radius-sm)',
+                    background: refreshing ? 'var(--bg-surface)' : 'transparent',
+                    border: '1px solid var(--border)',
+                    color: refreshing ? 'var(--text-tertiary)' : 'var(--text-secondary)',
+                    cursor: refreshing ? 'wait' : 'pointer',
+                    transition: 'all 0.15s ease',
+                  }}
+                  onMouseEnter={(e) => { if (!refreshing) e.currentTarget.style.borderColor = 'var(--border-light)'; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--border)'; }}
+                >
+                  {refreshing ? 'Regenerating...' : 'Regenerate'}
+                </button>
               </div>
 
-              <div className="mono" style={{ marginTop: 'var(--space-6)', fontSize: 10, color: 'var(--text-tertiary)' }}>
-                {lastUpdated} · {avgConfidence}% avg conviction · {fatPitchCount} fat pitch{fatPitchCount !== 1 ? 'es' : ''} detected
+              {/* Posture badge */}
+              {posture && (
+                <div style={{ marginBottom: 'var(--space-6)', display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
+                  <span className="mono" style={{
+                    fontSize: 10,
+                    padding: '2px var(--space-2)',
+                    borderRadius: 'var(--radius-sm)',
+                    background: posture.color + '18',
+                    border: `1px solid ${posture.color}40`,
+                    color: posture.color,
+                    fontWeight: 600,
+                    letterSpacing: '0.05em',
+                  }}>
+                    {posture.label}
+                  </span>
+                  <span className="mono" style={{ fontSize: 10, color: 'var(--text-tertiary)' }}>
+                    posture
+                  </span>
+                </div>
+              )}
+
+              {/* Narrative */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)', marginBottom: 'var(--space-8)' }}>
+                {positioning.narrative.split('\n').filter(Boolean).map((paragraph, i) => (
+                  <p key={i} style={{
+                    fontSize: 14,
+                    color: 'var(--text-secondary)',
+                    lineHeight: 1.8,
+                    margin: 0,
+                  }}>
+                    {paragraph}
+                  </p>
+                ))}
+              </div>
+
+              {/* Opportunities */}
+              {positioning.opportunities.length > 0 && (
+                <div style={{ marginBottom: 'var(--space-6)' }}>
+                  <SectionLabel>Opportunities</SectionLabel>
+                  <div style={{ marginTop: 'var(--space-3)', display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
+                    {positioning.opportunities.map((opp) => (
+                      <div key={opp.ticker} style={{
+                        display: 'flex',
+                        alignItems: 'flex-start',
+                        gap: 'var(--space-3)',
+                      }}>
+                        <AssetPill ticker={opp.ticker} name={opp.name} />
+                        <span style={{ fontSize: 12, color: 'var(--text-tertiary)', lineHeight: 1.5, paddingTop: 2 }}>
+                          {opp.rationale}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Fat pitches */}
+              {positioning.fat_pitches.length > 0 && (
+                <div style={{ marginBottom: 'var(--space-6)' }}>
+                  <SectionLabel>Fat pitches (MA deviation)</SectionLabel>
+                  <div style={{ marginTop: 'var(--space-3)', display: 'flex', flexWrap: 'wrap', gap: 'var(--space-1)' }}>
+                    {positioning.fat_pitches.map((fp) => (
+                      <AssetPill
+                        key={fp.ticker}
+                        ticker={fp.ticker}
+                        name={fp.name}
+                        detail={`${fp.dev200d > 0 ? '+' : ''}${fp.dev200d.toFixed(1)}%`}
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Avoids */}
+              {positioning.avoids.length > 0 && (
+                <div style={{ marginBottom: 'var(--space-6)' }}>
+                  <SectionLabel>Avoid</SectionLabel>
+                  <div style={{ marginTop: 'var(--space-3)', display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
+                    {positioning.avoids.map((avoid, i) => (
+                      <div key={i} style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+                        <span style={{ color: '#ef4444', marginRight: 6 }}>-</span>
+                        {avoid}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Footer */}
+              <div className="mono" style={{ fontSize: 10, color: 'var(--text-tertiary)' }}>
+                Generated {generatedAt} · {positioning.opportunities.length} opportunities · {positioning.fat_pitches.length} fat pitch{positioning.fat_pitches.length !== 1 ? 'es' : ''}
               </div>
             </>
           )}

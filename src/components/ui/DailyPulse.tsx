@@ -163,9 +163,9 @@ export default function DailyPulse() {
       </div>
 
       {/* Body */}
-      <div style={{ display: 'flex', flex: 1 }}>
+      <div className="pulse-body" style={{ display: 'flex', flex: 1 }}>
         {/* Left sidebar */}
-        <div style={{
+        <div className="pulse-sidebar" style={{
           width: '30%',
           borderRight: '1px solid var(--border)',
           padding: 'var(--space-4)',
@@ -205,7 +205,7 @@ export default function DailyPulse() {
         </div>
 
         {/* Right content */}
-        <div style={{
+        <div className="pulse-content" style={{
           width: '70%',
           padding: 'var(--space-4) var(--space-6)',
           display: 'flex',

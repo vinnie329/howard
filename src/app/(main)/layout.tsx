@@ -1,6 +1,7 @@
 import Sidebar from '@/components/ui/Sidebar';
 import TickerTape from '@/components/ui/TickerTape';
 import MainArea from '@/components/ui/MainArea';
+import MobileMenuToggle from '@/components/ui/MobileMenuToggle';
 import { DomainFilterProvider } from '@/lib/domain-filter-context';
 import { SearchProvider } from '@/components/ui/SearchTrigger';
 import { TransitionProvider } from '@/lib/transition-context';
@@ -17,6 +18,7 @@ export default function MainLayout({
           <div className="app-layout">
             <TickerTape />
             <div className="app-body">
+              <MobileMenuToggle />
               <Sidebar />
               <MainArea>{children}</MainArea>
             </div>

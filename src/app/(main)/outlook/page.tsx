@@ -7,9 +7,8 @@ import { SkeletonCards, SkeletonRows } from '@/components/ui/Skeleton';
 import type { Outlook, OutlookHistory } from '@/types';
 
 const horizonLabels: Record<string, string> = {
-  short: 'Short-term',
-  medium: 'Medium-term',
-  long: 'Long-term',
+  medium: '12-month',
+  long: '5-year',
 };
 
 export default function OutlookPage() {
@@ -25,13 +24,15 @@ export default function OutlookPage() {
     });
   }, []);
 
-  const latestUpdate = outlooks.length > 0
-    ? new Date(Math.max(...outlooks.map((o) => new Date(o.last_updated).getTime())))
+  const displayed = outlooks.filter((o) => o.time_horizon !== 'short');
+
+  const latestUpdate = displayed.length > 0
+    ? new Date(Math.max(...displayed.map((o) => new Date(o.last_updated).getTime())))
         .toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' })
     : '';
 
-  const avgConfidence = outlooks.length > 0
-    ? Math.round(outlooks.reduce((sum, o) => sum + o.confidence, 0) / outlooks.length)
+  const avgConfidence = displayed.length > 0
+    ? Math.round(displayed.reduce((sum, o) => sum + o.confidence, 0) / displayed.length)
     : 0;
 
   // Filter history to only entries with actual changes
@@ -45,9 +46,10 @@ export default function OutlookPage() {
         <span style={{ fontSize: 12 }}>Outlook</span>
       </div>
 
-      <div style={{ display: 'flex', overflow: 'hidden', flex: 1 }}>
-        {/* Left column — Outlooks */}
-        <div style={{ flex: 1, overflowY: 'auto', padding: 'var(--space-6)' }}>
+      <div className="page-two-col" style={{ display: 'flex', overflow: 'hidden', flex: 1 }}>
+        {/* Center column — Outlooks */}
+        <div className="page-two-col-main" style={{ flex: 1, overflowY: 'auto', padding: 'var(--space-6)', display: 'flex', justifyContent: 'center' }}>
+        <div style={{ width: '100%', maxWidth: 640 }}>
           {/* Header */}
           <div style={{ marginBottom: 'var(--space-6)' }}>
             <h1 style={{ marginBottom: 'var(--space-2)' }}>Howard&apos;s Outlook</h1>
@@ -77,21 +79,23 @@ export default function OutlookPage() {
             <SkeletonCards count={3} />
           ) : (
             <div className="stagger-in" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
-              {outlooks.map((outlook) => {
+              {outlooks.filter((o) => o.time_horizon !== 'short').map((outlook) => {
                 const latestUpdate = changesHistory.find((h) => h.outlook_id === outlook.id);
                 return <OutlookCard key={outlook.id} outlook={outlook} latestUpdate={latestUpdate} />;
               })}
             </div>
           )}
         </div>
+        </div>
 
         {/* Right column — Recent Updates */}
-        <div style={{
+        <div className="page-two-col-aside" style={{
           width: 340,
           minWidth: 340,
           overflowY: 'auto',
           padding: 'var(--space-6)',
           borderLeft: '1px solid var(--border)',
+          marginLeft: 'auto',
         }}>
           <div className="label" style={{ marginBottom: 'var(--space-4)' }}>
             Recent Updates

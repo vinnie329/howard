@@ -280,17 +280,27 @@ interface Holding13F {
   investment_discretion: string;
 }
 
-async function edgarFetch(url: string): Promise<Response> {
-  const res = await fetch(url, {
-    headers: {
-      'User-Agent': USER_AGENT,
-      Accept: 'application/json, application/xml, text/xml, */*',
-    },
-  });
-  if (!res.ok) {
+async function edgarFetch(url: string, retries = 3): Promise<Response> {
+  for (let attempt = 1; attempt <= retries; attempt++) {
+    const res = await fetch(url, {
+      headers: {
+        'User-Agent': USER_AGENT,
+        Accept: 'application/json, application/xml, text/xml, */*',
+      },
+    });
+    if (res.ok) return res;
+
+    // Retry on 5xx (server errors) and 429 (rate limit)
+    if ((res.status >= 500 || res.status === 429) && attempt < retries) {
+      const delay = attempt * 5000; // 5s, 10s, 15s
+      console.log(`    EDGAR ${res.status} — retrying in ${delay / 1000}s (attempt ${attempt}/${retries})`);
+      await new Promise((r) => setTimeout(r, delay));
+      continue;
+    }
+
     throw new Error(`EDGAR fetch failed: ${res.status} ${res.statusText} for ${url}`);
   }
-  return res;
+  throw new Error(`EDGAR fetch exhausted retries for ${url}`);
 }
 
 async function getFilings(cik: string): Promise<EdgarFiling[]> {
@@ -573,76 +583,81 @@ async function main() {
 
       console.log(`\n  Processing filing: ${reportDate} (filed: ${filing.filingDate})`);
 
-      // Rate limit: EDGAR asks for max 10 requests/second
-      await new Promise((r) => setTimeout(r, 300));
+      try {
+        // Rate limit: EDGAR asks for max 10 requests/second
+        await new Promise((r) => setTimeout(r, 300));
 
-      const rawHoldings = await getHoldingsFromFiling(fund.cik, filing.accessionNumber);
-      console.log(`  Found ${rawHoldings.length} holdings`);
+        const rawHoldings = await getHoldingsFromFiling(fund.cik, filing.accessionNumber);
+        console.log(`  Found ${rawHoldings.length} holdings`);
 
-      if (rawHoldings.length === 0) continue;
+        if (rawHoldings.length === 0) continue;
 
-      // Deduplicate by cusip + option_type (some filings list same security multiple times)
-      const dedupMap = new Map<string, Holding13F>();
-      for (const h of rawHoldings) {
-        const key = `${h.cusip}:${h.option_type || 'equity'}`;
-        const existing = dedupMap.get(key);
-        if (existing) {
-          // Merge: sum values and shares for same position
-          existing.value += h.value;
-          existing.shares += h.shares;
-          console.log(`    Merged duplicate: ${h.company_name} (${h.cusip}) - ${h.shares} shares`);
+        // Deduplicate by cusip + option_type (some filings list same security multiple times)
+        const dedupMap = new Map<string, Holding13F>();
+        for (const h of rawHoldings) {
+          const key = `${h.cusip}:${h.option_type || 'equity'}`;
+          const existing = dedupMap.get(key);
+          if (existing) {
+            // Merge: sum values and shares for same position
+            existing.value += h.value;
+            existing.shares += h.shares;
+            console.log(`    Merged duplicate: ${h.company_name} (${h.cusip}) - ${h.shares} shares`);
+          } else {
+            dedupMap.set(key, { ...h });
+          }
+        }
+        const dedupedHoldings = Array.from(dedupMap.values());
+        if (dedupedHoldings.length < rawHoldings.length) {
+          console.log(`  Deduplicated: ${rawHoldings.length} → ${dedupedHoldings.length} holdings`);
+        }
+
+        // Resolve tickers and prepare records
+        const holdingsWithTickers = dedupedHoldings.map((h) => ({
+          ...h,
+          ticker: resolveTickerFromCusip(h.cusip, h.company_name),
+        }));
+
+        // Compute share changes relative to previous quarter
+        const records = await computeShareChanges(fundRow.id, reportDate, holdingsWithTickers);
+
+        // Delete any existing holdings for this fund+date (idempotent re-runs)
+        await supabase
+          .from('holdings')
+          .delete()
+          .eq('fund_id', fundRow.id)
+          .eq('filing_date', reportDate);
+
+        // Insert holdings
+        const { error: insertError } = await supabase.from('holdings').insert(records);
+
+        if (insertError) {
+          console.error(`  Error inserting holdings for ${reportDate}:`, insertError.message);
         } else {
-          dedupMap.set(key, { ...h });
-        }
-      }
-      const dedupedHoldings = Array.from(dedupMap.values());
-      if (dedupedHoldings.length < rawHoldings.length) {
-        console.log(`  Deduplicated: ${rawHoldings.length} → ${dedupedHoldings.length} holdings`);
-      }
-
-      // Resolve tickers and prepare records
-      const holdingsWithTickers = dedupedHoldings.map((h) => ({
-        ...h,
-        ticker: resolveTickerFromCusip(h.cusip, h.company_name),
-      }));
-
-      // Compute share changes relative to previous quarter
-      const records = await computeShareChanges(fundRow.id, reportDate, holdingsWithTickers);
-
-      // Delete any existing holdings for this fund+date (idempotent re-runs)
-      await supabase
-        .from('holdings')
-        .delete()
-        .eq('fund_id', fundRow.id)
-        .eq('filing_date', reportDate);
-
-      // Insert holdings
-      const { error: insertError } = await supabase.from('holdings').insert(records);
-
-      if (insertError) {
-        console.error(`  Error inserting holdings for ${reportDate}:`, insertError.message);
-      } else {
-        const totalValue = records.reduce((sum, r) => sum + r.value, 0);
-        console.log(
-          `  Inserted ${records.length} holdings for ${reportDate} (total value: $${(totalValue / 1000).toFixed(1)}M)`
-        );
-
-        // Log position summary
-        for (const r of records) {
-          const ticker = r.ticker || r.cusip;
-          const optLabel = r.option_type ? ` (${r.option_type})` : '';
-          const changeLabel =
-            r.change_type === 'new'
-              ? ' [NEW]'
-              : r.change_type === 'increased'
-                ? ` [+${r.share_change}]`
-                : r.change_type === 'decreased'
-                  ? ` [${r.share_change}]`
-                  : '';
+          const totalValue = records.reduce((sum, r) => sum + r.value, 0);
           console.log(
-            `    ${ticker}${optLabel}: ${r.shares.toLocaleString()} shares, $${(r.value / 1000).toFixed(1)}M${changeLabel}`
+            `  Inserted ${records.length} holdings for ${reportDate} (total value: $${(totalValue / 1000).toFixed(1)}M)`
           );
+
+          // Log position summary
+          for (const r of records) {
+            const ticker = r.ticker || r.cusip;
+            const optLabel = r.option_type ? ` (${r.option_type})` : '';
+            const changeLabel =
+              r.change_type === 'new'
+                ? ' [NEW]'
+                : r.change_type === 'increased'
+                  ? ` [+${r.share_change}]`
+                  : r.change_type === 'decreased'
+                    ? ` [${r.share_change}]`
+                    : '';
+            console.log(
+              `    ${ticker}${optLabel}: ${r.shares.toLocaleString()} shares, $${(r.value / 1000).toFixed(1)}M${changeLabel}`
+            );
+          }
         }
+      } catch (err) {
+        console.error(`  Skipping filing ${reportDate}: ${err instanceof Error ? err.message : err}`);
+        continue;
       }
     }
 

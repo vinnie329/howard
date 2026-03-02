@@ -4,6 +4,31 @@ import { useState } from 'react';
 import Tag from './Tag';
 import type { Outlook, OutlookHistory } from '@/types';
 
+// Highlight asset names/tickers in positioning text
+const ASSET_PATTERN = /\b(gold|silver|copper|uranium|bitcoin|BTC|ETH|oil|gas|NVDA|NVIDIA|AMD|INTC|AVGO|MRVL|ARM|PLTR|MSFT|GOOGL|AMZN|META|TSM|TSLA|ORCL|VST|CEG|GE Vernova|Micron|Broadcom|Marvell|Arista|Palantir|S&P 500|NASDAQ|QQQ|treasuries|bonds|equities|miners|commodities|rare earths?)\b/gi;
+
+function highlightAssets(text: string): React.ReactNode[] {
+  const parts: React.ReactNode[] = [];
+  let lastIndex = 0;
+  let match: RegExpExecArray | null;
+  const regex = new RegExp(ASSET_PATTERN.source, 'gi');
+  while ((match = regex.exec(text)) !== null) {
+    if (match.index > lastIndex) {
+      parts.push(text.slice(lastIndex, match.index));
+    }
+    parts.push(
+      <span key={match.index} style={{ color: 'var(--text-primary)', fontWeight: 500 }}>
+        {match[0]}
+      </span>
+    );
+    lastIndex = regex.lastIndex;
+  }
+  if (lastIndex < text.length) {
+    parts.push(text.slice(lastIndex));
+  }
+  return parts;
+}
+
 const sentimentColors: Record<string, { bg: string; color: string; border: string }> = {
   bullish: { bg: 'rgba(34, 197, 94, 0.12)', color: '#22c55e', border: 'rgba(34, 197, 94, 0.2)' },
   bearish: { bg: 'rgba(239, 68, 68, 0.12)', color: '#ef4444', border: 'rgba(239, 68, 68, 0.2)' },
@@ -105,7 +130,7 @@ export default function OutlookCard({ outlook, latestUpdate }: { outlook: Outloo
             {outlook.positioning.map((item, i) => (
               <div key={i} style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'baseline' }}>
                 <span style={{ color: 'var(--text-tertiary)', fontSize: 10, flexShrink: 0 }}>&bull;</span>
-                <span style={{ color: 'var(--text-secondary)', fontSize: 12, lineHeight: 1.4 }}>{item}</span>
+                <span style={{ color: 'var(--text-secondary)', fontSize: 12, lineHeight: 1.4 }}>{highlightAssets(item)}</span>
               </div>
             ))}
           </div>

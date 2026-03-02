@@ -341,7 +341,7 @@ function FundView({ holdings, funds, selectedFund }: { holdings: Holding[]; fund
   }
 
   return (
-    <div style={{ border: '1px solid var(--border)', borderRadius: 'var(--radius-md)', overflow: 'hidden' }}>
+    <div className="table-scroll"><div style={{ border: '1px solid var(--border)', borderRadius: 'var(--radius-md)', overflow: 'hidden' }}>
       {/* Header */}
       <div style={{
         display: 'grid',
@@ -406,7 +406,7 @@ function FundView({ holdings, funds, selectedFund }: { holdings: Holding[]; fund
           );
         })}
       </div>
-    </div>
+    </div></div>
   );
 }
 
@@ -432,7 +432,7 @@ function OverlapView({
   }
 
   return (
-    <div style={{ border: '1px solid var(--border)', borderRadius: 'var(--radius-md)', overflow: 'hidden' }}>
+    <div className="table-scroll"><div style={{ border: '1px solid var(--border)', borderRadius: 'var(--radius-md)', overflow: 'hidden' }}>
       {/* Header */}
       <div style={{
         display: 'grid',
@@ -544,6 +544,6 @@ function OverlapView({
           );
         })}
       </div>
-    </div>
+    </div></div>
   );
 }

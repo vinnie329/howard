@@ -171,7 +171,7 @@ export default function PredictionsLedger() {
           </div>
         ) : (
           <>
-            <div style={{
+            <div className="table-scroll"><div style={{
               border: '1px solid var(--border)',
               borderRadius: 'var(--radius-md)',
               overflow: 'hidden',
@@ -259,7 +259,7 @@ export default function PredictionsLedger() {
                   </div>
                 );
               })}</div>
-            </div>
+            </div></div>
 
             <div className="mono" style={{ marginTop: 'var(--space-4)', fontSize: 10, color: 'var(--text-tertiary)' }}>
               {filtered.length} prediction{filtered.length !== 1 ? 's' : ''} tracked

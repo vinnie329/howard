@@ -22,7 +22,7 @@ if (!process.env.ANTHROPIC_API_KEY) {
 const anthropicKey: string = process.env.ANTHROPIC_API_KEY;
 const supabase = createClient(supabaseUrl, supabaseKey);
 
-const TIME_HORIZONS = ['short', 'medium', 'long'] as const;
+const TIME_HORIZONS = ['medium', 'long'] as const;
 
 async function fetchRecentAnalyses(): Promise<AnalysisWithSource[]> {
   const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();

@@ -14,6 +14,11 @@ const jetbrainsMono = JetBrains_Mono({
   display: 'swap',
 });
 
+export const viewport = {
+  width: 'device-width',
+  initialScale: 1,
+};
+
 export const metadata: Metadata = {
   title: 'Howard — Financial Intelligence Tracker',
   description: 'Monitor trusted sources across YouTube and Substack for market sentiment and emerging narratives.',

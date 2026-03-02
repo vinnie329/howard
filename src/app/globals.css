@@ -12,7 +12,7 @@
   --border-light: #333333;
 
   --text-primary: #FFFFFF;
-  --text-secondary: #888888;
+  --text-secondary: #A0A0A0;
   --text-tertiary: #444444;
 
   --accent: #FF4800;
@@ -305,4 +305,238 @@ h2 {
 
 .fade-in {
   animation: fade-in 150ms ease-out both;
+}
+
+/* =========================================
+   Mobile menu button — hidden on desktop
+   ========================================= */
+.mobile-menu-btn {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 0;
+  flex-shrink: 0;
+  position: fixed;
+  top: 38px;
+  left: var(--space-3);
+  z-index: 40;
+}
+
+.sidebar-overlay {
+  display: none;
+}
+
+/* =========================================
+   MOBILE RESPONSIVE — max-width: 768px
+   ========================================= */
+@media (max-width: 768px) {
+  /* Show hamburger */
+  .mobile-menu-btn {
+    display: flex;
+  }
+
+  /* Lock body scroll when sidebar open */
+  body.sidebar-open {
+    overflow: hidden;
+  }
+
+  /* Sidebar: off-screen drawer */
+  .sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    z-index: 50;
+    transform: translateX(-100%);
+    transition: transform 0.25s ease;
+  }
+
+  body.sidebar-open .sidebar {
+    transform: translateX(0);
+  }
+
+  /* Overlay behind sidebar */
+  body.sidebar-open .sidebar-overlay {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 49;
+    background: rgba(0, 0, 0, 0.6);
+  }
+
+  /* App body: full width, no side borders */
+  .app-body {
+    max-width: 100%;
+    border-left: none;
+    border-right: none;
+  }
+
+  /* Top bar: room for hamburger */
+  .top-bar {
+    padding-left: 52px;
+    padding-right: var(--space-3);
+    min-height: 44px;
+    height: auto;
+    flex-wrap: wrap;
+    gap: var(--space-1);
+  }
+
+  /* Ticker tape: slightly shorter */
+  .ticker-tape {
+    height: 28px !important;
+    min-height: 28px !important;
+    border-left: none !important;
+    border-right: none !important;
+  }
+
+  /* Dashboard 3-panel: stack vertically */
+  .dashboard {
+    flex-direction: column;
+    overflow-y: auto;
+  }
+
+  .panel-left {
+    width: 100% !important;
+    min-width: 0 !important;
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .panel-main {
+    width: 100%;
+  }
+
+  .panel-right {
+    width: 100% !important;
+    min-width: 0 !important;
+    border-left: none;
+    border-top: 1px solid var(--border);
+  }
+
+  /* Two-column page layouts */
+  .page-two-col {
+    flex-direction: column !important;
+    overflow-y: auto !important;
+  }
+
+  .page-two-col-main {
+    width: 100% !important;
+    min-width: 0 !important;
+  }
+
+  .page-two-col-aside {
+    width: 100% !important;
+    min-width: 0 !important;
+    border-left: none !important;
+    border-top: 1px solid var(--border);
+  }
+
+  /* Tables: horizontal scroll */
+  .table-scroll {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .table-scroll > * {
+    min-width: 600px;
+  }
+
+  /* Modals: fit mobile viewport */
+  .modal-panel {
+    width: calc(100vw - 32px) !important;
+    max-width: 100% !important;
+  }
+
+  /* DailyPulse: stack layout */
+  .pulse-body {
+    flex-direction: column !important;
+  }
+
+  .pulse-sidebar {
+    width: 100% !important;
+    border-right: none !important;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .pulse-content {
+    width: 100% !important;
+  }
+
+  /* Filter tabs: allow wrap */
+  .filter-tabs {
+    flex-wrap: wrap;
+  }
+
+  /* Hide keyboard shortcut hints */
+  .top-bar-actions kbd {
+    display: none;
+  }
+
+  /* Canvas: detail panel below graph on mobile */
+  .canvas-detail {
+    position: static !important;
+    top: auto !important;
+    right: auto !important;
+    width: 100% !important;
+    border-radius: 0 !important;
+    border: none !important;
+    border-top: 1px solid var(--border) !important;
+  }
+}
+
+/* =========================================
+   Canvas — Knowledge Graph
+   ========================================= */
+.canvas-container {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+  background: var(--bg-body);
+}
+
+.canvas-svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.canvas-loading {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.canvas-detail {
+  position: absolute;
+  top: var(--space-6);
+  right: var(--space-6);
+  width: 260px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: var(--space-4);
+}
+
+.canvas-legend {
+  position: absolute;
+  bottom: var(--space-4);
+  left: var(--space-4);
+  display: flex;
+  gap: var(--space-4);
+  font-size: 10px;
+  color: var(--text-tertiary);
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: var(--space-2) var(--space-3);
 }
