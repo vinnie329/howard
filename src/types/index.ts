@@ -139,3 +139,93 @@ export const DOMAINS = [
 ] as const;
 
 export type Domain = (typeof DOMAINS)[number];
+
+// Prediction Markets
+
+export interface PredictionMarket {
+  id: string;
+  source: 'kalshi' | 'polymarket';
+  market_id: string;
+  title: string;
+  category: string | null;
+  tags: string[];
+  resolution_date: string | null;
+  is_watched: boolean;
+  discovered_at: string;
+}
+
+export interface PredictionMarketSnapshot {
+  id: string;
+  market_id: string;
+  yes_price: number;
+  volume_24h: number | null;
+  open_interest: number | null;
+  total_volume: number | null;
+  captured_at: string;
+}
+
+export interface MarketWithSnapshot extends PredictionMarket {
+  current_price: number;
+  price_change_24h: number;
+  volume_24h: number;
+  trend: number[];
+}
+
+// Daily Update
+
+export interface DailyUpdate {
+  date: string;
+  summary: string;
+  sections: {
+    new_content: {
+      count: number;
+      highlights: Array<{
+        source: string;
+        title: string;
+        sentiment: string;
+        summary: string;
+      }>;
+    };
+    technical_moves: Array<{
+      ticker: string;
+      name: string;
+      change: string;
+      significance: string;
+    }>;
+    market_moves: Array<{
+      title: string;
+      source: string;
+      previous_price: number;
+      current_price: number;
+      change: number;
+    }>;
+    signal_changes: Array<{
+      type: string;
+      headline: string;
+      detail: string;
+      severity: string;
+    }>;
+    outlook_changes: Array<{
+      time_horizon: string;
+      previous_sentiment: string;
+      new_sentiment: string;
+      reasoning: string;
+    }>;
+    fedwatch_changes: {
+      summary: string;
+      meetings: Array<{
+        date: string;
+        most_likely_range: string;
+        probability: number;
+        change_vs_prior?: string;
+      }>;
+    };
+    holdings_changes: Array<{
+      fund: string;
+      action: string;
+      ticker: string;
+      detail: string;
+    }>;
+  };
+  generated_at: string;
+}
