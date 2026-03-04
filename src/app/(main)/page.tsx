@@ -121,7 +121,7 @@ export default function DailyUpdatePage() {
       .finally(() => setLoading(false));
 
     // Fetch live price changes for asset pills
-    const tickers = [...new Set(Object.values(ASSET_TICKERS))].join(',');
+    const tickers = Array.from(new Set(Object.values(ASSET_TICKERS))).join(',');
     fetch(`/api/quotes?tickers=${tickers}`)
       .then((res) => res.json())
       .then((data) => setPriceChanges(data))
