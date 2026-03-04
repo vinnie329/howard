@@ -42,10 +42,8 @@ function highlightAssets(
   extraAssets: string[],
   priceChanges: Record<string, number>,
 ): React.ReactNode[] {
-  const allTerms = new Set<string>([
-    ...Object.keys(ASSET_TICKERS),
-    ...NON_PRICED_ASSETS,
-  ]);
+  const allTerms = new Set<string>(Object.keys(ASSET_TICKERS));
+  NON_PRICED_ASSETS.forEach((a) => allTerms.add(a));
   for (const a of extraAssets) {
     if (a && a.length >= 2) allTerms.add(a);
   }
