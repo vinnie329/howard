@@ -62,7 +62,7 @@ async function fetchPolymarketMarkets(supabase: SupabaseClient): Promise<{ upser
       byCategory.set(cat, arr);
     }
 
-    for (const [cat, markets] of byCategory) {
+    for (const [cat, markets] of Array.from(byCategory.entries())) {
       // Top N per category become watched, rest are discoveries if high enough volume
       const watchedMarkets = markets.slice(0, MAX_WATCHED_PER_CATEGORY);
       const discoveryMarkets = markets.slice(MAX_WATCHED_PER_CATEGORY)
