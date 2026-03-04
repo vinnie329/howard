@@ -74,7 +74,7 @@ export default function MarketsPage() {
       </div>
 
       <div style={{ flex: 1, padding: 'var(--space-6)', overflowY: 'auto', display: 'flex', justifyContent: 'center' }}>
-        <div style={{ width: '100%', maxWidth: 700 }}>
+        <div style={{ width: '100%', maxWidth: 700, paddingBottom: 32 }}>
           <h1 style={{ marginBottom: 'var(--space-2)' }}>Prediction Markets</h1>
           <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 'var(--space-6)', lineHeight: 1.5 }}>
             Live probability tracking from Kalshi and Polymarket. Crowd-sourced intelligence on macro events, rates, crypto, and geopolitics.
@@ -141,7 +141,7 @@ export default function MarketsPage() {
             </>
           )}
 
-          <div className="mono" style={{ marginTop: 'var(--space-4)', fontSize: 10, color: 'var(--text-tertiary)' }}>
+          <div className="mono" style={{ marginTop: 'var(--space-4)', marginBottom: 32, fontSize: 10, color: 'var(--text-tertiary)' }}>
             Data from Kalshi and Polymarket public APIs. Updated every pipeline run.
           </div>
         </div>

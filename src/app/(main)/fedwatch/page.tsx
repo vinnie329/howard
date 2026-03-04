@@ -72,11 +72,11 @@ function getProbChange(
   return Math.abs(diff) > 0.005 ? diff : null;
 }
 
-/** Color for probability cell background */
+/** Color for probability cell background — darker = more certain */
 function probBg(prob: number, isHighest: boolean): string {
   if (isHighest && prob > 0.1) {
-    // Blue highlight for highest probability — muted for dark theme
-    const alpha = Math.min(0.25, prob * 0.28);
+    // 50% → alpha 0.15 (light), 100% → alpha 0.45 (dark)
+    const alpha = 0.02 + prob * 0.45;
     return `rgba(59, 130, 246, ${alpha})`;
   }
   if (prob > 0.5) return 'rgba(59, 130, 246, 0.06)';
