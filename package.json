@@ -11,7 +11,6 @@
   "dependencies": {
     "@anthropic-ai/sdk": "^0.73.0",
     "@supabase/supabase-js": "^2.95.3",
-    "better-sqlite3": "^12.6.2",
     "cheerio": "^1.2.0",
     "dotenv": "^17.2.4",
     "lightweight-charts": "^5.1.0",
@@ -24,7 +23,6 @@
     "voyageai": "^0.1.0"
   },
   "devDependencies": {
-    "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^20",
     "@types/pdf-parse": "^1.1.5",
     "@types/react": "^18",
