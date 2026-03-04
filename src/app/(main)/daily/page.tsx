@@ -353,11 +353,19 @@ export default function DailyUpdatePage() {
                           </div>
                           <div className="mono" style={{ fontSize: 10, color: 'var(--text-tertiary)' }}>
                             {Math.round(m.probability * 100)}%
-                            {m.change_vs_prior && m.change_vs_prior !== '0pp' && m.change_vs_prior !== '+0.0pp' && (
-                              <span style={{ color: m.change_vs_prior.startsWith('+') ? '#22c55e' : m.change_vs_prior.startsWith('-') ? '#ef4444' : 'var(--text-tertiary)', marginLeft: 4 }}>
-                                {m.change_vs_prior}
-                              </span>
-                            )}
+                            {(() => {
+                              const c = m.change_vs_prior;
+                              if (!c || c === '0pp' || c === '+0.0pp') return null;
+                              const isChange = /^[+-]/.test(c) && !c.startsWith('+0') && !c.startsWith('-0');
+                              if (isChange) {
+                                return (
+                                  <span style={{ color: c.startsWith('+') ? '#22c55e' : '#ef4444', marginLeft: 4 }}>
+                                    {c}
+                                  </span>
+                                );
+                              }
+                              return <span style={{ marginLeft: 4 }}>(no change)</span>;
+                            })()}
                           </div>
                         </div>
                       ))}
