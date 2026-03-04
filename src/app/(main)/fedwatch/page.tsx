@@ -130,7 +130,7 @@ export default function FedWatchPage() {
         <span style={{ fontSize: 12 }}>Fed Watch</span>
       </div>
 
-      <div style={{ flex: 1, padding: 'var(--space-6)', overflowY: 'auto', display: 'flex', justifyContent: 'center' }}>
+      <div style={{ flex: 1, margin: 32, overflowY: 'auto', display: 'flex', justifyContent: 'center' }}>
         <div style={{ width: '100%', maxWidth: 900 }}>
           <h1 style={{ marginBottom: 'var(--space-2)' }}>Fed Watch</h1>
           <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 'var(--space-6)', lineHeight: 1.5 }}>

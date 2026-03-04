@@ -138,8 +138,8 @@ export default function DailyUpdatePage() {
         <span style={{ fontSize: 12 }}>Daily Update</span>
       </div>
 
-      <div style={{ flex: 1, padding: 'var(--space-6)', overflowY: 'auto', display: 'flex', justifyContent: 'center' }}>
-        <div style={{ width: '100%', maxWidth: 700, paddingBottom: 32 }}>
+      <div style={{ flex: 1, margin: 32, overflowY: 'auto', display: 'flex', justifyContent: 'center' }}>
+        <div style={{ width: '100%', maxWidth: 700 }}>
           <h1 style={{ marginBottom: 'var(--space-2)' }}>Daily Update</h1>
 
           {loading ? (
