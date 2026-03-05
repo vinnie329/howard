@@ -21,8 +21,18 @@ interface MeetingChange {
   probabilities: Record<string, number>;
 }
 
-export async function GET() {
+const LOOKBACK_DAYS: Record<string, number> = {
+  '1d': 1,
+  '1w': 7,
+  '1m': 30,
+  '3m': 90,
+};
+
+export async function GET(request: Request) {
   const supabase = getSupabaseClient();
+  const { searchParams } = new URL(request.url);
+  const lookback = searchParams.get('lookback') || '1w';
+  const days = LOOKBACK_DAYS[lookback] ?? 7;
 
   // 1. Get the latest captured_at timestamp
   const { data: latestRow } = await supabase
@@ -45,12 +55,12 @@ export async function GET() {
     .eq('captured_at', latestCaptured)
     .order('meeting_date');
 
-  // 3. Get historical data (last 7 days) for change tracking
-  const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+  // 3. Get historical data for change tracking
+  const cutoff = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
   const { data: historyRows } = await supabase
     .from('fedwatch_snapshots')
     .select('meeting_date, rate_range, probability, captured_at')
-    .gte('captured_at', sevenDaysAgo)
+    .gte('captured_at', cutoff)
     .order('captured_at', { ascending: true });
 
   // 4. Build current probabilities grouped by meeting

@@ -84,17 +84,33 @@ function probBg(prob: number, isHighest: boolean): string {
   return 'transparent';
 }
 
+const LOOKBACK_OPTIONS = [
+  { value: '1d', label: '1D' },
+  { value: '1w', label: '1W' },
+  { value: '1m', label: '1M' },
+  { value: '3m', label: '3M' },
+] as const;
+
+const LOOKBACK_LABELS: Record<string, string> = {
+  '1d': '24 hours',
+  '1w': '7 days',
+  '1m': '30 days',
+  '3m': '90 days',
+};
+
 export default function FedWatchPage() {
   const [data, setData] = useState<FedWatchData>({ current: [], changes: [], updated_at: null });
   const [loading, setLoading] = useState(true);
+  const [lookback, setLookback] = useState('1w');
 
   useEffect(() => {
-    fetch('/api/fedwatch')
+    setLoading(true);
+    fetch(`/api/fedwatch?lookback=${lookback}`)
       .then((res) => res.json())
       .then((d: FedWatchData) => setData(d))
       .catch(() => {})
       .finally(() => setLoading(false));
-  }, []);
+  }, [lookback]);
 
   // Determine all rate ranges across all meetings
   const allRanges = new Set<string>();
@@ -133,9 +149,35 @@ export default function FedWatchPage() {
       <div style={{ flex: 1, margin: 32, overflowY: 'auto', display: 'flex', justifyContent: 'center' }}>
         <div style={{ width: '100%', maxWidth: 900 }}>
           <h1 style={{ marginBottom: 'var(--space-2)' }}>Fed Watch</h1>
-          <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 'var(--space-6)', lineHeight: 1.5 }}>
+          <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 'var(--space-4)', lineHeight: 1.5 }}>
             FOMC meeting rate probabilities derived from Fed Funds futures. Tracks the market-implied path of monetary policy as a signal for liquidity conditions.
           </p>
+
+          <div style={{ display: 'flex', gap: 'var(--space-2)', marginBottom: 'var(--space-6)' }}>
+            {LOOKBACK_OPTIONS.map((opt) => {
+              const active = lookback === opt.value;
+              return (
+                <button
+                  key={opt.value}
+                  onClick={() => setLookback(opt.value)}
+                  className="mono"
+                  style={{
+                    fontSize: 10,
+                    fontWeight: 600,
+                    padding: '4px 10px',
+                    borderRadius: 'var(--radius-sm)',
+                    border: `1px solid ${active ? '#fff' : 'var(--border)'}`,
+                    background: active ? 'rgba(59, 130, 246, 0.12)' : 'var(--bg-surface)',
+                    color: active ? '#fff' : 'var(--text-tertiary)',
+                    cursor: 'pointer',
+                    transition: 'all 0.15s ease',
+                  }}
+                >
+                  {opt.label}
+                </button>
+              );
+            })}
+          </div>
 
           {loading ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
@@ -376,7 +418,7 @@ export default function FedWatchPage() {
                   ? `Last updated ${fullDate(data.updated_at.substring(0, 10))} — `
                   : ''}
                 Probabilities from Fed Funds futures. Updated every pipeline run.
-                {data.changes.length > 0 && ' Changes shown vs 7 days ago.'}
+                {data.changes.length > 0 && ` Changes shown vs ${LOOKBACK_LABELS[lookback]} ago.`}
               </div>
             </>
           )}
