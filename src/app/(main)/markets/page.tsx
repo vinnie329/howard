@@ -68,8 +68,6 @@ export default function MarketsPage() {
   return (
     <>
       <div className="top-bar">
-        <span style={{ color: 'var(--text-tertiary)', fontSize: 12 }}>Intelligence</span>
-        <span style={{ color: 'var(--text-tertiary)', fontSize: 12 }}>/</span>
         <span style={{ fontSize: 12 }}>Markets</span>
       </div>
 

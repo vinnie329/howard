@@ -45,8 +45,6 @@ export default function ContentDetailPage() {
     return (
       <>
         <div className="top-bar">
-          <span style={{ color: 'var(--text-tertiary)', fontSize: 12 }}>Intelligence</span>
-          <span style={{ color: 'var(--text-tertiary)', fontSize: 12 }}>/</span>
           <span style={{ color: 'var(--text-tertiary)', fontSize: 12 }}>Data Feed</span>
         </div>
         <div style={{ padding: 'var(--space-6)', flex: 1, display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
@@ -61,8 +59,6 @@ export default function ContentDetailPage() {
     return (
       <>
         <div className="top-bar">
-          <span style={{ color: 'var(--text-tertiary)', fontSize: 12 }}>Intelligence</span>
-          <span style={{ color: 'var(--text-tertiary)', fontSize: 12 }}>/</span>
           <span style={{ color: 'var(--text-tertiary)', fontSize: 12 }}>Data Feed</span>
           <span style={{ color: 'var(--text-tertiary)', fontSize: 12 }}>/</span>
           <span style={{ fontSize: 12 }}>Not Found</span>
@@ -94,18 +90,16 @@ export default function ContentDetailPage() {
   return (
     <>
       {/* Breadcrumb */}
-      <div className="top-bar">
-        <span style={{ color: 'var(--text-tertiary)', fontSize: 12 }}>Intelligence</span>
-        <span style={{ color: 'var(--text-tertiary)', fontSize: 12 }}>/</span>
-        <a href="/" style={{ color: 'var(--text-tertiary)', fontSize: 12, textDecoration: 'none' }}>Data Feed</a>
-        <span style={{ color: 'var(--text-tertiary)', fontSize: 12 }}>/</span>
-        <span style={{ fontSize: 12, maxWidth: 300, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+      <div className="top-bar" style={{ flexWrap: 'nowrap', overflow: 'hidden' }}>
+        <a href="/" style={{ color: 'var(--text-tertiary)', fontSize: 12, textDecoration: 'none', flexShrink: 0 }}>Data Feed</a>
+        <span style={{ color: 'var(--text-tertiary)', fontSize: 12, flexShrink: 0 }}>/</span>
+        <span style={{ fontSize: 12, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 }}>
           {title}
         </span>
       </div>
 
       {/* Content */}
-      <div style={{ padding: 'var(--space-6)', overflowY: 'auto', flex: 1, maxWidth: 800, margin: '0 auto' }}>
+      <div style={{ padding: 'var(--space-6)', overflowY: 'auto', flex: 1, maxWidth: 800, width: '100%', margin: '0 auto' }}>
         {/* Back button */}
         <button
           onClick={() => router.back()}

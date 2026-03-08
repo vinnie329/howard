@@ -33,8 +33,6 @@ export default function OutlookUpdateDetail() {
     return (
       <>
         <div className="top-bar">
-          <span style={{ color: 'var(--text-tertiary)', fontSize: 12 }}>Intelligence</span>
-          <span style={{ color: 'var(--text-tertiary)', fontSize: 12 }}>/</span>
           <span style={{ color: 'var(--text-tertiary)', fontSize: 12 }}>Outlook</span>
         </div>
         <div style={{ padding: 'var(--space-6)', flex: 1, display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
@@ -49,8 +47,6 @@ export default function OutlookUpdateDetail() {
     return (
       <>
         <div className="top-bar">
-          <span style={{ color: 'var(--text-tertiary)', fontSize: 12 }}>Intelligence</span>
-          <span style={{ color: 'var(--text-tertiary)', fontSize: 12 }}>/</span>
           <Link href="/outlook" style={{ color: 'var(--text-tertiary)', fontSize: 12, textDecoration: 'none' }}>Outlook</Link>
           <span style={{ color: 'var(--text-tertiary)', fontSize: 12 }}>/</span>
           <span style={{ fontSize: 12 }}>Not Found</span>
@@ -77,8 +73,6 @@ export default function OutlookUpdateDetail() {
   return (
     <>
       <div className="top-bar">
-        <span style={{ color: 'var(--text-tertiary)', fontSize: 12 }}>Intelligence</span>
-        <span style={{ color: 'var(--text-tertiary)', fontSize: 12 }}>/</span>
         <Link href="/outlook" style={{ color: 'var(--text-tertiary)', fontSize: 12, textDecoration: 'none' }}>Outlook</Link>
         <span style={{ color: 'var(--text-tertiary)', fontSize: 12 }}>/</span>
         <span style={{ fontSize: 12 }}>Update</span>

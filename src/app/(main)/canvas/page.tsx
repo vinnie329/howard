@@ -21,8 +21,6 @@ export default function CanvasPage() {
   return (
     <>
       <div className="top-bar">
-        <span style={{ color: 'var(--text-tertiary)', fontSize: 12 }}>Intelligence</span>
-        <span style={{ color: 'var(--text-tertiary)', fontSize: 12 }}>/</span>
         <span style={{ fontSize: 12 }}>Canvas</span>
         {data && (
           <span className="mono" style={{ marginLeft: 'auto', fontSize: 10, color: 'var(--text-tertiary)' }}>

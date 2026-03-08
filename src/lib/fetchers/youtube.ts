@@ -21,6 +21,7 @@ const WHITELISTED_CHANNELS = [
   'thedavidlinreport',
   'metals and miners',
   'goldman sachs',
+  'sourceryvc',
 ];
 
 function isWhitelistedChannel(channelTitle: string): boolean {

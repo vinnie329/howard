@@ -119,8 +119,6 @@ export default function SourceProfile() {
     <>
       {/* Top bar */}
       <div className="top-bar">
-        <Link href="/" style={{ color: 'var(--text-tertiary)', fontSize: 12, textDecoration: 'none' }}>Intelligence</Link>
-        <span style={{ color: 'var(--text-tertiary)', fontSize: 12 }}>/</span>
         <span style={{ fontSize: 12 }}>{source.name}</span>
       </div>
 

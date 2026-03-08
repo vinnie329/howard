@@ -1,6 +1,4 @@
 import { getSupabaseClient } from './supabase';
-import { getSupabaseServiceClient } from './supabase';
-import { generateEmbedding, toVectorString } from './embeddings';
 import type { Source, Analysis, ContentWithAnalysis, Prediction, Outlook, OutlookHistory, TrendingTopic } from '@/types';
 import {
   mockSources,
@@ -731,6 +729,7 @@ export async function getRelatedContent(
   if (!hasSupabase || !process.env.VOYAGE_API_KEY) return [];
 
   try {
+    const { getSupabaseServiceClient } = await import('./supabase');
     const supabase = getSupabaseServiceClient();
 
     // Get the content's embedding
@@ -748,6 +747,7 @@ export async function getRelatedContent(
       embeddingStr = content.embedding;
     } else {
       // Generate embedding on-the-fly if missing
+      const { generateEmbedding, toVectorString } = await import('./embeddings');
       const emb = await generateEmbedding(`${content.title}\n\n${content.raw_text || ''}`);
       embeddingStr = toVectorString(emb);
     }
@@ -780,6 +780,7 @@ export async function getRelatedPredictions(
   if (!hasSupabase || !process.env.VOYAGE_API_KEY) return [];
 
   try {
+    const { getSupabaseServiceClient } = await import('./supabase');
     const supabase = getSupabaseServiceClient();
 
     const { data: prediction, error: predErr } = await supabase
@@ -795,7 +796,7 @@ export async function getRelatedPredictions(
     if (prediction.embedding) {
       embeddingStr = prediction.embedding;
     } else {
-      const { generateEmbedding: genEmb, preparePredictionText } = await import('./embeddings');
+      const { generateEmbedding: genEmb, preparePredictionText, toVectorString } = await import('./embeddings');
       const text = preparePredictionText(
         prediction.claim,
         (prediction.themes || []) as string[],

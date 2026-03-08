@@ -315,18 +315,19 @@ h2 {
   display: none;
   align-items: center;
   justify-content: center;
-  width: 36px;
-  height: 36px;
+  width: 44px;
+  height: 44px;
   background: var(--bg-surface);
   border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-pill);
   color: var(--text-secondary);
   cursor: pointer;
   padding: 0;
   flex-shrink: 0;
   position: fixed;
-  top: 38px;
-  left: var(--space-3);
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
   z-index: 40;
 }
 
@@ -338,6 +339,12 @@ h2 {
    MOBILE RESPONSIVE — max-width: 768px
    ========================================= */
 @media (max-width: 768px) {
+  /* Prevent horizontal overflow */
+  html, body {
+    overflow-x: hidden;
+    max-width: 100vw;
+  }
+
   /* Show hamburger */
   .mobile-menu-btn {
     display: flex;
@@ -377,11 +384,12 @@ h2 {
     max-width: 100%;
     border-left: none;
     border-right: none;
+    overflow-x: hidden;
   }
 
-  /* Top bar: room for hamburger */
+  /* Top bar */
   .top-bar {
-    padding-left: 52px;
+    padding-left: var(--space-3);
     padding-right: var(--space-3);
     min-height: 44px;
     height: auto;
@@ -427,10 +435,7 @@ h2 {
   }
 
   .page-two-col-aside {
-    width: 100% !important;
-    min-width: 0 !important;
-    border-left: none !important;
-    border-top: 1px solid var(--border);
+    display: none !important;
   }
 
   /* Tables: horizontal scroll */
@@ -467,6 +472,13 @@ h2 {
   /* Filter tabs: allow wrap */
   .filter-tabs {
     flex-wrap: wrap;
+  }
+
+  /* Contain content width */
+  .panel-main,
+  .page-two-col-main {
+    overflow-x: hidden !important;
+    word-break: break-word;
   }
 
   /* Hide keyboard shortcut hints */
