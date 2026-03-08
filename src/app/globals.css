@@ -403,10 +403,7 @@ h2 {
   }
 
   .panel-left {
-    width: 100% !important;
-    min-width: 0 !important;
-    border-right: none;
-    border-bottom: 1px solid var(--border);
+    display: none;
   }
 
   .panel-main {
@@ -414,10 +411,7 @@ h2 {
   }
 
   .panel-right {
-    width: 100% !important;
-    min-width: 0 !important;
-    border-left: none;
-    border-top: 1px solid var(--border);
+    display: none;
   }
 
   /* Two-column page layouts */
