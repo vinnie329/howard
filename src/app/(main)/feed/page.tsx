@@ -283,7 +283,7 @@ export default function DailyDigest() {
         </div>
 
         {/* Right Panel - Watchlist */}
-        <div className="panel-right" style={{ display: 'flex', flexDirection: 'column' }}>
+        <div className="panel-right" style={{ flexDirection: 'column' }}>
           <div className="panel-header">Watchlist</div>
           <div style={{ flex: 1, minHeight: 0 }}>
             <WatchlistPanel />

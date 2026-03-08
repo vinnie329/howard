@@ -169,6 +169,7 @@ h2 {
   border-left: 1px solid var(--border);
   overflow-y: auto;
   padding: var(--space-6);
+  display: flex;
 }
 
 /* Panel headers */
@@ -403,7 +404,7 @@ h2 {
   }
 
   .panel-left {
-    display: none;
+    display: none !important;
   }
 
   .panel-main {
@@ -411,7 +412,7 @@ h2 {
   }
 
   .panel-right {
-    display: none;
+    display: none !important;
   }
 
   /* Two-column page layouts */
