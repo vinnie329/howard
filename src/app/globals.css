@@ -486,6 +486,26 @@ h2 {
     display: none;
   }
 
+  /* Predictions grid: card layout on mobile */
+  .predictions-grid-header {
+    display: none !important;
+  }
+
+  .predictions-grid-row {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    gap: var(--space-2) !important;
+    align-items: flex-start !important;
+  }
+
+  .predictions-grid-row > div:first-child {
+    width: 100%;
+  }
+
+  .predictions-meta-cell {
+    flex-shrink: 0;
+  }
+
   /* Canvas: detail panel below graph on mobile */
   .canvas-detail {
     position: static !important;

@@ -244,8 +244,8 @@ export default function ContentDetailPage() {
               borderRadius: 'var(--radius-md)',
               overflow: 'hidden',
             }}>
-              {/* Header */}
-              <div style={{
+              {/* Header — hidden on mobile */}
+              <div className="predictions-grid-header" style={{
                 display: 'grid',
                 gridTemplateColumns: '2fr 80px 100px 80px',
                 padding: 'var(--space-3) var(--space-4)',
@@ -263,6 +263,7 @@ export default function ContentDetailPage() {
                 <div key={pred.id}>
                   <div
                     onClick={() => setExpandedPrediction(expandedPrediction === pred.id ? null : pred.id)}
+                    className="predictions-grid-row"
                     style={{
                       display: 'grid',
                       gridTemplateColumns: '2fr 80px 100px 80px',
@@ -296,16 +297,16 @@ export default function ContentDetailPage() {
                         ))}
                       </div>
                     </div>
-                    <div>
+                    <div className="predictions-meta-cell">
                       <Tag
                         label={pred.sentiment}
                         variant={pred.sentiment === 'bullish' ? 'bullish' : pred.sentiment === 'bearish' ? 'bearish' : 'default'}
                       />
                     </div>
-                    <span className="mono" style={{ fontSize: 11 }}>
+                    <span className="predictions-meta-cell mono" style={{ fontSize: 11 }}>
                       {pred.time_horizon}
                     </span>
-                    <span className="mono" style={{ fontSize: 10, color: 'var(--text-secondary)', textTransform: 'capitalize' }}>
+                    <span className="predictions-meta-cell mono" style={{ fontSize: 10, color: 'var(--text-secondary)', textTransform: 'capitalize' }}>
                       {pred.specificity}
                     </span>
                   </div>

@@ -169,13 +169,13 @@ export default function PredictionsLedger() {
           </div>
         ) : (
           <>
-            <div className="table-scroll"><div style={{
+            <div style={{
               border: '1px solid var(--border)',
               borderRadius: 'var(--radius-md)',
               overflow: 'hidden',
             }}>
-              {/* Header */}
-              <div style={{
+              {/* Header — hidden on mobile */}
+              <div className="predictions-grid-header" style={{
                 display: 'grid',
                 gridTemplateColumns: '2fr 1fr 80px 100px 80px 90px',
                 padding: 'var(--space-3) var(--space-4)',
@@ -196,6 +196,7 @@ export default function PredictionsLedger() {
                 return (
                   <div key={pred.id}>
                     <div
+                      className="predictions-grid-row"
                       onClick={() => setExpandedPrediction(expandedPrediction === pred.id ? null : pred.id)}
                       style={{
                         display: 'grid',
@@ -230,22 +231,22 @@ export default function PredictionsLedger() {
                           ))}
                         </div>
                       </div>
-                      <div>
+                      <div className="predictions-meta-cell">
                         <SourcePill name={source?.name || 'Unknown'} />
                       </div>
-                      <div>
+                      <div className="predictions-meta-cell">
                         <Tag
                           label={pred.sentiment}
                           variant={pred.sentiment === 'bullish' ? 'bullish' : pred.sentiment === 'bearish' ? 'bearish' : 'default'}
                         />
                       </div>
-                      <span className="mono" style={{ fontSize: 11 }}>
+                      <span className="predictions-meta-cell mono" style={{ fontSize: 11 }}>
                         {pred.time_horizon}
                       </span>
-                      <span className="mono" style={{ fontSize: 10, color: 'var(--text-secondary)', textTransform: 'capitalize' }}>
+                      <span className="predictions-meta-cell mono" style={{ fontSize: 10, color: 'var(--text-secondary)', textTransform: 'capitalize' }}>
                         {pred.specificity}
                       </span>
-                      <span className="mono" style={{ fontSize: 10, color: 'var(--text-tertiary)' }}>
+                      <span className="predictions-meta-cell mono" style={{ fontSize: 10, color: 'var(--text-tertiary)' }}>
                         {formatDate(pred.date_made)}
                       </span>
                     </div>
@@ -257,7 +258,7 @@ export default function PredictionsLedger() {
                   </div>
                 );
               })}</div>
-            </div></div>
+            </div>
 
             <div className="mono" style={{ marginTop: 'var(--space-4)', fontSize: 10, color: 'var(--text-tertiary)' }}>
               {filtered.length} prediction{filtered.length !== 1 ? 's' : ''} tracked
