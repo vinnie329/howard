@@ -30,12 +30,13 @@ export default function PipelineBanner() {
         fontSize: '13px',
         display: 'flex',
         alignItems: 'center',
+        justifyContent: 'center',
         gap: '8px',
         zIndex: 100,
       }}
     >
       <span style={{ color: '#ef4444', flexShrink: 0 }}>&#x26A0;</span>
-      <span style={{ flex: 1 }}>
+      <span>
         {status.message}
         {status.lastDate && (
           <span style={{ color: 'var(--text-tertiary)', marginLeft: 8 }}>
