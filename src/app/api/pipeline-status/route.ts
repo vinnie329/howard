@@ -37,5 +37,7 @@ export async function GET() {
     lastRun: latest.generated_at,
     lastDate: latest.key,
     ageHours: Math.round(ageHours * 10) / 10,
+  }, {
+    headers: { 'Cache-Control': 'no-store, max-age=0' },
   });
 }
