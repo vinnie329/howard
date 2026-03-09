@@ -188,8 +188,15 @@ async function getVideoMeta(videoId: string): Promise<{ title: string; published
 
 async function main() {
   const args = process.argv.slice(2);
+  const guestIdx = args.indexOf('--guest');
+  let guest: string | null = null;
+  if (guestIdx !== -1) {
+    guest = args[guestIdx + 1] || null;
+    args.splice(guestIdx, 2);
+  }
+
   if (args.length < 2) {
-    console.error('Usage: npx tsx scripts/add-video.ts <video-id-or-url> <source-slug>');
+    console.error('Usage: npx tsx scripts/add-video.ts <video-id-or-url> <source-slug> [--guest "Name"]');
     process.exit(1);
   }
 
@@ -242,7 +249,7 @@ async function main() {
   }
 
   // Upsert content row
-  const row = {
+  const row: Record<string, unknown> = {
     source_id: source.id,
     platform: 'youtube',
     external_id: videoId,
@@ -250,7 +257,10 @@ async function main() {
     url: `https://www.youtube.com/watch?v=${videoId}`,
     published_at: meta.publishedAt,
     raw_text: transcript || null,
+    guest: guest,
   };
+
+  if (guest) console.log(`Guest: ${guest}`);
 
   const { data: content, error: insertErr } = await supabase
     .from('content')

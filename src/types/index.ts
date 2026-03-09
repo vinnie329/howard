@@ -33,6 +33,7 @@ export interface Content {
   url: string;
   published_at: string;
   raw_text: string;
+  guest: string | null;
   created_at: string;
 }
 

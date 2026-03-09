@@ -240,6 +240,7 @@ export default function DailyDigest() {
                   <ContentCard
                     sourceName={item.source.name}
                     sourceSlug={item.source.slug}
+                    guest={item.guest}
                     sentiment={item.analysis.sentiment_overall}
                     title={decodeEntities(item.analysis.display_title || item.title)}
                     summary={item.analysis.summary}

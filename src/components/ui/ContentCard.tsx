@@ -5,6 +5,7 @@ interface ContentCardProps {
   sourceName: string;
   sourceAvatar?: string;
   sourceSlug?: string;
+  guest?: string | null;
   sentiment: 'bullish' | 'bearish' | 'neutral' | 'mixed';
   title: string;
   summary: string;
@@ -19,6 +20,7 @@ export default function ContentCard({
   sourceName,
   sourceAvatar,
   sourceSlug,
+  guest,
   sentiment,
   title,
   summary,
@@ -50,7 +52,14 @@ export default function ContentCard({
         justifyContent: 'space-between',
         marginBottom: 'var(--space-3)',
       }}>
-        <SourcePill name={sourceName} avatarUrl={sourceAvatar} slug={sourceSlug} />
+        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
+          <SourcePill name={sourceName} avatarUrl={sourceAvatar} slug={sourceSlug} />
+          {guest && (
+            <span style={{ fontSize: 11, color: 'var(--text-secondary)' }}>
+              ft. <strong style={{ color: 'var(--text-primary)', fontWeight: 500 }}>{guest}</strong>
+            </span>
+          )}
+        </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
           {url ? (
             <a

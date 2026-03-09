@@ -100,6 +100,7 @@ export async function getContentWithAnalysis(
         url: c.url || '',
         published_at: c.published_at,
         raw_text: c.raw_text || '',
+        guest: c.guest || null,
         created_at: c.created_at,
         source: {
           id: source.id as string,
@@ -231,6 +232,7 @@ export async function getContentForSource(sourceId: string): Promise<ContentWith
         url: c.url || '',
         published_at: c.published_at,
         raw_text: c.raw_text || '',
+        guest: c.guest || null,
         created_at: c.created_at,
         source: {
           id: source.id as string,
@@ -355,6 +357,7 @@ export interface ContentDetail {
   url: string;
   platform: string;
   published_at: string;
+  guest: string | null;
   analysis: Analysis;
   predictions: Prediction[];
 }
@@ -373,6 +376,7 @@ export async function getContentById(contentId: string): Promise<ContentDetail |
       url: item.url,
       platform: item.platform,
       published_at: item.published_at,
+      guest: null,
       analysis: item.analysis,
       predictions: preds,
     };
@@ -454,6 +458,7 @@ export async function getContentById(contentId: string): Promise<ContentDetail |
       url: content.url || '',
       platform: content.platform,
       published_at: content.published_at,
+      guest: content.guest || null,
       analysis,
       predictions,
     };

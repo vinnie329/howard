@@ -118,8 +118,13 @@ export default function ContentDetailPage() {
 
         {/* Header */}
         <div style={{ marginBottom: 'var(--space-6)' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)', marginBottom: 'var(--space-3)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)', marginBottom: 'var(--space-3)', flexWrap: 'wrap' }}>
             <SourcePill name={source.name} slug={source.slug} />
+            {data.guest && (
+              <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
+                ft. <strong style={{ color: 'var(--text-primary)', fontWeight: 500 }}>{data.guest}</strong>
+              </span>
+            )}
             <span className={badgeClass}>{analysis.sentiment_overall}</span>
             {data.url && (
               <a
