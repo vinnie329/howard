@@ -143,6 +143,41 @@ async function fetchTranscriptGemini(videoId: string): Promise<string | null> {
   }
 }
 
+async function fetchTranscriptGeminiUrl(videoId: string): Promise<string | null> {
+  const geminiApiKey = process.env.GEMINI_API_KEY;
+  if (!geminiApiKey) return null;
+
+  const ytUrl = `https://www.youtube.com/watch?v=${videoId}`;
+  console.log(`  Gemini URL transcription for ${ytUrl}...`);
+
+  try {
+    const res = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${geminiApiKey}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [
+            { file_data: { mime_type: 'video/mp4', file_uri: ytUrl } },
+            { text: 'Transcribe this video verbatim. Return only the transcript text. No timestamps, no speaker labels, no markdown formatting.' },
+          ]}],
+        }),
+      }
+    );
+    if (!res.ok) {
+      const errText = await res.text();
+      console.log(`  Gemini URL error: ${res.status} ${errText.slice(0, 200)}`);
+      return null;
+    }
+
+    const data = await res.json();
+    return data.candidates?.[0]?.content?.parts?.[0]?.text || null;
+  } catch (err) {
+    console.log(`  Gemini URL failed: ${err instanceof Error ? err.message : err}`);
+    return null;
+  }
+}
+
 async function main() {
   console.log('=== Fetch Missing Transcripts & Analyze ===\n');
 
@@ -168,10 +203,17 @@ async function main() {
     }
 
     try {
-      let transcript = await fetchTranscript(item.external_id);
+      // Strategy 1: yt-dlp subtitles
+      let transcript = await fetchTranscript(item.external_id).catch(() => null);
+      // Strategy 2: yt-dlp audio download → Gemini transcription
       if (!transcript || transcript.length < 100) {
-        console.log(`  No subtitles — trying Gemini audio transcription...`);
+        console.log(`  No subtitles — trying Gemini audio download...`);
         transcript = await fetchTranscriptGemini(item.external_id);
+      }
+      // Strategy 3: Gemini native YouTube URL (no yt-dlp needed)
+      if (!transcript || transcript.length < 100) {
+        console.log(`  Audio download failed — trying Gemini URL transcription...`);
+        transcript = await fetchTranscriptGeminiUrl(item.external_id);
       }
       if (!transcript || transcript.length < 100) {
         console.log(`  No usable transcript (${transcript?.length || 0} chars)\n`);

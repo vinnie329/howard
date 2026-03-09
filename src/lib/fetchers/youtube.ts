@@ -197,6 +197,47 @@ const GEMINI_MODEL = 'gemini-2.5-flash';
 const GEMINI_PROMPT =
   'Transcribe this audio verbatim. Return only the transcript text. No timestamps, no speaker labels, no markdown formatting.';
 
+/**
+ * Fallback: use Gemini's native YouTube URL support — no yt-dlp needed.
+ * Works when yt-dlp is blocked by bot detection (e.g. GitHub Actions IPs).
+ */
+async function fetchTranscriptGeminiUrl(videoId: string): Promise<string | null> {
+  const geminiApiKey = process.env.GEMINI_API_KEY;
+  if (!geminiApiKey) return null;
+
+  const ytUrl = `https://www.youtube.com/watch?v=${videoId}`;
+  console.log(`      [transcript] Gemini URL transcription for ${ytUrl}...`);
+
+  try {
+    const res = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${geminiApiKey}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [
+            { file_data: { mime_type: 'video/mp4', file_uri: ytUrl } },
+            { text: GEMINI_PROMPT },
+          ]}],
+        }),
+      }
+    );
+    if (!res.ok) {
+      const errText = await res.text();
+      console.log(`      [transcript] Gemini URL error: ${res.status} ${errText.slice(0, 200)}`);
+      return null;
+    }
+
+    const data = await res.json();
+    const text = data.candidates?.[0]?.content?.parts?.[0]?.text || null;
+    if (text) console.log(`      [transcript] Gemini URL transcription: ${text.length} chars`);
+    return text;
+  } catch (err) {
+    console.log(`      [transcript] Gemini URL failed: ${err instanceof Error ? err.message : err}`);
+    return null;
+  }
+}
+
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 async function geminiTranscribeInline(
   audioData: Buffer,
@@ -401,7 +442,7 @@ export async function fetchYouTubeVideos(
         console.log(`\n    Processing: "${video.title}" [${video.channelTitle}]`);
         console.log(`    Video ID: ${video.videoId}`);
 
-        // Fetch transcript (subtitles first, then Gemini audio fallback)
+        // Fetch transcript: subtitles → Gemini audio → Gemini URL
         let rawText: string | null = null;
         try {
           rawText = await fetchTranscript(video.videoId);
@@ -411,10 +452,16 @@ export async function fetchYouTubeVideos(
             console.log(`    ⚠ No subtitles — trying Gemini audio transcription...`);
             rawText = await fetchTranscriptGemini(video.videoId);
             if (rawText && rawText.length > 0) {
-              console.log(`    ✓ Transcript OK (Gemini): ${rawText.length} chars`);
+              console.log(`    ✓ Transcript OK (Gemini audio): ${rawText.length} chars`);
             } else {
-              console.log(`    ⚠ No transcript available`);
-              rawText = null;
+              console.log(`    ⚠ Audio download failed — trying Gemini URL transcription...`);
+              rawText = await fetchTranscriptGeminiUrl(video.videoId);
+              if (rawText && rawText.length > 0) {
+                console.log(`    ✓ Transcript OK (Gemini URL): ${rawText.length} chars`);
+              } else {
+                console.log(`    ⚠ No transcript available`);
+                rawText = null;
+              }
             }
           }
         } catch (err) {
