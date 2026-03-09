@@ -3,19 +3,21 @@
  *
  * Steps:
  *   1. Fetch new content (YouTube, Oaktree, etc.)
- *   2. Analyze unprocessed content (Claude)
- *   3. Generate missing embeddings (Voyage AI)
- *   4. Evaluate & update outlooks (Claude)
- *   5. Generate signals (Claude + Yahoo Finance)
- *   6. Generate positioning (Claude synthesis)
- *   7. Fetch 13F holdings (SEC EDGAR)
- *   8. Fetch prediction markets (Kalshi + Polymarket)
- *   9. Fetch FedWatch rate probabilities
- *  10. Generate daily update (Claude synthesis — must be last)
+ *   2. Retry missing transcripts (yt-dlp + Gemini fallback)
+ *   3. Analyze unprocessed content (Claude)
+ *   4. Generate missing embeddings (Voyage AI)
+ *   5. Evaluate & update outlooks (Claude)
+ *   6. Generate signals (Claude + Yahoo Finance)
+ *   7. Generate positioning (Claude synthesis)
+ *   8. Fetch 13F holdings (SEC EDGAR)
+ *   9. Fetch prediction markets (Kalshi + Polymarket)
+ *  10. Fetch FedWatch rate probabilities
+ *  11. Generate daily update (Claude synthesis — must be last)
  *
  * Usage:
  *   npx tsx scripts/pipeline.ts                # run all steps
  *   npx tsx scripts/pipeline.ts --fetch        # only fetch
+ *   npx tsx scripts/pipeline.ts --transcripts  # only transcript retry
  *   npx tsx scripts/pipeline.ts --analyze      # only analyze
  *   npx tsx scripts/pipeline.ts --embed        # only embeddings
  *   npx tsx scripts/pipeline.ts --outlook      # only outlook
@@ -34,6 +36,7 @@ const root = path.resolve(__dirname, '..');
 const args = process.argv.slice(2);
 const runAll = args.length === 0;
 const runFetch = runAll || args.includes('--fetch');
+const runTranscripts = runAll || args.includes('--transcripts');
 const runAnalyze = runAll || args.includes('--analyze');
 const runEmbed = runAll || args.includes('--embed');
 const runOutlook = runAll || args.includes('--outlook');
@@ -71,16 +74,17 @@ function run(label: string, script: string) {
 console.log('\n  Howard Pipeline\n');
 
 const steps: [boolean, string, string][] = [
-  [runFetch, 'Step 1/10 — Fetch content', 'scripts/fetch-all.ts'],
-  [runAnalyze, 'Step 2/10 — Analyze content', 'scripts/analyze-content.ts'],
-  [runEmbed, 'Step 3/10 — Generate embeddings', 'scripts/generate-embeddings.ts'],
-  [runOutlook, 'Step 4/10 — Update outlooks', 'scripts/update-outlook.ts'],
-  [runSignals, 'Step 5/10 — Generate signals', 'scripts/generate-signals.ts'],
-  [runPositioning, 'Step 6/10 — Generate positioning', 'scripts/generate-positioning.ts'],
-  [run13f, 'Step 7/10 — Fetch 13F holdings', 'scripts/fetch-13f.ts'],
-  [runMarkets, 'Step 8/10 — Fetch prediction markets', 'scripts/fetch-prediction-markets.ts'],
-  [runFedWatch, 'Step 9/10 — Fetch FedWatch probabilities', 'scripts/fetch-fedwatch.ts'],
-  [runDaily, 'Step 10/10 — Generate daily update', 'scripts/generate-daily-update.ts'],
+  [runFetch, 'Step 1/11 — Fetch content', 'scripts/fetch-all.ts'],
+  [runTranscripts, 'Step 2/11 — Retry missing transcripts', 'scripts/fetch-missing-transcripts.ts'],
+  [runAnalyze, 'Step 3/11 — Analyze content', 'scripts/analyze-content.ts'],
+  [runEmbed, 'Step 4/11 — Generate embeddings', 'scripts/generate-embeddings.ts'],
+  [runOutlook, 'Step 5/11 — Update outlooks', 'scripts/update-outlook.ts'],
+  [runSignals, 'Step 6/11 — Generate signals', 'scripts/generate-signals.ts'],
+  [runPositioning, 'Step 7/11 — Generate positioning', 'scripts/generate-positioning.ts'],
+  [run13f, 'Step 8/11 — Fetch 13F holdings', 'scripts/fetch-13f.ts'],
+  [runMarkets, 'Step 9/11 — Fetch prediction markets', 'scripts/fetch-prediction-markets.ts'],
+  [runFedWatch, 'Step 10/11 — Fetch FedWatch probabilities', 'scripts/fetch-fedwatch.ts'],
+  [runDaily, 'Step 11/11 — Generate daily update', 'scripts/generate-daily-update.ts'],
 ];
 
 const active = steps.filter(([enabled]) => enabled);
