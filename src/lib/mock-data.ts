@@ -210,6 +210,7 @@ export const mockContentWithAnalysis: ContentWithAnalysis[] = [
     url: 'https://example.com/howard-marks/illusion-of-knowledge',
     published_at: '2026-02-05T10:00:00Z',
     raw_text: '',
+    guest: null,
     created_at: '2026-02-05T10:00:00Z',
     source: mockSources[0],
     analysis: {
@@ -239,6 +240,7 @@ export const mockContentWithAnalysis: ContentWithAnalysis[] = [
     url: 'https://youtube.com/watch?v=mock123',
     published_at: '2026-02-04T14:00:00Z',
     raw_text: '',
+    guest: null,
     created_at: '2026-02-04T14:00:00Z',
     source: mockSources[1],
     analysis: {
@@ -268,6 +270,7 @@ export const mockContentWithAnalysis: ContentWithAnalysis[] = [
     url: 'https://semianalysis.com/gpu-capex-correction',
     published_at: '2026-02-03T08:00:00Z',
     raw_text: '',
+    guest: null,
     created_at: '2026-02-03T08:00:00Z',
     source: mockSources[4],
     analysis: {
@@ -297,6 +300,7 @@ export const mockContentWithAnalysis: ContentWithAnalysis[] = [
     url: 'https://example.com/burry-13f-q4-2025',
     published_at: '2026-02-01T12:00:00Z',
     raw_text: '',
+    guest: null,
     created_at: '2026-02-01T12:00:00Z',
     source: mockSources[2],
     analysis: {
