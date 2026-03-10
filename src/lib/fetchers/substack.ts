@@ -101,6 +101,24 @@ function extractHtmlBody(payload: GmailMessageFull['payload']): string | null {
   return null;
 }
 
+function extractPostUrl(html: string): string | null {
+  const $ = cheerio.load(html);
+  // Substack emails have a "View in browser" or "View online" link to the actual post
+  const viewLink =
+    $('a:contains("View in browser")').attr('href') ||
+    $('a:contains("View online")').attr('href') ||
+    $('a:contains("Read in browser")').attr('href') ||
+    $('a:contains("Read online")').attr('href');
+  if (viewLink) return viewLink;
+
+  // Fallback: find any link to a substack.com/p/ URL (the post URL pattern)
+  let postUrl: string | null = null;
+  $('a[href*="substack.com/p/"]').each((_, el) => {
+    if (!postUrl) postUrl = $(el).attr('href') || null;
+  });
+  return postUrl;
+}
+
 function extractArticleText(html: string): string {
   const $ = cheerio.load(html);
 
@@ -206,27 +224,39 @@ export async function fetchSubstackEmails(
           continue;
         }
 
-        // Use Gmail message ID as external_id
-        const externalId = `substack-${msg.id}`;
-
-        // Check if we already have this
-        const { data: existing } = await supabase
-          .from('content')
-          .select('id')
-          .eq('platform', 'substack')
-          .eq('external_id', externalId)
-          .single();
-
-        if (existing) {
-          console.log(`    ~ Already exists: ${subject}`);
-          continue;
-        }
-
-        // Extract article text from email HTML
+        // Extract HTML and post URL first (needed for dedup)
         const html = extractHtmlBody(msgData.payload);
         if (!html) {
           console.log(`    ✕ No HTML body: ${subject}`);
           continue;
+        }
+
+        const postUrl = extractPostUrl(html);
+        const externalId = `substack-${msg.id}`;
+
+        // Dedup: check by external_id OR by post URL (catches manual additions)
+        const { data: existingById } = await supabase
+          .from('content')
+          .select('id')
+          .eq('external_id', externalId)
+          .single();
+
+        if (existingById) {
+          console.log(`    ~ Already exists: ${subject}`);
+          continue;
+        }
+
+        if (postUrl) {
+          const { data: existingByUrl } = await supabase
+            .from('content')
+            .select('id')
+            .eq('url', postUrl)
+            .single();
+
+          if (existingByUrl) {
+            console.log(`    ~ Already exists (by URL): ${subject}`);
+            continue;
+          }
         }
 
         const rawText = extractArticleText(html);
@@ -244,7 +274,7 @@ export async function fetchSubstackEmails(
           platform: 'substack',
           external_id: externalId,
           title: subject,
-          url: `https://mail.google.com/mail/u/0/#inbox/${msg.threadId}`,
+          url: postUrl || `https://mail.google.com/mail/u/0/#inbox/${msg.threadId}`,
           published_at: publishedAt,
           raw_text: rawText.slice(0, 50000),
         });
