@@ -101,22 +101,48 @@ function extractHtmlBody(payload: GmailMessageFull['payload']): string | null {
   return null;
 }
 
+/**
+ * Decode a Substack redirect URL to get the real post URL.
+ * Redirect URLs contain a base64-encoded JSON payload with the target URL in the "e" field.
+ */
+function resolveRedirectUrl(url: string): string {
+  if (!url.includes('substack.com/redirect/')) return url;
+  try {
+    // URL format: https://substack.com/redirect/2/<base64-payload>?...
+    const pathParts = new URL(url).pathname.split('/');
+    const payload = pathParts[pathParts.length - 1];
+    const decoded = JSON.parse(Buffer.from(payload, 'base64').toString('utf-8'));
+    if (decoded.e && typeof decoded.e === 'string') {
+      // The "e" field contains the real URL (sometimes with tracking params)
+      const realUrl = new URL(decoded.e);
+      // Strip tracking params, keep just the clean post URL
+      return `${realUrl.origin}${realUrl.pathname}`;
+    }
+  } catch {}
+  return url;
+}
+
 function extractPostUrl(html: string): string | null {
   const $ = cheerio.load(html);
   // Substack emails have a "View in browser" or "View online" link to the actual post
-  const viewLink =
+  let rawUrl =
     $('a:contains("View in browser")').attr('href') ||
     $('a:contains("View online")').attr('href') ||
     $('a:contains("Read in browser")').attr('href') ||
-    $('a:contains("Read online")').attr('href');
-  if (viewLink) return viewLink;
+    $('a:contains("Read online")').attr('href') ||
+    null;
 
   // Fallback: find any link to a substack.com/p/ URL (the post URL pattern)
-  let postUrl: string | null = null;
-  $('a[href*="substack.com/p/"]').each((_, el) => {
-    if (!postUrl) postUrl = $(el).attr('href') || null;
-  });
-  return postUrl;
+  if (!rawUrl) {
+    $('a[href*="substack.com/p/"]').each((_, el) => {
+      if (!rawUrl) rawUrl = $(el).attr('href') || null;
+    });
+  }
+
+  if (!rawUrl) return null;
+
+  // Resolve redirect URLs to get the actual post URL
+  return resolveRedirectUrl(rawUrl);
 }
 
 function extractArticleText(html: string): string {
@@ -257,6 +283,21 @@ export async function fetchSubstackEmails(
             console.log(`    ~ Already exists (by URL): ${subject}`);
             continue;
           }
+        }
+
+        // Title-based dedup as final safety net (same source + similar title)
+        const { data: existingByTitle } = await supabase
+          .from('content')
+          .select('id')
+          .eq('source_id', sourceId)
+          .eq('platform', 'substack')
+          .ilike('title', subject.split(' - ')[0].trim() + '%')
+          .limit(1)
+          .single();
+
+        if (existingByTitle) {
+          console.log(`    ~ Already exists (by title): ${subject}`);
+          continue;
         }
 
         const rawText = extractArticleText(html);
