@@ -241,7 +241,7 @@ async function fetchTranscriptGeminiUrl(videoId: string): Promise<string | null>
             { text: GEMINI_PROMPT },
           ]}],
         }),
-        signal: AbortSignal.timeout(120000), // 2 min timeout per video
+        signal: AbortSignal.timeout(60000), // 60s timeout per video
       }
     );
     if (!res.ok) {
@@ -449,6 +449,22 @@ export async function fetchYouTubeVideos(
         console.log(`  ⚠ Could not check durations: ${err instanceof Error ? err.message : err}`);
       }
 
+      // Check which videos already exist in DB to skip transcript fetching
+      const existingIds = new Set<string>();
+      const candidateIds = items
+        .filter(v => !shortsSet.has(v.videoId) && isWhitelistedChannel(v.channelTitle))
+        .map(v => v.videoId);
+      if (candidateIds.length > 0) {
+        const { data: existing } = await supabase
+          .from('content')
+          .select('external_id')
+          .eq('platform', 'youtube')
+          .in('external_id', candidateIds);
+        for (const row of existing || []) {
+          existingIds.add(row.external_id);
+        }
+      }
+
       for (const video of items) {
         // Skip short-form videos (≤3 min)
         if (shortsSet.has(video.videoId)) {
@@ -458,6 +474,11 @@ export async function fetchYouTubeVideos(
         // Channel whitelist check
         if (!isWhitelistedChannel(video.channelTitle)) {
           console.log(`    ✕ Skipped (channel: ${video.channelTitle}): ${video.title}`);
+          continue;
+        }
+        // Skip videos already in DB
+        if (existingIds.has(video.videoId)) {
+          console.log(`    ~ Already exists: ${video.title}`);
           continue;
         }
 

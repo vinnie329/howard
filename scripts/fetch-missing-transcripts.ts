@@ -188,7 +188,7 @@ async function fetchTranscriptGeminiUrl(videoId: string): Promise<string | null>
             { text: 'Transcribe this video verbatim. Return only the transcript text. No timestamps, no speaker labels, no markdown formatting.' },
           ]}],
         }),
-        signal: AbortSignal.timeout(120000), // 2 min timeout per video
+        signal: AbortSignal.timeout(60000), // 60s timeout per video
       }
     );
     if (!res.ok) {
