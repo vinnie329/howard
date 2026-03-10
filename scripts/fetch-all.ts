@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { fetchYouTubeVideos } from '../src/lib/fetchers/youtube';
 import { fetchOaktreeMemos } from '../src/lib/fetchers/oaktree';
+import { fetchSubstackEmails } from '../src/lib/fetchers/substack';
 import { config } from 'dotenv';
 config({ path: '.env.local' });
 
@@ -32,7 +33,19 @@ async function fetchAll() {
 
   console.log(`Found ${sources.length} sources\n`);
 
+  // Build slug → id map for Substack fetcher
+  const sourceSlugToId: Record<string, string> = {};
+  for (const s of sources) {
+    sourceSlugToId[s.slug] = s.id;
+  }
+
   let totalInserted = 0;
+
+  // Fetch Substack emails (one pass for all sources)
+  console.log('\n--- Substack (Gmail) ---');
+  const substackCount = await fetchSubstackEmails(supabase, sourceSlugToId);
+  console.log(`  Substack: ${substackCount} new items`);
+  totalInserted += substackCount;
 
   for (const source of sources) {
     console.log(`\n--- ${source.name} ---`);
