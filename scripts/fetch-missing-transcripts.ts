@@ -21,6 +21,8 @@ if (!process.env.ANTHROPIC_API_KEY) {
 const anthropicKey = process.env.ANTHROPIC_API_KEY;
 const supabase = createClient(supabaseUrl, supabaseKey);
 
+let ytDlpBlocked = false;
+
 function decodeHtmlEntities(text: string): string {
   return text
     .replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>')
@@ -29,6 +31,11 @@ function decodeHtmlEntities(text: string): string {
 }
 
 async function fetchTranscript(videoId: string): Promise<string | null> {
+  if (ytDlpBlocked) {
+    console.log(`  Skipping yt-dlp (bot-blocked)`);
+    return null;
+  }
+
   const tempBase = join(tmpdir(), `howard-yt-${videoId}-${Date.now()}`);
   const url = `https://www.youtube.com/watch?v=${videoId}`;
 
@@ -38,8 +45,15 @@ async function fetchTranscript(videoId: string): Promise<string | null> {
     execFile('yt-dlp', [
       '--write-sub', '--write-auto-sub', '--sub-lang', 'en',
       '--sub-format', 'srv1', '--skip-download', '-o', tempBase, url,
-    ], { timeout: 60000 }, (error) => {
-      if (error) { reject(error); return; }
+    ], { timeout: 60000 }, (error, _stdout, stderr) => {
+      if (error) {
+        if (stderr?.includes('Sign in to confirm') || error.message?.includes('Sign in to confirm')) {
+          ytDlpBlocked = true;
+          console.log(`  Bot detection — disabling yt-dlp for remaining videos`);
+        }
+        reject(error);
+        return;
+      }
       resolve();
     });
   });
@@ -72,6 +86,11 @@ async function fetchTranscript(videoId: string): Promise<string | null> {
 const GEMINI_MODEL = 'gemini-2.5-flash';
 
 async function fetchTranscriptGemini(videoId: string): Promise<string | null> {
+  if (ytDlpBlocked) {
+    console.log(`  Skipping Gemini audio (yt-dlp bot-blocked)`);
+    return null;
+  }
+
   const geminiApiKey = process.env.GEMINI_API_KEY;
   if (!geminiApiKey) {
     console.log('  Gemini fallback skipped (no GEMINI_API_KEY)');
@@ -90,8 +109,15 @@ async function fetchTranscriptGemini(videoId: string): Promise<string | null> {
         '-x', '--audio-format', 'mp3',
         '--postprocessor-args', 'ffmpeg:-ac 1 -b:a 48k',
         '-o', `${tempBase}.%(ext)s`, url,
-      ], { timeout: 180000 }, (error) => {
-        if (error) { reject(error); return; }
+      ], { timeout: 180000 }, (error, _stdout, stderr) => {
+        if (error) {
+          if (stderr?.includes('Sign in to confirm') || error.message?.includes('Sign in to confirm')) {
+            ytDlpBlocked = true;
+            console.log(`  Bot detection — disabling yt-dlp for remaining videos`);
+          }
+          reject(error);
+          return;
+        }
         resolve();
       });
     });
@@ -162,6 +188,7 @@ async function fetchTranscriptGeminiUrl(videoId: string): Promise<string | null>
             { text: 'Transcribe this video verbatim. Return only the transcript text. No timestamps, no speaker labels, no markdown formatting.' },
           ]}],
         }),
+        signal: AbortSignal.timeout(120000), // 2 min timeout per video
       }
     );
     if (!res.ok) {

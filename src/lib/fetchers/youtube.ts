@@ -6,6 +6,9 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 
 const YOUTUBE_API_BASE = 'https://www.googleapis.com/youtube/v3';
 
+// Track whether yt-dlp is bot-blocked so we skip it for remaining videos
+let ytDlpBlocked = false;
+
 const WHITELISTED_CHANNELS = [
   'invest like the best',
   'the mad podcast with matt turck',
@@ -50,6 +53,11 @@ function decodeHtmlEntities(text: string): string {
  * Downloads subtitles to a temp file, parses XML, and returns plain text.
  */
 async function fetchTranscript(videoId: string): Promise<string | null> {
+  if (ytDlpBlocked) {
+    console.log(`      [transcript] Skipping yt-dlp (bot-blocked)`);
+    return null;
+  }
+
   const tempBase = join(tmpdir(), `howard-yt-${videoId}-${Date.now()}`);
   const url = `https://www.youtube.com/watch?v=${videoId}`;
 
@@ -74,6 +82,10 @@ async function fetchTranscript(videoId: string): Promise<string | null> {
           if (error) {
             console.log(`      [transcript] yt-dlp error: ${error.message}`);
             if (stderr) console.log(`      [transcript] stderr: ${stderr.substring(0, 300)}`);
+            if (stderr?.includes('Sign in to confirm') || error.message?.includes('Sign in to confirm')) {
+              ytDlpBlocked = true;
+              console.log(`      [transcript] Bot detection — disabling yt-dlp for remaining videos`);
+            }
             reject(error);
             return;
           }
@@ -131,6 +143,11 @@ async function fetchTranscript(videoId: string): Promise<string | null> {
  * Used when YouTube captions/auto-subs aren't available.
  */
 async function fetchTranscriptGemini(videoId: string): Promise<string | null> {
+  if (ytDlpBlocked) {
+    console.log(`      [transcript] Skipping Gemini audio (yt-dlp bot-blocked)`);
+    return null;
+  }
+
   const geminiApiKey = process.env.GEMINI_API_KEY;
   if (!geminiApiKey) {
     console.log('      [transcript] Gemini fallback skipped (no GEMINI_API_KEY)');
@@ -160,6 +177,10 @@ async function fetchTranscriptGemini(videoId: string): Promise<string | null> {
           if (error) {
             console.log(`      [transcript] yt-dlp audio error: ${error.message}`);
             if (stderr) console.log(`      [transcript] stderr: ${stderr.substring(0, 300)}`);
+            if (stderr?.includes('Sign in to confirm') || error.message?.includes('Sign in to confirm')) {
+              ytDlpBlocked = true;
+              console.log(`      [transcript] Bot detection — disabling yt-dlp for remaining videos`);
+            }
             reject(error);
             return;
           }
@@ -220,6 +241,7 @@ async function fetchTranscriptGeminiUrl(videoId: string): Promise<string | null>
             { text: GEMINI_PROMPT },
           ]}],
         }),
+        signal: AbortSignal.timeout(120000), // 2 min timeout per video
       }
     );
     if (!res.ok) {
