@@ -230,16 +230,24 @@ async function main() {
     }
 
     try {
-      // Strategy 1: yt-dlp subtitles
-      let transcript = await fetchTranscript(item.external_id).catch(() => null);
-      // Strategy 2: yt-dlp audio download → Gemini transcription
-      if (!transcript || transcript.length < 100) {
+      let transcript: string | null = null;
+
+      // Strategy 1: yt-dlp subtitles (skip if bot-blocked)
+      if (!ytDlpBlocked) {
+        transcript = await fetchTranscript(item.external_id).catch(() => null);
+      }
+      // Strategy 2: yt-dlp audio download → Gemini transcription (skip if bot-blocked)
+      if ((!transcript || transcript.length < 100) && !ytDlpBlocked) {
         console.log(`  No subtitles — trying Gemini audio download...`);
         transcript = await fetchTranscriptGemini(item.external_id);
       }
-      // Strategy 3: Gemini native YouTube URL (no yt-dlp needed)
+      // Strategy 3: Gemini native YouTube URL (no yt-dlp needed — always available)
       if (!transcript || transcript.length < 100) {
-        console.log(`  Audio download failed — trying Gemini URL transcription...`);
+        if (ytDlpBlocked) {
+          console.log(`  yt-dlp blocked — using Gemini URL transcription directly...`);
+        } else {
+          console.log(`  Audio download failed — trying Gemini URL transcription...`);
+        }
         transcript = await fetchTranscriptGeminiUrl(item.external_id);
       }
       if (!transcript || transcript.length < 100) {

@@ -488,23 +488,34 @@ export async function fetchYouTubeVideos(
         // Fetch transcript: subtitles → Gemini audio → Gemini URL
         let rawText: string | null = null;
         try {
-          rawText = await fetchTranscript(video.videoId);
-          if (rawText && rawText.length > 0) {
-            console.log(`    ✓ Transcript OK (subtitles): ${rawText.length} chars`);
-          } else {
+          // Strategy 1: yt-dlp subtitles (skip if bot-blocked)
+          if (!ytDlpBlocked) {
+            rawText = await fetchTranscript(video.videoId);
+            if (rawText && rawText.length > 0) {
+              console.log(`    ✓ Transcript OK (subtitles): ${rawText.length} chars`);
+            }
+          }
+          // Strategy 2: yt-dlp audio → Gemini transcription (skip if bot-blocked)
+          if ((!rawText || rawText.length === 0) && !ytDlpBlocked) {
             console.log(`    ⚠ No subtitles — trying Gemini audio transcription...`);
             rawText = await fetchTranscriptGemini(video.videoId);
             if (rawText && rawText.length > 0) {
               console.log(`    ✓ Transcript OK (Gemini audio): ${rawText.length} chars`);
+            }
+          }
+          // Strategy 3: Gemini URL transcription (no yt-dlp — always available)
+          if (!rawText || rawText.length === 0) {
+            if (ytDlpBlocked) {
+              console.log(`    ⚠ yt-dlp blocked — using Gemini URL transcription directly...`);
             } else {
               console.log(`    ⚠ Audio download failed — trying Gemini URL transcription...`);
-              rawText = await fetchTranscriptGeminiUrl(video.videoId);
-              if (rawText && rawText.length > 0) {
-                console.log(`    ✓ Transcript OK (Gemini URL): ${rawText.length} chars`);
-              } else {
-                console.log(`    ⚠ No transcript available`);
-                rawText = null;
-              }
+            }
+            rawText = await fetchTranscriptGeminiUrl(video.videoId);
+            if (rawText && rawText.length > 0) {
+              console.log(`    ✓ Transcript OK (Gemini URL): ${rawText.length} chars`);
+            } else {
+              console.log(`    ⚠ No transcript available`);
+              rawText = null;
             }
           }
         } catch (err) {

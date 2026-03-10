@@ -33,6 +33,34 @@ import { execSync } from 'child_process';
 import path from 'path';
 
 const root = path.resolve(__dirname, '..');
+
+// ── Validate required environment variables upfront ──
+const REQUIRED_ENV = [
+  'NEXT_PUBLIC_SUPABASE_URL',
+  'SUPABASE_SERVICE_ROLE_KEY',
+  'ANTHROPIC_API_KEY',
+];
+const OPTIONAL_ENV = [
+  { key: 'YOUTUBE_API_KEY', step: 'Fetch content (YouTube)' },
+  { key: 'VOYAGE_API_KEY', step: 'Generate embeddings' },
+  { key: 'GEMINI_API_KEY', step: 'Transcript fallback (Gemini)' },
+];
+
+const missingRequired = REQUIRED_ENV.filter((k) => !process.env[k] && !process.env[k.replace('NEXT_PUBLIC_', '')]);
+if (missingRequired.length > 0) {
+  console.error(`\n  ✗ Missing required environment variables:\n`);
+  for (const k of missingRequired) console.error(`    - ${k}`);
+  console.error('');
+  process.exit(1);
+}
+
+const missingOptional = OPTIONAL_ENV.filter((e) => !process.env[e.key]);
+if (missingOptional.length > 0) {
+  console.log(`  ⚠ Missing optional env vars (some steps may be limited):`);
+  for (const e of missingOptional) console.log(`    - ${e.key} (${e.step})`);
+  console.log('');
+}
+
 const args = process.argv.slice(2);
 const runAll = args.length === 0;
 const runFetch = runAll || args.includes('--fetch');
@@ -49,24 +77,39 @@ const runDaily = runAll || args.includes('--daily');
 
 const failures: string[] = [];
 
+// Per-step timeout in ms (default 10 min, fetch/transcript steps get more)
+const STEP_TIMEOUTS: Record<string, number> = {
+  'scripts/fetch-all.ts': 15 * 60 * 1000,
+  'scripts/fetch-missing-transcripts.ts': 10 * 60 * 1000,
+  'scripts/analyze-content.ts': 10 * 60 * 1000,
+};
+const DEFAULT_TIMEOUT = 5 * 60 * 1000; // 5 min
+
 function run(label: string, script: string) {
   const divider = '─'.repeat(50);
   console.log(`\n${divider}`);
   console.log(`  ${label}`);
   console.log(`${divider}\n`);
 
+  const timeout = STEP_TIMEOUTS[script] || DEFAULT_TIMEOUT;
   const start = Date.now();
   try {
     execSync(`npx tsx ${script}`, {
       cwd: root,
       stdio: 'inherit',
       env: { ...process.env },
+      timeout,
     });
     const elapsed = ((Date.now() - start) / 1000).toFixed(1);
     console.log(`\n  ✓ ${label} completed in ${elapsed}s`);
   } catch (err) {
     const elapsed = ((Date.now() - start) / 1000).toFixed(1);
-    console.error(`\n  ✗ ${label} failed after ${elapsed}s — continuing pipeline`);
+    const isTimeout = err instanceof Error && 'signal' in err && (err as NodeJS.ErrnoException).signal === 'SIGTERM';
+    if (isTimeout) {
+      console.error(`\n  ✗ ${label} timed out after ${elapsed}s (limit: ${timeout / 1000}s) — continuing pipeline`);
+    } else {
+      console.error(`\n  ✗ ${label} failed after ${elapsed}s — continuing pipeline`);
+    }
     failures.push(label);
   }
 }
@@ -90,7 +133,16 @@ const steps: [boolean, string, string][] = [
 const active = steps.filter(([enabled]) => enabled);
 const pipelineStart = Date.now();
 
+// Hard budget: stop starting new steps after 30 min to leave room for cleanup
+const PIPELINE_BUDGET_MS = 30 * 60 * 1000;
+
 for (const [, label, script] of active) {
+  const elapsed = Date.now() - pipelineStart;
+  if (elapsed > PIPELINE_BUDGET_MS) {
+    console.error(`\n  ⚠ Pipeline time budget exceeded (${(elapsed / 1000).toFixed(0)}s) — skipping remaining steps`);
+    failures.push(`${label} (skipped — time budget)`);
+    continue;
+  }
   run(label, script);
 }
 
