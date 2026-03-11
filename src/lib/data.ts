@@ -58,16 +58,11 @@ export async function getContentWithAnalysis(
     const supabase = getSupabaseClient();
     const from = (page - 1) * limit;
 
-    // Fetch content that has analyses, with joined source (limit+1 to detect hasMore)
-    const { data: analyzedIds } = await supabase
-      .from('analyses')
-      .select('content_id');
-    const idSet = new Set((analyzedIds || []).map((a) => a.content_id));
-
+    // Fetch content with joined source, excluding items with null source_id
     const { data: contentRows, error: contentError } = await supabase
       .from('content')
       .select('*, sources(*)')
-      .in('id', Array.from(idSet))
+      .not('source_id', 'is', null)
       .order('published_at', { ascending: false })
       .range(from, from + limit);
 
@@ -397,7 +392,7 @@ export async function getContentById(contentId: string): Promise<ContentDetail |
       .eq('id', contentId)
       .single();
 
-    if (contentErr || !content) return null;
+    if (contentErr || !content || !content.source_id) return null;
 
     const [sourceRes, analysisRes, predsRes] = await Promise.all([
       supabase.from('sources').select('*').eq('id', content.source_id).single(),
