@@ -58,10 +58,16 @@ export async function getContentWithAnalysis(
     const supabase = getSupabaseClient();
     const from = (page - 1) * limit;
 
-    // Fetch content with joined source (limit+1 to detect hasMore)
+    // Fetch content that has analyses, with joined source (limit+1 to detect hasMore)
+    const { data: analyzedIds } = await supabase
+      .from('analyses')
+      .select('content_id');
+    const idSet = new Set((analyzedIds || []).map((a) => a.content_id));
+
     const { data: contentRows, error: contentError } = await supabase
       .from('content')
       .select('*, sources(*)')
+      .in('id', Array.from(idSet))
       .order('published_at', { ascending: false })
       .range(from, from + limit);
 
