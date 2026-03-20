@@ -12,7 +12,8 @@
  *   8. Fetch 13F holdings (SEC EDGAR)
  *   9. Fetch prediction markets (Kalshi + Polymarket)
  *  10. Fetch FedWatch rate probabilities
- *  11. Generate daily update (Claude synthesis — must be last)
+ *  11. Backtest predictions (Claude + Yahoo Finance)
+ *  12. Generate daily update (Claude synthesis — must be last)
  *
  * Usage:
  *   npx tsx scripts/pipeline.ts                # run all steps
@@ -26,6 +27,7 @@
  *   npx tsx scripts/pipeline.ts --13f          # only 13F holdings
  *   npx tsx scripts/pipeline.ts --markets      # only prediction markets
  *   npx tsx scripts/pipeline.ts --fedwatch     # only FedWatch probabilities
+ *   npx tsx scripts/pipeline.ts --backtest     # only backtest predictions
  *   npx tsx scripts/pipeline.ts --daily        # only daily update
  */
 
@@ -73,6 +75,7 @@ const runPositioning = runAll || args.includes('--positioning');
 const run13f = runAll || args.includes('--13f');
 const runMarkets = runAll || args.includes('--markets');
 const runFedWatch = runAll || args.includes('--fedwatch');
+const runBacktest = runAll || args.includes('--backtest');
 const runDaily = runAll || args.includes('--daily');
 
 const failures: string[] = [];
@@ -117,17 +120,18 @@ function run(label: string, script: string) {
 console.log('\n  Howard Pipeline\n');
 
 const steps: [boolean, string, string][] = [
-  [runFetch, 'Step 1/11 — Fetch content', 'scripts/fetch-all.ts'],
-  [runTranscripts, 'Step 2/11 — Retry missing transcripts', 'scripts/fetch-missing-transcripts.ts'],
-  [runAnalyze, 'Step 3/11 — Analyze content', 'scripts/analyze-content.ts'],
-  [runEmbed, 'Step 4/11 — Generate embeddings', 'scripts/generate-embeddings.ts'],
-  [runOutlook, 'Step 5/11 — Update outlooks', 'scripts/update-outlook.ts'],
-  [runSignals, 'Step 6/11 — Generate signals', 'scripts/generate-signals.ts'],
-  [runPositioning, 'Step 7/11 — Generate positioning', 'scripts/generate-positioning.ts'],
-  [run13f, 'Step 8/11 — Fetch 13F holdings', 'scripts/fetch-13f.ts'],
-  [runMarkets, 'Step 9/11 — Fetch prediction markets', 'scripts/fetch-prediction-markets.ts'],
-  [runFedWatch, 'Step 10/11 — Fetch FedWatch probabilities', 'scripts/fetch-fedwatch.ts'],
-  [runDaily, 'Step 11/11 — Generate daily update', 'scripts/generate-daily-update.ts'],
+  [runFetch, 'Step 1/12 — Fetch content', 'scripts/fetch-all.ts'],
+  [runTranscripts, 'Step 2/12 — Retry missing transcripts', 'scripts/fetch-missing-transcripts.ts'],
+  [runAnalyze, 'Step 3/12 — Analyze content', 'scripts/analyze-content.ts'],
+  [runEmbed, 'Step 4/12 — Generate embeddings', 'scripts/generate-embeddings.ts'],
+  [runOutlook, 'Step 5/12 — Update outlooks', 'scripts/update-outlook.ts'],
+  [runSignals, 'Step 6/12 — Generate signals', 'scripts/generate-signals.ts'],
+  [runPositioning, 'Step 7/12 — Generate positioning', 'scripts/generate-positioning.ts'],
+  [run13f, 'Step 8/12 — Fetch 13F holdings', 'scripts/fetch-13f.ts'],
+  [runMarkets, 'Step 9/12 — Fetch prediction markets', 'scripts/fetch-prediction-markets.ts'],
+  [runFedWatch, 'Step 10/12 — Fetch FedWatch probabilities', 'scripts/fetch-fedwatch.ts'],
+  [runBacktest, 'Step 11/12 — Backtest predictions', 'scripts/backtest-predictions.ts'],
+  [runDaily, 'Step 12/12 — Generate daily update', 'scripts/generate-daily-update.ts'],
 ];
 
 const active = steps.filter(([enabled]) => enabled);

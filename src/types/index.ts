@@ -52,6 +52,8 @@ export interface Analysis {
   created_at: string;
 }
 
+export type PredictionOutcome = 'correct' | 'incorrect' | 'partially_correct' | 'expired' | 'pending';
+
 export interface Prediction {
   id: string;
   content_id: string;
@@ -65,6 +67,44 @@ export interface Prediction {
   specificity: 'hard' | 'directional' | 'thematic';
   date_made: string;
   notes: string;
+  outcome: PredictionOutcome;
+  outcome_reasoning: string | null;
+  outcome_score: number | null;
+  evaluated_at: string | null;
+  market_context: Record<string, unknown>;
+  created_at: string;
+}
+
+export interface SourcePerformance {
+  id: string;
+  source_id: string;
+  total_predictions: number;
+  evaluated_predictions: number;
+  correct: number;
+  incorrect: number;
+  partially_correct: number;
+  expired: number;
+  accuracy_rate: number;
+  weighted_accuracy: number;
+  avg_confidence_when_correct: number;
+  avg_confidence_when_incorrect: number;
+  best_domain: string | null;
+  worst_domain: string | null;
+  performance_by_horizon: Record<string, { total: number; correct: number; accuracy: number }>;
+  performance_by_specificity: Record<string, { total: number; correct: number; accuracy: number }>;
+  streak_current: number;
+  streak_best: number;
+  last_evaluated_at: string | null;
+  updated_at: string;
+}
+
+export interface BacktestRun {
+  id: string;
+  predictions_evaluated: number;
+  predictions_resolved: number;
+  sources_updated: number;
+  run_duration_ms: number | null;
+  notes: string | null;
   created_at: string;
 }
 

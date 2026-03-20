@@ -1,5 +1,5 @@
 import { getSupabaseClient } from './supabase';
-import type { Source, Analysis, ContentWithAnalysis, Prediction, Outlook, OutlookHistory, TrendingTopic } from '@/types';
+import type { Source, Analysis, ContentWithAnalysis, Prediction, Outlook, OutlookHistory, TrendingTopic, SourcePerformance, BacktestRun } from '@/types';
 import {
   mockSources,
   mockContentWithAnalysis,
@@ -312,6 +312,11 @@ export async function getPredictionsForSource(sourceId: string): Promise<Predict
       specificity: p.specificity || 'thematic',
       date_made: p.date_made || p.created_at,
       notes: p.notes || '',
+      outcome: p.outcome || 'pending',
+      outcome_reasoning: p.outcome_reasoning || null,
+      outcome_score: p.outcome_score ?? null,
+      evaluated_at: p.evaluated_at || null,
+      market_context: (p.market_context || {}) as Record<string, unknown>,
       created_at: p.created_at,
     }));
   } catch {
@@ -344,6 +349,11 @@ export async function getPredictions(): Promise<Prediction[]> {
       specificity: p.specificity || 'thematic',
       date_made: p.date_made || p.created_at,
       notes: p.notes || '',
+      outcome: p.outcome || 'pending',
+      outcome_reasoning: p.outcome_reasoning || null,
+      outcome_score: p.outcome_score ?? null,
+      evaluated_at: p.evaluated_at || null,
+      market_context: (p.market_context || {}) as Record<string, unknown>,
       created_at: p.created_at,
     }));
   } catch {
@@ -449,6 +459,11 @@ export async function getContentById(contentId: string): Promise<ContentDetail |
       specificity: p.specificity || 'thematic',
       date_made: p.date_made || p.created_at,
       notes: p.notes || '',
+      outcome: p.outcome || 'pending',
+      outcome_reasoning: p.outcome_reasoning || null,
+      outcome_score: p.outcome_score ?? null,
+      evaluated_at: p.evaluated_at || null,
+      market_context: (p.market_context || {}) as Record<string, unknown>,
       created_at: p.created_at,
     }));
 
@@ -860,5 +875,104 @@ export async function getPositioning(refresh = false): Promise<PositioningData |
     return data as PositioningData;
   } catch {
     return null;
+  }
+}
+
+// --- Performance Tracking ---
+
+export async function getSourcePerformance(): Promise<SourcePerformance[]> {
+  if (!hasSupabase) return [];
+
+  try {
+    const supabase = getSupabaseClient();
+    const { data, error } = await supabase
+      .from('source_performance')
+      .select('*')
+      .order('accuracy_rate', { ascending: false });
+
+    if (error || !data) return [];
+
+    return data.map((sp) => ({
+      id: sp.id,
+      source_id: sp.source_id,
+      total_predictions: sp.total_predictions,
+      evaluated_predictions: sp.evaluated_predictions,
+      correct: sp.correct,
+      incorrect: sp.incorrect,
+      partially_correct: sp.partially_correct,
+      expired: sp.expired,
+      accuracy_rate: sp.accuracy_rate,
+      weighted_accuracy: sp.weighted_accuracy,
+      avg_confidence_when_correct: sp.avg_confidence_when_correct,
+      avg_confidence_when_incorrect: sp.avg_confidence_when_incorrect,
+      best_domain: sp.best_domain,
+      worst_domain: sp.worst_domain,
+      performance_by_horizon: (sp.performance_by_horizon || {}) as SourcePerformance['performance_by_horizon'],
+      performance_by_specificity: (sp.performance_by_specificity || {}) as SourcePerformance['performance_by_specificity'],
+      streak_current: sp.streak_current,
+      streak_best: sp.streak_best,
+      last_evaluated_at: sp.last_evaluated_at,
+      updated_at: sp.updated_at,
+    }));
+  } catch {
+    return [];
+  }
+}
+
+export async function getSourcePerformanceById(sourceId: string): Promise<SourcePerformance | null> {
+  if (!hasSupabase) return null;
+
+  try {
+    const supabase = getSupabaseClient();
+    const { data, error } = await supabase
+      .from('source_performance')
+      .select('*')
+      .eq('source_id', sourceId)
+      .single();
+
+    if (error || !data) return null;
+
+    return {
+      id: data.id,
+      source_id: data.source_id,
+      total_predictions: data.total_predictions,
+      evaluated_predictions: data.evaluated_predictions,
+      correct: data.correct,
+      incorrect: data.incorrect,
+      partially_correct: data.partially_correct,
+      expired: data.expired,
+      accuracy_rate: data.accuracy_rate,
+      weighted_accuracy: data.weighted_accuracy,
+      avg_confidence_when_correct: data.avg_confidence_when_correct,
+      avg_confidence_when_incorrect: data.avg_confidence_when_incorrect,
+      best_domain: data.best_domain,
+      worst_domain: data.worst_domain,
+      performance_by_horizon: (data.performance_by_horizon || {}) as SourcePerformance['performance_by_horizon'],
+      performance_by_specificity: (data.performance_by_specificity || {}) as SourcePerformance['performance_by_specificity'],
+      streak_current: data.streak_current,
+      streak_best: data.streak_best,
+      last_evaluated_at: data.last_evaluated_at,
+      updated_at: data.updated_at,
+    };
+  } catch {
+    return null;
+  }
+}
+
+export async function getBacktestRuns(limit: number = 10): Promise<BacktestRun[]> {
+  if (!hasSupabase) return [];
+
+  try {
+    const supabase = getSupabaseClient();
+    const { data, error } = await supabase
+      .from('backtest_runs')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(limit);
+
+    if (error || !data) return [];
+    return data;
+  } catch {
+    return [];
   }
 }
