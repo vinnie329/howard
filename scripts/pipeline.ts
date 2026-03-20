@@ -12,8 +12,10 @@
  *   8. Fetch 13F holdings (SEC EDGAR)
  *   9. Fetch prediction markets (Kalshi + Polymarket)
  *  10. Fetch FedWatch rate probabilities
- *  11. Backtest predictions (Claude + Yahoo Finance)
- *  12. Generate daily update (Claude synthesis — must be last)
+ *  11. Backtest source predictions (Claude + Yahoo Finance)
+ *  12. Generate house view predictions (Claude synthesis)
+ *  13. Evaluate house predictions (Claude + Yahoo Finance)
+ *  14. Generate daily update (Claude synthesis — must be last)
  *
  * Usage:
  *   npx tsx scripts/pipeline.ts                # run all steps
@@ -27,7 +29,9 @@
  *   npx tsx scripts/pipeline.ts --13f          # only 13F holdings
  *   npx tsx scripts/pipeline.ts --markets      # only prediction markets
  *   npx tsx scripts/pipeline.ts --fedwatch     # only FedWatch probabilities
- *   npx tsx scripts/pipeline.ts --backtest     # only backtest predictions
+ *   npx tsx scripts/pipeline.ts --backtest     # only backtest source predictions
+ *   npx tsx scripts/pipeline.ts --house-view   # only generate house view
+ *   npx tsx scripts/pipeline.ts --house-eval   # only evaluate house predictions
  *   npx tsx scripts/pipeline.ts --daily        # only daily update
  */
 
@@ -76,6 +80,8 @@ const run13f = runAll || args.includes('--13f');
 const runMarkets = runAll || args.includes('--markets');
 const runFedWatch = runAll || args.includes('--fedwatch');
 const runBacktest = runAll || args.includes('--backtest');
+const runHouseView = runAll || args.includes('--house-view');
+const runHouseEval = runAll || args.includes('--house-eval');
 const runDaily = runAll || args.includes('--daily');
 
 const failures: string[] = [];
@@ -120,18 +126,20 @@ function run(label: string, script: string) {
 console.log('\n  Howard Pipeline\n');
 
 const steps: [boolean, string, string][] = [
-  [runFetch, 'Step 1/12 — Fetch content', 'scripts/fetch-all.ts'],
-  [runTranscripts, 'Step 2/12 — Retry missing transcripts', 'scripts/fetch-missing-transcripts.ts'],
-  [runAnalyze, 'Step 3/12 — Analyze content', 'scripts/analyze-content.ts'],
-  [runEmbed, 'Step 4/12 — Generate embeddings', 'scripts/generate-embeddings.ts'],
-  [runOutlook, 'Step 5/12 — Update outlooks', 'scripts/update-outlook.ts'],
-  [runSignals, 'Step 6/12 — Generate signals', 'scripts/generate-signals.ts'],
-  [runPositioning, 'Step 7/12 — Generate positioning', 'scripts/generate-positioning.ts'],
-  [run13f, 'Step 8/12 — Fetch 13F holdings', 'scripts/fetch-13f.ts'],
-  [runMarkets, 'Step 9/12 — Fetch prediction markets', 'scripts/fetch-prediction-markets.ts'],
-  [runFedWatch, 'Step 10/12 — Fetch FedWatch probabilities', 'scripts/fetch-fedwatch.ts'],
-  [runBacktest, 'Step 11/12 — Backtest predictions', 'scripts/backtest-predictions.ts'],
-  [runDaily, 'Step 12/12 — Generate daily update', 'scripts/generate-daily-update.ts'],
+  [runFetch, 'Step 1/14 — Fetch content', 'scripts/fetch-all.ts'],
+  [runTranscripts, 'Step 2/14 — Retry missing transcripts', 'scripts/fetch-missing-transcripts.ts'],
+  [runAnalyze, 'Step 3/14 — Analyze content', 'scripts/analyze-content.ts'],
+  [runEmbed, 'Step 4/14 — Generate embeddings', 'scripts/generate-embeddings.ts'],
+  [runOutlook, 'Step 5/14 — Update outlooks', 'scripts/update-outlook.ts'],
+  [runSignals, 'Step 6/14 — Generate signals', 'scripts/generate-signals.ts'],
+  [runPositioning, 'Step 7/14 — Generate positioning', 'scripts/generate-positioning.ts'],
+  [run13f, 'Step 8/14 — Fetch 13F holdings', 'scripts/fetch-13f.ts'],
+  [runMarkets, 'Step 9/14 — Fetch prediction markets', 'scripts/fetch-prediction-markets.ts'],
+  [runFedWatch, 'Step 10/14 — Fetch FedWatch probabilities', 'scripts/fetch-fedwatch.ts'],
+  [runBacktest, 'Step 11/14 — Backtest source predictions', 'scripts/backtest-predictions.ts'],
+  [runHouseView, 'Step 12/14 — Generate house view predictions', 'scripts/generate-house-view.ts'],
+  [runHouseEval, 'Step 13/14 — Evaluate house predictions', 'scripts/evaluate-house-view.ts'],
+  [runDaily, 'Step 14/14 — Generate daily update', 'scripts/generate-daily-update.ts'],
 ];
 
 const active = steps.filter(([enabled]) => enabled);

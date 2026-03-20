@@ -1,5 +1,5 @@
 import { getSupabaseClient } from './supabase';
-import type { Source, Analysis, ContentWithAnalysis, Prediction, Outlook, OutlookHistory, TrendingTopic, SourcePerformance, BacktestRun } from '@/types';
+import type { Source, Analysis, ContentWithAnalysis, Prediction, Outlook, OutlookHistory, TrendingTopic, SourcePerformance, BacktestRun, HousePrediction, HouseCalibration, HouseTrackRecord } from '@/types';
 import {
   mockSources,
   mockContentWithAnalysis,
@@ -974,5 +974,69 @@ export async function getBacktestRuns(limit: number = 10): Promise<BacktestRun[]
     return data;
   } catch {
     return [];
+  }
+}
+
+// --- House Predictions ---
+
+export async function getHousePredictions(filter?: 'active' | 'evaluated' | 'all'): Promise<HousePrediction[]> {
+  if (!hasSupabase) return [];
+
+  try {
+    const supabase = getSupabaseClient();
+    let query = supabase
+      .from('house_predictions')
+      .select('*')
+      .is('superseded_by', null) // only latest versions
+      .order('confidence', { ascending: false }); // high confidence first
+
+    if (filter === 'active') {
+      query = query.eq('outcome', 'pending');
+    } else if (filter === 'evaluated') {
+      query = query.neq('outcome', 'pending');
+    }
+
+    const { data, error } = await query;
+    if (error || !data) return [];
+    return data as HousePrediction[];
+  } catch {
+    return [];
+  }
+}
+
+export async function getHouseCalibration(): Promise<HouseCalibration[]> {
+  if (!hasSupabase) return [];
+
+  try {
+    const supabase = getSupabaseClient();
+    const { data, error } = await supabase
+      .from('house_calibration')
+      .select('*')
+      .eq('category', 'all')
+      .order('confidence_bucket', { ascending: true });
+
+    if (error || !data) return [];
+    return data as HouseCalibration[];
+  } catch {
+    return [];
+  }
+}
+
+export async function getHouseTrackRecord(): Promise<HouseTrackRecord | null> {
+  if (!hasSupabase) return null;
+
+  try {
+    const supabase = getSupabaseClient();
+    const { data, error } = await supabase
+      .from('house_track_record')
+      .select('*')
+      .order('computed_at', { ascending: false })
+      .limit(1)
+      .single();
+
+    if (error || !data) return null;
+    return data as HouseTrackRecord;
+  } catch {
+    return null;
   }
 }

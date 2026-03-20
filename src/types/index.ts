@@ -212,6 +212,66 @@ export interface MarketWithSnapshot extends PredictionMarket {
   trend: number[];
 }
 
+// House Predictions — Howard's own synthesized, falsifiable predictions
+
+export type HouseOutcome = 'correct' | 'incorrect' | 'partially_correct' | 'expired' | 'invalidated' | 'pending';
+
+export interface HousePrediction {
+  id: string;
+  claim: string;
+  asset: string;
+  direction: 'long' | 'short' | 'neutral';
+  target_value: number | null;
+  target_condition: string;
+  reference_value: number | null;
+  time_horizon: string;
+  deadline: string;
+  confidence: number;          // 0-100
+  conviction: 'high' | 'medium' | 'low';
+  thesis: string;
+  supporting_sources: string[];
+  key_drivers: string[];
+  invalidation_criteria: string | null;
+  category: string;
+  themes: string[];
+  outcome: HouseOutcome;
+  outcome_score: number | null;
+  outcome_reasoning: string | null;
+  final_value: number | null;
+  evaluated_at: string | null;
+  superseded_by: string | null;
+  supersedes: string | null;
+  version: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface HouseCalibration {
+  confidence_bucket: number;   // 10, 20, ..., 90
+  total_predictions: number;
+  correct_predictions: number;
+  actual_rate: number;
+  calibration_error: number;
+  category: string;
+}
+
+export interface HouseTrackRecord {
+  id: string;
+  total_predictions: number;
+  evaluated: number;
+  correct: number;
+  partially_correct: number;
+  incorrect: number;
+  overall_accuracy: number;
+  weighted_accuracy: number;   // weighted by confidence (high-confidence predictions matter more)
+  brier_score: number;
+  avg_confidence: number;
+  best_category: string | null;
+  worst_category: string | null;
+  active_predictions: number;
+  computed_at: string;
+}
+
 // Daily Update
 
 export interface DailyUpdate {
