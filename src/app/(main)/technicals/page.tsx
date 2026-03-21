@@ -1,8 +1,11 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
+import Link from 'next/link';
 import DeviationGauge from '@/components/ui/DeviationGauge';
 import { SkeletonRows } from '@/components/ui/Skeleton';
+import { getHousePredictions } from '@/lib/data';
+import type { HousePrediction } from '@/types';
 
 interface TechnicalData {
   symbol: string;
@@ -45,6 +48,7 @@ function devColor(dev: number | null): string {
 
 export default function TechnicalsPage() {
   const [data, setData] = useState<TechnicalData[]>([]);
+  const [houseViewAssets, setHouseViewAssets] = useState<Map<string, HousePrediction>>(new Map());
   const [loading, setLoading] = useState(true);
   const [sortKey, setSortKey] = useState<SortKey>('dev200d');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
@@ -58,6 +62,15 @@ export default function TechnicalsPage() {
         setLoading(false);
       })
       .catch(() => setLoading(false));
+    getHousePredictions('active').then((preds) => {
+      const map = new Map<string, HousePrediction>();
+      for (const p of preds) {
+        if (!map.has(p.asset) || p.confidence > map.get(p.asset)!.confidence) {
+          map.set(p.asset, p);
+        }
+      }
+      setHouseViewAssets(map);
+    });
   }, []);
 
   const handleSort = (key: SortKey) => {
@@ -223,6 +236,29 @@ export default function TechnicalsPage() {
                       13F
                     </span>
                   )}
+                  {houseViewAssets.has(item.symbol) && (() => {
+                    const hv = houseViewAssets.get(item.symbol)!;
+                    const dirColor = hv.direction === 'long' ? '#22c55e' : hv.direction === 'short' ? '#ef4444' : '#eab308';
+                    const arrow = hv.direction === 'long' ? '\u2191' : hv.direction === 'short' ? '\u2193' : '\u2194';
+                    return (
+                      <Link
+                        href={`/house-view/${encodeURIComponent(item.symbol)}`}
+                        onClick={(e) => e.stopPropagation()}
+                        style={{
+                          fontSize: 9,
+                          padding: '1px 5px',
+                          borderRadius: 2,
+                          background: `color-mix(in srgb, ${dirColor} 15%, transparent)`,
+                          color: dirColor,
+                          fontFamily: 'var(--font-mono)',
+                          textDecoration: 'none',
+                          whiteSpace: 'nowrap',
+                        }}
+                      >
+                        {arrow} {hv.confidence}% {hv.direction}
+                      </Link>
+                    );
+                  })()}
                 </div>
 
                 {/* Price */}

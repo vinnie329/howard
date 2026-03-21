@@ -51,6 +51,15 @@ const CORE_SYMBOLS: SymbolEntry[] = [
   { ticker: 'GC=F', name: 'Gold', tv: 'COMEX:GC1!', source: 'core' },
   { ticker: 'SI=F', name: 'Silver', tv: 'COMEX:SI1!', source: 'core' },
   { ticker: 'HG=F', name: 'Copper', tv: 'COMEX:HG1!', source: 'core' },
+  { ticker: 'URA', name: 'Uranium ETF', tv: 'AMEX:URA', source: 'core' },
+  // House View positions
+  { ticker: 'SPY', name: 'S&P 500 ETF', tv: 'AMEX:SPY', source: 'core' },
+  { ticker: 'QQQ', name: 'NASDAQ 100 ETF', tv: 'NASDAQ:QQQ', source: 'core' },
+  { ticker: 'TLT', name: '20+ Year Treasury', tv: 'NASDAQ:TLT', source: 'core' },
+  { ticker: 'GLD', name: 'Gold ETF', tv: 'AMEX:GLD', source: 'core' },
+  { ticker: 'PAVE', name: 'Infrastructure ETF', tv: 'AMEX:PAVE', source: 'core' },
+  { ticker: 'GEV', name: 'GE Vernova', tv: 'NYSE:GEV', source: 'core' },
+  { ticker: 'BIZD', name: 'BDC Income ETF', tv: 'AMEX:BIZD', source: 'core' },
   // Indices
   { ticker: '^GSPC', name: 'S&P 500', tv: 'SP:SPX', source: 'core' },
   { ticker: '^DJI', name: 'Dow Jones', tv: 'DJ:DJI', source: 'core' },
