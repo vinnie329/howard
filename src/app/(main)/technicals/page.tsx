@@ -224,18 +224,6 @@ export default function TechnicalsPage() {
                   <span className="mono" style={{ fontSize: 10, color: 'var(--text-tertiary)' }}>
                     {item.symbol}
                   </span>
-                  {item.source === '13f' && (
-                    <span style={{
-                      fontSize: 9,
-                      padding: '1px 4px',
-                      borderRadius: 2,
-                      background: 'var(--accent-dim)',
-                      color: 'var(--accent)',
-                      fontFamily: 'var(--font-mono)',
-                    }}>
-                      13F
-                    </span>
-                  )}
                   {houseViewAssets.has(item.symbol) && (() => {
                     const hv = houseViewAssets.get(item.symbol)!;
                     const dirColor = hv.direction === 'long' ? '#22c55e' : hv.direction === 'short' ? '#ef4444' : '#eab308';
