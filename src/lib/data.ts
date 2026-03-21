@@ -1004,6 +1004,41 @@ export async function getHousePredictions(filter?: 'active' | 'evaluated' | 'all
   }
 }
 
+export async function getHousePredictionTimeline(): Promise<HousePrediction[]> {
+  if (!hasSupabase) return [];
+
+  try {
+    const supabase = getSupabaseClient();
+    const { data, error } = await supabase
+      .from('house_predictions')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error || !data) return [];
+    return data as HousePrediction[];
+  } catch {
+    return [];
+  }
+}
+
+export async function getHousePredictionsForAsset(asset: string): Promise<HousePrediction[]> {
+  if (!hasSupabase) return [];
+
+  try {
+    const supabase = getSupabaseClient();
+    const { data, error } = await supabase
+      .from('house_predictions')
+      .select('*')
+      .eq('asset', asset)
+      .order('created_at', { ascending: true });
+
+    if (error || !data) return [];
+    return data as HousePrediction[];
+  } catch {
+    return [];
+  }
+}
+
 export async function getHouseCalibration(): Promise<HouseCalibration[]> {
   if (!hasSupabase) return [];
 

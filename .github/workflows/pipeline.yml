@@ -2,10 +2,17 @@ name: Pipeline
 
 on:
   schedule:
-    # 5am and 5pm UTC — adjust if you need a different timezone
+    # Daily runs at 5am and 5pm UTC — skip house view generation
     - cron: '0 5 * * *'
     - cron: '0 17 * * *'
-  workflow_dispatch: # manual trigger from GitHub UI
+    # Weekly full run with house view generation — Sunday 6am UTC
+    - cron: '0 6 * * 0'
+  workflow_dispatch:
+    inputs:
+      house_view:
+        description: 'Generate house view predictions'
+        type: boolean
+        default: false
 
 jobs:
   process:
@@ -30,7 +37,22 @@ jobs:
           curl -fsSL https://deno.land/install.sh | sh
           echo "$HOME/.deno/bin" >> $GITHUB_PATH
 
-      - name: Run pipeline
+      - name: Run pipeline (daily — skip house view generation)
+        if: github.event.schedule != '0 6 * * 0' && (github.event_name != 'workflow_dispatch' || !inputs.house_view)
+        run: npx tsx scripts/pipeline.ts --skip-house-gen
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          VOYAGE_API_KEY: ${{ secrets.VOYAGE_API_KEY }}
+          YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GMAIL_CLIENT_ID: ${{ secrets.GMAIL_CLIENT_ID }}
+          GMAIL_CLIENT_SECRET: ${{ secrets.GMAIL_CLIENT_SECRET }}
+          GMAIL_REFRESH_TOKEN: ${{ secrets.GMAIL_REFRESH_TOKEN }}
+
+      - name: Run pipeline (weekly — full with house view generation)
+        if: github.event.schedule == '0 6 * * 0' || (github.event_name == 'workflow_dispatch' && inputs.house_view)
         run: npx tsx scripts/pipeline.ts
         env:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}

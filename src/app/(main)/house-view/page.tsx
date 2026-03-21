@@ -1,32 +1,28 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { getHousePredictions, getHouseCalibration, getHouseTrackRecord } from '@/lib/data';
 import { SkeletonRows } from '@/components/ui/Skeleton';
-import Tag from '@/components/ui/Tag';
+import StatsGrid from '@/components/ui/StatsGrid';
 import type { HousePrediction, HouseCalibration, HouseTrackRecord } from '@/types';
 
-type ViewMode = 'active' | 'evaluated' | 'calibration';
-type CategoryFilter = 'all' | 'macro' | 'sector' | 'single-stock' | 'rates' | 'commodities' | 'crypto';
+type ViewMode = 'overview' | 'evaluated' | 'calibration';
 
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
 function daysUntil(deadline: string): number {
-  return Math.ceil((new Date(deadline).getTime() - Date.now()) / (86400000));
+  return Math.ceil((new Date(deadline).getTime() - Date.now()) / 86400000);
 }
 
 function ConvictionBadge({ conviction, confidence }: { conviction: string; confidence: number }) {
-  const colors: Record<string, { bg: string; color: string }> = {
-    high: { bg: 'rgba(34,197,94,0.15)', color: '#22c55e' },
-    medium: { bg: 'rgba(234,179,8,0.15)', color: '#eab308' },
-    low: { bg: 'rgba(148,163,184,0.1)', color: 'var(--text-tertiary)' },
-  };
-  const s = colors[conviction] || colors.medium;
+  const color = confidence >= 70 ? '#22c55e' : confidence >= 40 ? '#eab308' : '#ef4444';
+  const label = conviction === 'high' ? 'HIGH' : conviction === 'medium' ? 'MED' : 'LOW';
   return (
-    <span style={{ fontSize: 10, fontFamily: 'var(--font-mono)', padding: '2px 8px', borderRadius: 3, background: s.bg, color: s.color }}>
-      {confidence}% {conviction}
+    <span style={{ fontSize: 9, fontFamily: 'var(--font-mono)', padding: '2px 6px', borderRadius: 3, background: `color-mix(in srgb, ${color} 15%, transparent)`, color, letterSpacing: '0.05em' }}>
+      {label}
     </span>
   );
 }
@@ -72,9 +68,7 @@ export default function HouseViewPage() {
   const [calibration, setCalibration] = useState<HouseCalibration[]>([]);
   const [trackRecord, setTrackRecord] = useState<HouseTrackRecord | null>(null);
   const [loading, setLoading] = useState(true);
-  const [view, setView] = useState<ViewMode>('active');
-  const [category, setCategory] = useState<CategoryFilter>('all');
-  const [expanded, setExpanded] = useState<string | null>(null);
+  const [view, setView] = useState<ViewMode>('overview');
 
   useEffect(() => {
     Promise.all([
@@ -92,10 +86,6 @@ export default function HouseViewPage() {
   }, []);
 
   const allPredictions = [...activePredictions, ...evaluatedPredictions];
-  const filtered = (view === 'active' ? activePredictions : view === 'evaluated' ? evaluatedPredictions : allPredictions)
-    .filter((p) => category === 'all' || p.category === category);
-
-  // Compute aggregate stats from actual data
   const totalActive = activePredictions.length;
   const totalEvaluated = evaluatedPredictions.filter((p) => p.outcome !== 'expired' && p.outcome !== 'invalidated').length;
   const correctCount = evaluatedPredictions.filter((p) => p.outcome === 'correct').length;
@@ -115,62 +105,21 @@ export default function HouseViewPage() {
           Howard's synthesized, falsifiable predictions — measuring whether this system has predictive value
         </p>
 
-        {/* Track Record Summary */}
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))',
-          gap: 'var(--space-3)',
-          marginBottom: 'var(--space-4)',
-        }}>
-          {[
-            { label: 'Active Predictions', value: totalActive.toString(), color: '#6366f1' },
-            { label: 'Evaluated', value: totalEvaluated.toString(), color: 'var(--accent)' },
-            { label: 'Correct', value: correctCount.toString(), color: '#22c55e' },
-            { label: 'Avg Confidence', value: `${avgConfidence.toFixed(0)}%`, color: 'var(--text-primary)' },
-            {
-              label: 'Weighted Accuracy',
-              value: trackRecord ? `${(trackRecord.weighted_accuracy * 100).toFixed(1)}%` : '—',
-              color: trackRecord && trackRecord.weighted_accuracy >= 0.5 ? '#22c55e' : '#ef4444',
-            },
-            {
-              label: 'Brier Score',
-              value: trackRecord ? trackRecord.brier_score.toFixed(3) : '—',
-              color: trackRecord && trackRecord.brier_score <= 0.25 ? '#22c55e' : '#eab308',
-            },
-          ].map((stat) => (
-            <div key={stat.label} style={{
-              padding: 'var(--space-3)',
-              background: 'var(--bg-surface)',
-              border: '1px solid var(--border)',
-              borderRadius: 'var(--radius-sm)',
-            }}>
-              <div className="label" style={{ marginBottom: 'var(--space-1)', fontSize: 9 }}>{stat.label}</div>
-              <div className="mono" style={{ fontSize: 18, color: stat.color, fontWeight: 600 }}>{stat.value}</div>
-            </div>
-          ))}
+        <div style={{ marginBottom: 'var(--space-6)' }}>
+          <StatsGrid columns={3} stats={[
+            { value: totalActive.toString(), label: 'Active' },
+            { value: totalEvaluated.toString(), label: 'Evaluated' },
+            { value: correctCount.toString(), label: 'Correct' },
+            { value: `${avgConfidence.toFixed(0)}%`, label: 'Avg Confidence' },
+            { value: trackRecord ? `${(trackRecord.weighted_accuracy * 100).toFixed(1)}%` : '—', label: 'Weighted Accuracy' },
+            { value: trackRecord ? trackRecord.brier_score.toFixed(3) : '—', label: 'Brier Score' },
+          ]} />
         </div>
 
-        {/* Brier score explainer */}
-        {trackRecord && (
-          <div style={{
-            padding: 'var(--space-3)',
-            background: 'var(--bg-surface)',
-            border: '1px solid var(--border)',
-            borderRadius: 'var(--radius-sm)',
-            marginBottom: 'var(--space-6)',
-            fontSize: 11,
-            color: 'var(--text-secondary)',
-            lineHeight: 1.5,
-          }}>
-            <strong>Weighted Accuracy</strong> biases towards high-confidence predictions — getting a 80% confidence call right matters more than a 30% one.
-            <strong> Brier Score</strong> measures calibration (0 = perfect, 0.25 = random). Score below 0.2 means Howard has genuine predictive value.
-          </div>
-        )}
-
         {/* View tabs */}
-        <div className="filter-tabs" style={{ marginBottom: 'var(--space-3)' }}>
+        <div className="filter-tabs" style={{ marginBottom: 'var(--space-4)' }}>
           {([
-            ['active', `Active (${activePredictions.length})`],
+            ['overview', `Overview (${activePredictions.length})`],
             ['evaluated', `Evaluated (${evaluatedPredictions.length})`],
             ['calibration', 'Calibration'],
           ] as [ViewMode, string][]).map(([mode, label]) => (
@@ -184,207 +133,203 @@ export default function HouseViewPage() {
           ))}
         </div>
 
-        {/* Category filter */}
-        {view !== 'calibration' && (
-          <div style={{ display: 'flex', gap: 'var(--space-1)', marginBottom: 'var(--space-4)', flexWrap: 'wrap' }}>
-            {(['all', 'macro', 'sector', 'single-stock', 'rates', 'commodities', 'crypto'] as CategoryFilter[]).map((c) => (
-              <button
-                key={c}
-                className={`filter-tab ${category === c ? 'active' : ''}`}
-                onClick={() => setCategory(c)}
-                style={{ fontSize: 10 }}
-              >
-                {c === 'all' ? 'All' : c.charAt(0).toUpperCase() + c.slice(1)}
-              </button>
-            ))}
-          </div>
-        )}
-
         {loading ? (
           <SkeletonRows count={6} />
         ) : view === 'calibration' ? (
           <CalibrationView calibration={calibration} trackRecord={trackRecord} />
+        ) : view === 'evaluated' ? (
+          <EvaluatedList predictions={evaluatedPredictions} />
         ) : (
-          <PredictionsGrid
-            predictions={filtered}
-            expanded={expanded}
-            setExpanded={setExpanded}
-            showOutcome={view === 'evaluated'}
-          />
+          <AssetOverview predictions={activePredictions} />
         )}
       </div>
     </>
   );
 }
 
-function PredictionsGrid({
-  predictions,
-  expanded,
-  setExpanded,
-  showOutcome,
-}: {
-  predictions: HousePrediction[];
-  expanded: string | null;
-  setExpanded: (id: string | null) => void;
-  showOutcome: boolean;
-}) {
+/* ── Overview: per-asset cards ── */
+
+function AssetOverview({ predictions }: { predictions: HousePrediction[] }) {
+  const [search, setSearch] = useState('');
+
   if (predictions.length === 0) {
     return (
       <div style={{ padding: 'var(--space-8)', textAlign: 'center' }}>
         <span className="mono" style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>
-          No predictions yet. Run: npx tsx scripts/generate-house-view.ts
+          No active predictions. Run: npx tsx scripts/generate-house-view.ts
+        </span>
+      </div>
+    );
+  }
+
+  // Group by asset — take the highest confidence if multiple per asset
+  const byAsset = new Map<string, HousePrediction>();
+  for (const pred of predictions) {
+    const existing = byAsset.get(pred.asset);
+    if (!existing || pred.confidence > existing.confidence) {
+      byAsset.set(pred.asset, pred);
+    }
+  }
+
+  const sorted = Array.from(byAsset.values()).sort((a, b) => b.confidence - a.confidence);
+
+  const q = search.toLowerCase();
+  const filtered = q
+    ? sorted.filter(p => p.asset.toLowerCase().includes(q) || p.claim.toLowerCase().includes(q) || p.category.toLowerCase().includes(q) || p.direction.includes(q))
+    : sorted;
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
+      <input
+        type="text"
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+        placeholder="Filter by asset, claim, or category..."
+        className="mono"
+        style={{
+          width: '100%',
+          padding: 'var(--space-2) var(--space-3)',
+          fontSize: 12,
+          background: 'var(--bg-surface)',
+          border: '1px solid var(--border)',
+          borderRadius: 'var(--radius-sm)',
+          color: 'var(--text-primary)',
+          outline: 'none',
+          marginBottom: 'var(--space-1)',
+        }}
+      />
+      {filtered.map((pred) => {
+        const days = daysUntil(pred.deadline);
+        const isOverdue = days < 0;
+
+        return (
+          <Link
+            key={pred.id}
+            href={`/house-view/${encodeURIComponent(pred.asset)}`}
+            style={{ textDecoration: 'none', color: 'inherit' }}
+          >
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: '24px 1fr auto',
+              padding: 'var(--space-3) var(--space-4)',
+              border: '1px solid var(--border)',
+              borderRadius: 'var(--radius-md)',
+              cursor: 'pointer',
+              gap: 'var(--space-3)',
+              alignItems: 'start',
+              transition: 'border-color 0.15s ease',
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--text-tertiary)'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--border)'; }}
+            >
+              <DirectionArrow direction={pred.direction} />
+              <div>
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: 'var(--space-2)', marginBottom: 'var(--space-1)' }}>
+                  <span style={{ fontSize: 13, color: 'var(--text-primary)', fontWeight: 500 }}>
+                    {pred.claim}
+                  </span>
+                  <span className="mono" style={{ fontSize: 10, color: 'var(--text-secondary)', whiteSpace: 'nowrap', flexShrink: 0 }}>
+                    created {formatDate(pred.created_at)}
+                  </span>
+                </div>
+                <div style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'center' }}>
+                  <span className="mono" style={{
+                    fontSize: 10, padding: '1px 5px', borderRadius: 2,
+                    background: 'var(--bg-surface)', border: '1px solid var(--border)', color: 'var(--text-secondary)',
+                  }}>
+                    {pred.asset}
+                  </span>
+                  <span className="mono" style={{
+                    fontSize: 10, padding: '1px 5px', borderRadius: 2,
+                    background: 'rgba(99,102,241,0.1)', border: '1px solid rgba(99,102,241,0.25)', color: '#818cf8',
+                  }}>
+                    {pred.time_horizon}
+                  </span>
+                </div>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 'var(--space-1)', minWidth: 120 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
+                  <ConfidenceBar confidence={pred.confidence} />
+                  <ConvictionBadge conviction={pred.conviction} confidence={pred.confidence} />
+                </div>
+                <span className="mono" style={{
+                  fontSize: 11,
+                  color: isOverdue ? '#ef4444' : days <= 7 ? '#eab308' : 'var(--text-secondary)',
+                }}>
+                  {isOverdue ? `${Math.abs(days)}d overdue` : `by ${formatDate(pred.deadline)} (${days}d)`}
+                </span>
+              </div>
+            </div>
+          </Link>
+        );
+      })}
+    </div>
+  );
+}
+
+/* ── Evaluated list ── */
+
+function EvaluatedList({ predictions }: { predictions: HousePrediction[] }) {
+  if (predictions.length === 0) {
+    return (
+      <div style={{ padding: 'var(--space-8)', textAlign: 'center' }}>
+        <span className="mono" style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>
+          No evaluated predictions yet.
         </span>
       </div>
     );
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
-      {predictions.map((pred) => {
-        const isExpanded = expanded === pred.id;
-        const days = daysUntil(pred.deadline);
-        const isOverdue = days < 0;
-
-        return (
-          <div
-            key={pred.id}
-            style={{
-              border: '1px solid var(--border)',
-              borderRadius: 'var(--radius-md)',
-              overflow: 'hidden',
-              background: isExpanded ? 'var(--bg-surface)' : 'transparent',
-            }}
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
+      {predictions.map((pred) => (
+        <Link
+          key={pred.id}
+          href={`/house-view/${encodeURIComponent(pred.asset)}`}
+          style={{ textDecoration: 'none', color: 'inherit' }}
+        >
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: '24px 1fr auto',
+            padding: 'var(--space-3) var(--space-4)',
+            border: '1px solid var(--border)',
+            borderRadius: 'var(--radius-md)',
+            cursor: 'pointer',
+            gap: 'var(--space-3)',
+            alignItems: 'center',
+          }}
+          onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--text-tertiary)'; }}
+          onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--border)'; }}
           >
-            {/* Header row */}
-            <div
-              onClick={() => setExpanded(isExpanded ? null : pred.id)}
-              style={{
-                display: 'grid',
-                gridTemplateColumns: '30px 1fr 80px 100px 100px',
-                padding: 'var(--space-3) var(--space-4)',
-                alignItems: 'center',
-                cursor: 'pointer',
-                transition: 'background 0.1s ease',
-              }}
-            >
-              <DirectionArrow direction={pred.direction} />
-              <div>
-                <div style={{ fontSize: 13, color: 'var(--text-primary)', marginBottom: 'var(--space-1)', fontWeight: 500 }}>
-                  {pred.claim}
-                </div>
-                <div style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'center', flexWrap: 'wrap' }}>
-                  <span className="mono" style={{
-                    fontSize: 10,
-                    padding: '1px 5px',
-                    borderRadius: 2,
-                    background: 'var(--bg-surface)',
-                    border: '1px solid var(--border)',
-                    color: 'var(--text-secondary)',
-                  }}>
-                    {pred.asset}
-                  </span>
-                  <Tag label={pred.category} />
-                  {pred.themes.slice(0, 2).map((t) => <Tag key={t} label={t} />)}
-                </div>
+            <DirectionArrow direction={pred.direction} />
+            <div>
+              <div style={{ fontSize: 13, color: 'var(--text-primary)', fontWeight: 500, marginBottom: 2 }}>
+                {pred.claim}
               </div>
-              <ConvictionBadge conviction={pred.conviction} confidence={pred.confidence} />
-              {showOutcome ? (
-                <OutcomeBadge outcome={pred.outcome} />
-              ) : (
+              <div style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'center' }}>
                 <span className="mono" style={{
-                  fontSize: 10,
-                  color: isOverdue ? '#ef4444' : days <= 7 ? '#eab308' : 'var(--text-tertiary)',
+                  fontSize: 10, padding: '1px 5px', borderRadius: 2,
+                  background: 'var(--bg-surface)', border: '1px solid var(--border)', color: 'var(--text-secondary)',
                 }}>
-                  {isOverdue ? `${Math.abs(days)}d overdue` : `${days}d left`}
+                  {pred.asset}
                 </span>
-              )}
-              <ConfidenceBar confidence={pred.confidence} />
-            </div>
-
-            {/* Expanded detail */}
-            {isExpanded && (
-              <div style={{ padding: 'var(--space-4)', borderTop: '1px solid var(--border)', fontSize: 12 }}>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-4)', marginBottom: 'var(--space-3)' }}>
-                  <div>
-                    <div className="label" style={{ marginBottom: 'var(--space-1)' }}>Target</div>
-                    <p style={{ color: 'var(--text-secondary)' }}>{pred.target_condition}</p>
-                  </div>
-                  <div>
-                    <div className="label" style={{ marginBottom: 'var(--space-1)' }}>Reference Price</div>
-                    <p className="mono" style={{ color: 'var(--text-secondary)' }}>
-                      {pred.reference_value !== null ? `$${pred.reference_value.toFixed(2)}` : '—'}
-                      {pred.final_value !== null && (
-                        <span style={{ marginLeft: 'var(--space-2)', color: 'var(--text-tertiary)' }}>
-                          → ${pred.final_value.toFixed(2)}
-                        </span>
-                      )}
-                    </p>
-                  </div>
-                </div>
-
-                <div style={{ marginBottom: 'var(--space-3)' }}>
-                  <div className="label" style={{ marginBottom: 'var(--space-1)' }}>Thesis</div>
-                  <p style={{ color: 'var(--text-secondary)', lineHeight: 1.5 }}>{pred.thesis}</p>
-                </div>
-
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-4)', marginBottom: 'var(--space-3)' }}>
-                  <div>
-                    <div className="label" style={{ marginBottom: 'var(--space-1)' }}>Key Drivers</div>
-                    <ul style={{ color: 'var(--text-secondary)', paddingLeft: 'var(--space-4)', margin: 0 }}>
-                      {pred.key_drivers.map((d, i) => <li key={i}>{d}</li>)}
-                    </ul>
-                  </div>
-                  <div>
-                    <div className="label" style={{ marginBottom: 'var(--space-1)' }}>Supporting Sources</div>
-                    <div style={{ display: 'flex', gap: 'var(--space-1)', flexWrap: 'wrap' }}>
-                      {pred.supporting_sources.map((s) => (
-                        <span key={s} className="mono" style={{
-                          fontSize: 9,
-                          padding: '1px 5px',
-                          borderRadius: 2,
-                          background: 'var(--bg-surface)',
-                          border: '1px solid var(--border)',
-                          color: 'var(--text-secondary)',
-                        }}>
-                          {s}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-
-                {pred.invalidation_criteria && (
-                  <div style={{ marginBottom: 'var(--space-3)' }}>
-                    <div className="label" style={{ marginBottom: 'var(--space-1)', color: '#ef4444' }}>Invalidation Criteria</div>
-                    <p style={{ color: 'var(--text-secondary)', fontStyle: 'italic' }}>{pred.invalidation_criteria}</p>
-                  </div>
-                )}
-
-                {pred.outcome_reasoning && (
-                  <div style={{
-                    padding: 'var(--space-3)',
-                    background: pred.outcome === 'correct' ? 'rgba(34,197,94,0.05)' : pred.outcome === 'incorrect' ? 'rgba(239,68,68,0.05)' : 'transparent',
-                    border: '1px solid var(--border)',
-                    borderRadius: 'var(--radius-sm)',
-                  }}>
-                    <div className="label" style={{ marginBottom: 'var(--space-1)' }}>Evaluation</div>
-                    <p style={{ color: 'var(--text-secondary)', lineHeight: 1.5 }}>{pred.outcome_reasoning}</p>
-                  </div>
-                )}
-
-                <div style={{ marginTop: 'var(--space-2)', display: 'flex', gap: 'var(--space-3)', fontSize: 10 }}>
-                  <span className="mono" style={{ color: 'var(--text-tertiary)' }}>Created: {formatDate(pred.created_at)}</span>
-                  <span className="mono" style={{ color: 'var(--text-tertiary)' }}>Deadline: {formatDate(pred.deadline)}</span>
-                  {pred.version > 1 && <span className="mono" style={{ color: 'var(--text-tertiary)' }}>v{pred.version}</span>}
-                </div>
+                <span className="mono" style={{ fontSize: 10, color: 'var(--text-tertiary)' }}>
+                  {formatDate(pred.created_at)}
+                </span>
               </div>
-            )}
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
+              <ConfidenceBar confidence={pred.confidence} />
+              <OutcomeBadge outcome={pred.outcome} />
+            </div>
           </div>
-        );
-      })}
+        </Link>
+      ))}
     </div>
   );
 }
+
+/* ── Calibration ── */
 
 function CalibrationView({
   calibration,
@@ -403,8 +348,7 @@ function CalibrationView({
     );
   }
 
-  // For a well-calibrated system, actual_rate should match confidence_bucket/100
-  const maxTotal = Math.max(...calibration.map((c) => c.total_predictions), 1);
+  const _maxTotal = Math.max(...calibration.map((c) => c.total_predictions), 1);
 
   return (
     <div>
@@ -421,7 +365,6 @@ function CalibrationView({
           If Howard says 70% confident, it should be right ~70% of the time.
         </p>
 
-        {/* ASCII-style calibration visualization */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
           {calibration.map((bucket) => {
             const expected = bucket.confidence_bucket / 100;
@@ -435,36 +378,17 @@ function CalibrationView({
                   {bucket.confidence_bucket}%
                 </span>
                 <div style={{ position: 'relative', height: 16 }}>
-                  {/* Expected bar (dotted outline) */}
                   <div style={{
-                    position: 'absolute',
-                    top: 0,
-                    left: 0,
-                    width: `${expected * 100}%`,
-                    height: '100%',
-                    border: '1px dashed var(--border)',
-                    borderRadius: 3,
-                    opacity: 0.6,
+                    position: 'absolute', top: 0, left: 0, width: `${expected * 100}%`, height: '100%',
+                    border: '1px dashed var(--border)', borderRadius: 3, opacity: 0.6,
                   }} />
-                  {/* Actual bar */}
                   <div style={{
-                    position: 'absolute',
-                    top: 2,
-                    left: 0,
-                    width: `${actual * 100}%`,
-                    height: 'calc(100% - 4px)',
-                    background: color,
-                    borderRadius: 2,
-                    opacity: 0.8,
-                    transition: 'width 0.3s ease',
+                    position: 'absolute', top: 2, left: 0, width: `${actual * 100}%`, height: 'calc(100% - 4px)',
+                    background: color, borderRadius: 2, opacity: 0.8, transition: 'width 0.3s ease',
                   }} />
                 </div>
-                <span className="mono" style={{ fontSize: 10, color }}>
-                  {(actual * 100).toFixed(0)}% actual
-                </span>
-                <span className="mono" style={{ fontSize: 9, color: 'var(--text-tertiary)' }}>
-                  n={bucket.total_predictions}
-                </span>
+                <span className="mono" style={{ fontSize: 10, color }}>{(actual * 100).toFixed(0)}% actual</span>
+                <span className="mono" style={{ fontSize: 9, color: 'var(--text-tertiary)' }}>n={bucket.total_predictions}</span>
               </div>
             );
           })}
@@ -474,7 +398,6 @@ function CalibrationView({
         </div>
       </div>
 
-      {/* Track record history */}
       {trackRecord && (
         <div style={{
           padding: 'var(--space-4)',

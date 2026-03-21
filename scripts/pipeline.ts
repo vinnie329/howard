@@ -33,6 +33,7 @@
  *   npx tsx scripts/pipeline.ts --house-view   # only generate house view
  *   npx tsx scripts/pipeline.ts --house-eval   # only evaluate house predictions
  *   npx tsx scripts/pipeline.ts --daily        # only daily update
+ *   npx tsx scripts/pipeline.ts --skip-house-gen # run all except house view generation (daily mode)
  */
 
 import { execSync } from 'child_process';
@@ -80,7 +81,8 @@ const run13f = runAll || args.includes('--13f');
 const runMarkets = runAll || args.includes('--markets');
 const runFedWatch = runAll || args.includes('--fedwatch');
 const runBacktest = runAll || args.includes('--backtest');
-const runHouseView = runAll || args.includes('--house-view');
+const skipHouseGen = args.includes('--skip-house-gen');
+const runHouseView = (!skipHouseGen && runAll) || args.includes('--house-view');
 const runHouseEval = runAll || args.includes('--house-eval');
 const runDaily = runAll || args.includes('--daily');
 
