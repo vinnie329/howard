@@ -16,6 +16,10 @@ function daysUntil(deadline: string): number {
   return Math.ceil((new Date(deadline).getTime() - Date.now()) / 86400000);
 }
 
+function formatPrice(n: number): string {
+  return '$' + n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
 export default function AssetDetailPage() {
   const params = useParams();
   const asset = decodeURIComponent(params.asset as string);
@@ -31,7 +35,7 @@ export default function AssetDetailPage() {
     // Fetch current price
     const tickerMap: Record<string, string> = {
       'S&P 500': '^GSPC', SPX: '^GSPC', NASDAQ: '^IXIC',
-      Gold: 'GC=F', GLD: 'GLD', Silver: 'SI=F', Oil: 'CL=F',
+      Gold: 'GC=F', GLD: 'GC=F', Silver: 'SI=F', Oil: 'CL=F',
       Bitcoin: 'BTC-USD', 'BTC-USD': 'BTC-USD', TLT: 'TLT',
       Copper: 'HG=F', 'HG=F': 'HG=F', DXY: 'DX-Y.NYB',
     };
@@ -95,8 +99,8 @@ export default function AssetDetailPage() {
                 { value: latest.conviction.toUpperCase(), label: 'Conviction', color: latest.confidence >= 70 ? '#22c55e' : latest.confidence >= 40 ? '#eab308' : '#ef4444' },
                 { value: latest.time_horizon, label: 'Time Horizon' },
                 { value: isOverdue ? `${Math.abs(days)}d overdue` : `${days}d left`, label: `Deadline · ${formatDate(latest.deadline)}`, color: isOverdue ? '#ef4444' : days <= 7 ? '#eab308' : undefined },
-                { value: latest.reference_value !== null ? `$${latest.reference_value.toFixed(2)}` : '—', label: `Price at Call · ${formatDate(latest.created_at)}` },
-                { value: currentPrice !== null ? `$${currentPrice.toFixed(2)}` : '—', label: 'Current Price' },
+                { value: latest.reference_value !== null ? formatPrice(latest.reference_value) : '—', label: `Price at Call · ${formatDate(latest.created_at)}` },
+                { value: currentPrice !== null ? formatPrice(currentPrice) : '—', label: 'Current Price' },
               ]} />
             </div>
 
