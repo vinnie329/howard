@@ -52,6 +52,8 @@ export interface Analysis {
   created_at: string;
 }
 
+export type PredictionOutcome = 'correct' | 'incorrect' | 'partially_correct' | 'expired' | 'pending';
+
 export interface Prediction {
   id: string;
   content_id: string;
@@ -65,6 +67,44 @@ export interface Prediction {
   specificity: 'hard' | 'directional' | 'thematic';
   date_made: string;
   notes: string;
+  outcome: PredictionOutcome;
+  outcome_reasoning: string | null;
+  outcome_score: number | null;
+  evaluated_at: string | null;
+  market_context: Record<string, unknown>;
+  created_at: string;
+}
+
+export interface SourcePerformance {
+  id: string;
+  source_id: string;
+  total_predictions: number;
+  evaluated_predictions: number;
+  correct: number;
+  incorrect: number;
+  partially_correct: number;
+  expired: number;
+  accuracy_rate: number;
+  weighted_accuracy: number;
+  avg_confidence_when_correct: number;
+  avg_confidence_when_incorrect: number;
+  best_domain: string | null;
+  worst_domain: string | null;
+  performance_by_horizon: Record<string, { total: number; correct: number; accuracy: number }>;
+  performance_by_specificity: Record<string, { total: number; correct: number; accuracy: number }>;
+  streak_current: number;
+  streak_best: number;
+  last_evaluated_at: string | null;
+  updated_at: string;
+}
+
+export interface BacktestRun {
+  id: string;
+  predictions_evaluated: number;
+  predictions_resolved: number;
+  sources_updated: number;
+  run_duration_ms: number | null;
+  notes: string | null;
   created_at: string;
 }
 
@@ -170,6 +210,66 @@ export interface MarketWithSnapshot extends PredictionMarket {
   price_change_24h: number;
   volume_24h: number;
   trend: number[];
+}
+
+// House Predictions — Howard's own synthesized, falsifiable predictions
+
+export type HouseOutcome = 'correct' | 'incorrect' | 'partially_correct' | 'expired' | 'invalidated' | 'pending';
+
+export interface HousePrediction {
+  id: string;
+  claim: string;
+  asset: string;
+  direction: 'long' | 'short' | 'neutral';
+  target_value: number | null;
+  target_condition: string;
+  reference_value: number | null;
+  time_horizon: string;
+  deadline: string;
+  confidence: number;          // 0-100
+  conviction: 'high' | 'medium' | 'low';
+  thesis: string;
+  supporting_sources: string[];
+  key_drivers: string[];
+  invalidation_criteria: string | null;
+  category: string;
+  themes: string[];
+  outcome: HouseOutcome;
+  outcome_score: number | null;
+  outcome_reasoning: string | null;
+  final_value: number | null;
+  evaluated_at: string | null;
+  superseded_by: string | null;
+  supersedes: string | null;
+  version: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface HouseCalibration {
+  confidence_bucket: number;   // 10, 20, ..., 90
+  total_predictions: number;
+  correct_predictions: number;
+  actual_rate: number;
+  calibration_error: number;
+  category: string;
+}
+
+export interface HouseTrackRecord {
+  id: string;
+  total_predictions: number;
+  evaluated: number;
+  correct: number;
+  partially_correct: number;
+  incorrect: number;
+  overall_accuracy: number;
+  weighted_accuracy: number;   // weighted by confidence (high-confidence predictions matter more)
+  brier_score: number;
+  avg_confidence: number;
+  best_category: string | null;
+  worst_category: string | null;
+  active_predictions: number;
+  computed_at: string;
 }
 
 // Daily Update

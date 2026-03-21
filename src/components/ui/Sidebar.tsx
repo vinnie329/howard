@@ -13,6 +13,7 @@ interface NavItem {
 
 const navItems: NavItem[] = [
   { label: 'Daily Update', href: '/' },
+  { label: 'House View', href: '/house-view' },
   { label: 'Data Feed', href: '/feed' },
   { label: 'Technicals', href: '/technicals' },
   { label: 'Prediction Markets', href: '/markets' },
@@ -20,6 +21,7 @@ const navItems: NavItem[] = [
   { label: 'Signals', href: '/signals' },
   { label: 'Outlook', href: '/outlook' },
   { label: 'Predictions Ledger', href: '/predictions' },
+  { label: 'Performance', href: '/performance' },
   { label: '13F Holdings', href: '/holdings' },
   { label: 'Canvas', href: '/canvas' },
   { label: 'Sources', href: '/discovery' },

@@ -1,17 +1,19 @@
 interface Stat {
   value: string;
   label: string;
+  color?: string;
 }
 
 interface StatsGridProps {
   stats: Stat[];
+  columns?: number;
 }
 
-export default function StatsGrid({ stats }: StatsGridProps) {
+export default function StatsGrid({ stats, columns = 2 }: StatsGridProps) {
   return (
     <div style={{
       display: 'grid',
-      gridTemplateColumns: '1fr 1fr',
+      gridTemplateColumns: `repeat(${columns}, 1fr)`,
       gap: 1,
       border: '1px solid var(--border)',
       borderRadius: 'var(--radius-md)',
@@ -23,14 +25,14 @@ export default function StatsGrid({ stats }: StatsGridProps) {
           background: 'var(--bg-panel)',
           padding: 'var(--space-3)',
         }}>
-          <div style={{ fontSize: 16, color: 'var(--text-primary)', fontWeight: 400 }}>
+          <div style={{ fontSize: 16, color: stat.color || 'var(--text-primary)', fontWeight: 400 }}>
             {stat.value}
           </div>
           <div style={{
             fontSize: 10,
             textTransform: 'uppercase',
             letterSpacing: '0.05em',
-            color: 'var(--text-tertiary)',
+            color: 'var(--text-secondary)',
             marginTop: 'var(--space-1)',
           }}>
             {stat.label}
