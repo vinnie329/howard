@@ -440,7 +440,7 @@ export async function fetchYouTubeVideos(
               (parseInt(hours || '0') * 3600) +
               (parseInt(minutes || '0') * 60) +
               parseInt(seconds || '0');
-            if (totalSec <= 180) {
+            if (totalSec < 60) {
               shortsSet.add(v.id);
             }
           }
@@ -466,9 +466,9 @@ export async function fetchYouTubeVideos(
       }
 
       for (const video of items) {
-        // Skip short-form videos (≤3 min)
+        // Skip very short videos (<1 min)
         if (shortsSet.has(video.videoId)) {
-          console.log(`    ✕ Skipped (short-form ≤3min): ${video.title}`);
+          console.log(`    ✕ Skipped (<1min): ${video.title}`);
           continue;
         }
         // Channel whitelist check
