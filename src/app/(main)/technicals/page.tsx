@@ -228,23 +228,47 @@ export default function TechnicalsPage() {
                     const hv = houseViewAssets.get(item.symbol)!;
                     const dirColor = hv.direction === 'long' ? '#22c55e' : hv.direction === 'short' ? '#ef4444' : '#eab308';
                     const arrow = hv.direction === 'long' ? '\u2191' : hv.direction === 'short' ? '\u2193' : '\u2194';
+                    const isRelative = /outperform/i.test(hv.claim) || /\/\w+\s+ratio/i.test(hv.target_condition);
+                    const horizon = hv.time_horizon
+                      .replace(/\s*months?/, 'm')
+                      .replace(/\s*years?/, 'y')
+                      .replace(/\s*weeks?/, 'w');
                     return (
-                      <Link
-                        href={`/house-view/${encodeURIComponent(item.symbol)}`}
-                        onClick={(e) => e.stopPropagation()}
-                        style={{
-                          fontSize: 9,
-                          padding: '1px 5px',
-                          borderRadius: 2,
-                          background: `color-mix(in srgb, ${dirColor} 15%, transparent)`,
-                          color: dirColor,
-                          fontFamily: 'var(--font-mono)',
-                          textDecoration: 'none',
-                          whiteSpace: 'nowrap',
-                        }}
-                      >
-                        {arrow} {hv.confidence}% {hv.direction}
-                      </Link>
+                      <span style={{ display: 'inline-flex', gap: 3, alignItems: 'center' }}>
+                        <Link
+                          href={`/house-view/${encodeURIComponent(item.symbol)}`}
+                          onClick={(e) => e.stopPropagation()}
+                          style={{
+                            fontSize: 9,
+                            padding: '1px 5px',
+                            borderRadius: 2,
+                            background: `color-mix(in srgb, ${dirColor} 15%, transparent)`,
+                            color: dirColor,
+                            fontFamily: 'var(--font-mono)',
+                            textDecoration: 'none',
+                            whiteSpace: 'nowrap',
+                          }}
+                        >
+                          {arrow} {hv.confidence}% {hv.direction} · {horizon}
+                        </Link>
+                        {isRelative && (
+                          <span
+                            style={{
+                              fontSize: 8,
+                              padding: '1px 4px',
+                              borderRadius: 2,
+                              background: 'color-mix(in srgb, #a78bfa 15%, transparent)',
+                              color: '#a78bfa',
+                              fontFamily: 'var(--font-mono)',
+                              whiteSpace: 'nowrap',
+                              textTransform: 'uppercase',
+                              letterSpacing: '0.5px',
+                            }}
+                          >
+                            relative
+                          </span>
+                        )}
+                      </span>
                     );
                   })()}
                 </div>
