@@ -25,6 +25,8 @@ const WHITELISTED_CHANNELS = [
   'metals and miners',
   'goldman sachs',
   'sourceryvc',
+  'lex fridman',
+  'realeismanplaybook',
 ];
 
 function isWhitelistedChannel(channelTitle: string): boolean {
