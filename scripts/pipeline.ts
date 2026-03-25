@@ -69,7 +69,8 @@ if (missingOptional.length > 0) {
 }
 
 const args = process.argv.slice(2);
-const runAll = args.length === 0;
+const stepArgs = args.filter((a) => a !== '--skip-house-gen');
+const runAll = stepArgs.length === 0;
 const runFetch = runAll || args.includes('--fetch');
 const runTranscripts = runAll || args.includes('--transcripts');
 const runAnalyze = runAll || args.includes('--analyze');
