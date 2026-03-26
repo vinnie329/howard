@@ -154,8 +154,8 @@ export default function AssetDetailPage() {
               </h2>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
-                {predictions.map((pred, i) => {
-                  const isLatest = i === predictions.length - 1;
+                {[...predictions].reverse().map((pred, i) => {
+                  const isLatest = pred.id === predictions[predictions.length - 1].id;
                   const isSuperseded = !!pred.superseded_by;
                   const isResolved = pred.outcome !== 'pending' && !isSuperseded;
                   const pConfColor = pred.confidence >= 70 ? '#22c55e' : pred.confidence >= 40 ? '#eab308' : '#ef4444';
@@ -176,14 +176,18 @@ export default function AssetDetailPage() {
                     statusColor = 'var(--text-tertiary)';
                   }
 
-                  const prevConf = i > 0 ? predictions[i - 1].confidence : null;
+                  // Find chronologically previous prediction for confidence delta
+                  const chronIndex = predictions.indexOf(pred);
+                  const prevConf = chronIndex > 0 ? predictions[chronIndex - 1].confidence : null;
                   const delta = prevConf !== null ? pred.confidence - prevConf : null;
+                  const isFirst = i === 0;
+                  const isLast = i === predictions.length - 1;
 
                   return (
                     <div key={pred.id} style={{ display: 'flex', gap: 'var(--space-3)' }}>
                       {/* Timeline rail */}
                       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: 16, flexShrink: 0 }}>
-                        <div style={{ width: 2, flex: '1 0 8px', background: i === 0 ? 'transparent' : 'var(--border)' }} />
+                        <div style={{ width: 2, flex: '1 0 8px', background: isFirst ? 'transparent' : 'var(--border)' }} />
                         <div style={{
                           width: isLatest ? 12 : 8,
                           height: isLatest ? 12 : 8,
@@ -192,7 +196,7 @@ export default function AssetDetailPage() {
                           flexShrink: 0,
                           border: isLatest ? `2px solid ${statusColor}` : 'none',
                         }} />
-                        <div style={{ width: 2, flex: '1 0 8px', background: isLatest ? 'transparent' : 'var(--border)' }} />
+                        <div style={{ width: 2, flex: '1 0 8px', background: isLast ? 'transparent' : 'var(--border)' }} />
                       </div>
 
                       {/* Entry content */}
