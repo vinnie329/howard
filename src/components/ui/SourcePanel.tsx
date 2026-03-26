@@ -42,7 +42,7 @@ export default function SourcePanel({
         <div>
           <div style={{ fontSize: 14, fontWeight: 500 }}>{source.name}</div>
           <div style={{ display: 'flex', gap: 'var(--space-1)', marginTop: 'var(--space-1)' }}>
-            {source.domains.map((d) => (
+            {(source.domains || []).map((d) => (
               <span key={d} className="mono" style={{ fontSize: 10, color: 'var(--text-tertiary)' }}>
                 {d}
               </span>

@@ -31,9 +31,9 @@ export async function getSources(): Promise<Source[]> {
       slug: s.slug,
       bio: s.bio || '',
       avatar_url: s.avatar_url || '',
-      domains: s.domains as string[],
-      scores: s.scores as Source['scores'],
-      weighted_score: s.weighted_score,
+      domains: (Array.isArray(s.domains) ? s.domains : []) as string[],
+      scores: (s.scores || {}) as Source['scores'],
+      weighted_score: s.weighted_score ?? 0,
       created_at: s.created_at,
       updated_at: s.updated_at,
     }));
