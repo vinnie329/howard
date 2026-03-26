@@ -88,8 +88,8 @@ Respond in JSON format only (no markdown fences) with these fields:
   "sentiment_score": number between -1 (very bearish) and 1 (very bullish),
   "summary": "2-3 sentence summary of the key points",
   "key_quotes": ["array of 2-4 notable direct quotes from the text"],
-  "themes": ["array of 3-6 broad, reusable theme tags. Use short phrases (1-3 words max) that could apply across multiple pieces of content. Examples: 'NVIDIA', 'Liquidity', 'Gold', 'AI CapEx', 'Energy', 'China', 'Fed Policy', 'Semiconductors', 'Data Centers'. NOT article titles or long descriptions — e.g. 'NVIDIA' not 'NVIDIA's Strategic Moat', 'Data Centers' not 'Data Center Infrastructure and Power'"],
-  "assets_mentioned": ["array of specific assets/tickers mentioned, e.g. 'BTC', 'NVDA', 'US Treasuries'"],
+  "themes": ["array of 3-8 broad, reusable theme tags. Use short phrases (1-3 words max) that could apply across multiple pieces of content. Examples: 'NVIDIA', 'Liquidity', 'Gold', 'AI CapEx', 'Energy', 'China', 'Fed Policy', 'Semiconductors', 'Data Centers'. NOT article titles or long descriptions — e.g. 'NVIDIA' not 'NVIDIA's Strategic Moat', 'Data Centers' not 'Data Center Infrastructure and Power'. IMPORTANT: Go beyond the obvious consensus themes. If the content mentions anything unusual, contrarian, niche, or non-consensus — an obscure asset class, a fringe macro theory, a protocol nobody is talking about — include it. The most valuable intelligence is what others overlook."],
+  "assets_mentioned": ["array of ALL specific assets, tickers, tokens, protocols, or instruments mentioned — including obscure, small-cap, or non-consensus ones. Crypto tokens (e.g. 'TAO', 'HNT'), niche ETFs, exotic derivatives, and foreign-listed equities are just as important as 'BTC' or 'NVDA'. Cast a wide net — if it's tradeable or investable and it was named, include it."],
   "referenced_people": ["array of notable people mentioned or referenced"],
   "predictions": [
     {
