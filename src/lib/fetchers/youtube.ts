@@ -27,6 +27,7 @@ const WHITELISTED_CHANNELS = [
   'sourceryvc',
   'lex fridman',
   'realeismanplaybook',
+  'south park commons',
 ];
 
 function isWhitelistedChannel(channelTitle: string): boolean {

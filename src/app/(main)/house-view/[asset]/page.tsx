@@ -57,6 +57,17 @@ export default function AssetDetailPage() {
   const dirColor = latest?.direction === 'long' ? '#22c55e' : latest?.direction === 'short' ? '#ef4444' : 'var(--text-tertiary)';
   const dirArrow = latest?.direction === 'long' ? '\u2191' : latest?.direction === 'short' ? '\u2193' : '\u2194';
 
+  const tvSymbolMap: Record<string, string> = {
+    'S&P 500': 'SP:SPX', SPX: 'SP:SPX', NASDAQ: 'NASDAQ:NDX',
+    Gold: 'COMEX:GC1!', GLD: 'AMEX:GLD', Silver: 'COMEX:SI1!', Oil: 'NYMEX:CL1!',
+    Bitcoin: 'BITSTAMP:BTCUSD', 'BTC-USD': 'BITSTAMP:BTCUSD',
+    TLT: 'NASDAQ:TLT', Copper: 'COMEX:HG1!', 'HG=F': 'COMEX:HG1!',
+    DXY: 'TVC:DXY', NVDA: 'NASDAQ:NVDA', TSLA: 'NASDAQ:TSLA',
+    ETH: 'BITSTAMP:ETHUSD', 'ETH-USD': 'BITSTAMP:ETHUSD',
+    SOL: 'BINANCE:SOLUSD', 'SOL-USD': 'BINANCE:SOLUSD',
+  };
+  const tvSymbol = tvSymbolMap[asset] || asset;
+
   return (
     <>
       <div className="top-bar">
@@ -87,6 +98,25 @@ export default function AssetDetailPage() {
               }}>
                 {latest.direction.toUpperCase()}
               </span>
+              <a
+                href={`https://www.tradingview.com/chart/?symbol=${encodeURIComponent(tvSymbol)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mono"
+                style={{
+                  fontSize: 10,
+                  color: 'var(--text-tertiary)',
+                  textDecoration: 'none',
+                  padding: '2px 8px',
+                  borderRadius: 3,
+                  border: '1px solid var(--border)',
+                  transition: 'color 0.15s, border-color 0.15s',
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--text-primary)'; e.currentTarget.style.borderColor = 'var(--text-tertiary)'; }}
+                onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-tertiary)'; e.currentTarget.style.borderColor = 'var(--border)'; }}
+              >
+                TradingView ↗
+              </a>
             </div>
 
             <p style={{ fontSize: 14, color: 'var(--text-primary)', marginBottom: 'var(--space-6)', lineHeight: 1.5 }}>
