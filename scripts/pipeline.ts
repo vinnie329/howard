@@ -8,14 +8,15 @@
  *   4. Generate missing embeddings (Voyage AI)
  *   5. Evaluate & update outlooks (Claude)
  *   6. Generate signals (Claude + Yahoo Finance)
- *   7. Generate positioning (Claude synthesis)
- *   8. Fetch 13F holdings (SEC EDGAR)
- *   9. Fetch prediction markets (Kalshi + Polymarket)
- *  10. Fetch FedWatch rate probabilities
- *  11. Backtest source predictions (Claude + Yahoo Finance)
- *  12. Generate house view predictions (Claude synthesis)
- *  13. Evaluate house predictions (Claude + Yahoo Finance)
- *  14. Generate daily update (Claude synthesis — must be last)
+ *   7. Fetch positioning data (CFTC COT, credit spreads, options sentiment)
+ *   8. Generate positioning (Claude synthesis)
+ *   9. Fetch 13F holdings (SEC EDGAR)
+ *  10. Fetch prediction markets (Kalshi + Polymarket)
+ *  11. Fetch FedWatch rate probabilities
+ *  12. Backtest source predictions (Claude + Yahoo Finance)
+ *  13. Generate house view predictions (Claude synthesis)
+ *  14. Evaluate house predictions (Claude + Yahoo Finance)
+ *  15. Generate daily update (Claude synthesis — must be last)
  *
  * Usage:
  *   npx tsx scripts/pipeline.ts                # run all steps
@@ -25,6 +26,7 @@
  *   npx tsx scripts/pipeline.ts --embed        # only embeddings
  *   npx tsx scripts/pipeline.ts --outlook      # only outlook
  *   npx tsx scripts/pipeline.ts --signals      # only signals
+ *   npx tsx scripts/pipeline.ts --pos-data     # only positioning data (COT, credit, options)
  *   npx tsx scripts/pipeline.ts --positioning  # only positioning
  *   npx tsx scripts/pipeline.ts --13f          # only 13F holdings
  *   npx tsx scripts/pipeline.ts --markets      # only prediction markets
@@ -77,6 +79,7 @@ const runAnalyze = runAll || args.includes('--analyze');
 const runEmbed = runAll || args.includes('--embed');
 const runOutlook = runAll || args.includes('--outlook');
 const runSignals = runAll || args.includes('--signals');
+const runPosData = runAll || args.includes('--pos-data');
 const runPositioning = runAll || args.includes('--positioning');
 const run13f = runAll || args.includes('--13f');
 const runMarkets = runAll || args.includes('--markets');
@@ -129,20 +132,21 @@ function run(label: string, script: string) {
 console.log('\n  Howard Pipeline\n');
 
 const steps: [boolean, string, string][] = [
-  [runFetch, 'Step 1/14 — Fetch content', 'scripts/fetch-all.ts'],
-  [runTranscripts, 'Step 2/14 — Retry missing transcripts', 'scripts/fetch-missing-transcripts.ts'],
-  [runAnalyze, 'Step 3/14 — Analyze content', 'scripts/analyze-content.ts'],
-  [runEmbed, 'Step 4/14 — Generate embeddings', 'scripts/generate-embeddings.ts'],
-  [runOutlook, 'Step 5/14 — Update outlooks', 'scripts/update-outlook.ts'],
-  [runSignals, 'Step 6/14 — Generate signals', 'scripts/generate-signals.ts'],
-  [runPositioning, 'Step 7/14 — Generate positioning', 'scripts/generate-positioning.ts'],
-  [run13f, 'Step 8/14 — Fetch 13F holdings', 'scripts/fetch-13f.ts'],
-  [runMarkets, 'Step 9/14 — Fetch prediction markets', 'scripts/fetch-prediction-markets.ts'],
-  [runFedWatch, 'Step 10/14 — Fetch FedWatch probabilities', 'scripts/fetch-fedwatch.ts'],
-  [runBacktest, 'Step 11/14 — Backtest source predictions', 'scripts/backtest-predictions.ts'],
-  [runHouseView, 'Step 12/14 — Generate house view predictions', 'scripts/generate-house-view.ts'],
-  [runHouseEval, 'Step 13/14 — Evaluate house predictions', 'scripts/evaluate-house-view.ts'],
-  [runDaily, 'Step 14/14 — Generate daily update', 'scripts/generate-daily-update.ts'],
+  [runFetch, 'Step 1/15 — Fetch content', 'scripts/fetch-all.ts'],
+  [runTranscripts, 'Step 2/15 — Retry missing transcripts', 'scripts/fetch-missing-transcripts.ts'],
+  [runAnalyze, 'Step 3/15 — Analyze content', 'scripts/analyze-content.ts'],
+  [runEmbed, 'Step 4/15 — Generate embeddings', 'scripts/generate-embeddings.ts'],
+  [runOutlook, 'Step 5/15 — Update outlooks', 'scripts/update-outlook.ts'],
+  [runSignals, 'Step 6/15 — Generate signals', 'scripts/generate-signals.ts'],
+  [runPosData, 'Step 7/15 — Fetch positioning data (COT, credit, options)', 'scripts/fetch-positioning-data.ts'],
+  [runPositioning, 'Step 8/15 — Generate positioning', 'scripts/generate-positioning.ts'],
+  [run13f, 'Step 9/15 — Fetch 13F holdings', 'scripts/fetch-13f.ts'],
+  [runMarkets, 'Step 10/15 — Fetch prediction markets', 'scripts/fetch-prediction-markets.ts'],
+  [runFedWatch, 'Step 11/15 — Fetch FedWatch probabilities', 'scripts/fetch-fedwatch.ts'],
+  [runBacktest, 'Step 12/15 — Backtest source predictions', 'scripts/backtest-predictions.ts'],
+  [runHouseView, 'Step 13/15 — Generate house view predictions', 'scripts/generate-house-view.ts'],
+  [runHouseEval, 'Step 14/15 — Evaluate house predictions', 'scripts/evaluate-house-view.ts'],
+  [runDaily, 'Step 15/15 — Generate daily update', 'scripts/generate-daily-update.ts'],
 ];
 
 const active = steps.filter(([enabled]) => enabled);

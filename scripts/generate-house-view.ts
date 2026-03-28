@@ -18,6 +18,9 @@ import { createClient } from '@supabase/supabase-js';
 import { config } from 'dotenv';
 config({ path: '.env.local' });
 
+import { fetchCreditSpreads, formatCreditBlock } from '../src/lib/fetchers/credit-spreads';
+import { fetchOptionsSentiment, formatOptionsBlock } from '../src/lib/fetchers/options-sentiment';
+
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 if (!supabaseUrl || !supabaseKey) {
@@ -107,6 +110,14 @@ async function main() {
   console.log(`  Sources: ${sources.length}`);
   console.log(`  Active house predictions: ${existingHouse.length}\n`);
 
+  // Fetch live market sentiment data
+  console.log('Fetching market sentiment data...');
+  const [creditRecords, optionsSentiment] = await Promise.all([
+    fetchCreditSpreads(supabase),
+    fetchOptionsSentiment(supabase),
+  ]);
+  console.log('');
+
   // 2. Build context for Claude
   const outlookSummary = outlooks.map((o) => {
     return `[${o.time_horizon.toUpperCase()}] "${o.title}" — ${o.sentiment} (confidence: ${o.confidence}/100)
@@ -156,6 +167,14 @@ ${outlookSummary || 'No outlooks available yet.'}
 
 ### Source Predictions (weighted by credibility)
 ${predictionsSummary || 'No source predictions available yet.'}
+
+### Credit Markets
+HY/IG spreads are leading risk sentiment indicators. TED spread and SOFR signal funding stress. These move before equities.
+${formatCreditBlock(creditRecords)}
+
+### Options Market Sentiment
+VIX term structure, SKEW (institutional tail-risk hedging), and put/call ratios.
+${formatOptionsBlock(optionsSentiment)}
 
 ### Existing Active House Predictions (do not duplicate)
 ${existingClaims || 'None yet.'}
