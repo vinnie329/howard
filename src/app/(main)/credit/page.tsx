@@ -18,11 +18,11 @@ interface CreditData {
   updated_at: string | null;
 }
 
-const SERIES_INFO: Record<string, { description: string; unit: string }> = {
-  'BAMLH0A0HYM2': { description: 'High Yield option-adjusted spread over Treasuries. Primary risk sentiment indicator.', unit: 'bps' },
-  'BAMLC0A0CM': { description: 'Investment Grade corporate spread. Widens before equity selloffs.', unit: 'bps' },
-  'TEDRATE': { description: '3-month LIBOR minus 3-month T-Bill. Measures interbank funding stress.', unit: '%' },
-  'SOFR': { description: 'Secured Overnight Financing Rate. Fed funding conditions.', unit: '%' },
+const SERIES_INFO: Record<string, { description: string; unit: string; fredUrl: string }> = {
+  'BAMLH0A0HYM2': { description: 'High Yield option-adjusted spread over Treasuries. Primary risk sentiment indicator.', unit: 'bps', fredUrl: 'https://fred.stlouisfed.org/series/BAMLH0A0HYM2' },
+  'BAMLC0A0CM': { description: 'Investment Grade corporate spread. Widens before equity selloffs.', unit: 'bps', fredUrl: 'https://fred.stlouisfed.org/series/BAMLC0A0CM' },
+  'TEDRATE': { description: '3-month LIBOR minus 3-month T-Bill. Measures interbank funding stress.', unit: '%', fredUrl: 'https://fred.stlouisfed.org/series/TEDRATE' },
+  'SOFR': { description: 'Secured Overnight Financing Rate. Fed funding conditions.', unit: '%', fredUrl: 'https://fred.stlouisfed.org/series/SOFR' },
 };
 
 function stressBadge(stress: string) {
@@ -105,9 +105,17 @@ export default function CreditPage() {
                           </span>
                           {stressBadge(s.stress)}
                         </div>
-                        <span className="mono" style={{ fontSize: 10, color: 'var(--text-tertiary)' }}>
-                          {s.series}
-                        </span>
+                        <a
+                          href={info.fredUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="mono"
+                          style={{ fontSize: 10, color: 'var(--text-tertiary)', textDecoration: 'none' }}
+                          onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--accent)')}
+                          onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--text-tertiary)')}
+                        >
+                          {s.series} ↗
+                        </a>
                       </div>
 
                       <div style={{ fontSize: 11, color: 'var(--text-tertiary)', marginBottom: 'var(--space-3)' }}>
