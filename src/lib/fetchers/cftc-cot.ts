@@ -183,10 +183,15 @@ export async function fetchCOT(supabase: SupabaseClient): Promise<COTRecord[]> {
     captured_at: now,
   }));
 
+  // Deduplicate rows by (ticker, report_date) — keep last occurrence
+  const deduped = [
+    ...new Map(rows.map(r => [`${r.ticker}|${r.report_date}`, r])).values(),
+  ];
+
   const BATCH_SIZE = 100;
   let inserted = 0;
-  for (let i = 0; i < rows.length; i += BATCH_SIZE) {
-    const batch = rows.slice(i, i + BATCH_SIZE);
+  for (let i = 0; i < deduped.length; i += BATCH_SIZE) {
+    const batch = deduped.slice(i, i + BATCH_SIZE);
     const { error } = await supabase.from('cot_snapshots').upsert(batch, {
       onConflict: 'ticker,report_date',
     });

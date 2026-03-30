@@ -28,6 +28,7 @@ const WHITELISTED_CHANNELS = [
   'lex fridman',
   'realeismanplaybook',
   'south park commons',
+  'bloombergpodcasts',
 ];
 
 function isWhitelistedChannel(channelTitle: string): boolean {
