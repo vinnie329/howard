@@ -184,9 +184,9 @@ export async function fetchCOT(supabase: SupabaseClient): Promise<COTRecord[]> {
   }));
 
   // Deduplicate rows by (ticker, report_date) — keep last occurrence
-  const deduped = [
-    ...new Map(rows.map(r => [`${r.ticker}|${r.report_date}`, r])).values(),
-  ];
+  const dedupMap = new Map<string, (typeof rows)[number]>();
+  for (const r of rows) dedupMap.set(`${r.ticker}|${r.report_date}`, r);
+  const deduped = Array.from(dedupMap.values());
 
   const BATCH_SIZE = 100;
   let inserted = 0;
