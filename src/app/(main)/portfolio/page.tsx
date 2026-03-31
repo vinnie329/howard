@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Sparkline from '@/components/ui/Sparkline';
+import { SkeletonRows } from '@/components/ui/Skeleton';
 import type { PortfolioSnapshot, PortfolioPosition, PortfolioPerformance } from '@/types';
 
 interface PortfolioData {
@@ -56,6 +57,8 @@ function DirectionArrow({ direction }: { direction: string }) {
   return <span style={{ color, fontSize: 16, fontWeight: 600 }}>{arrow}</span>;
 }
 
+const GRID_COLS = '28px 72px 1fr 64px 88px 88px 76px 56px';
+
 export default function PortfolioPage() {
   const [data, setData] = useState<PortfolioData>({ snapshot: null, positions: [], performance: [] });
   const [loading, setLoading] = useState(true);
@@ -71,9 +74,8 @@ export default function PortfolioPage() {
 
   const { snapshot, positions, performance } = data;
 
-  // Calculate stats
   const latestPerf = performance.length > 0 ? performance[performance.length - 1] : null;
-  const nav = latestPerf?.nav ?? 50000;
+  const nav = latestPerf?.nav ?? 10000000;
   const totalReturn = latestPerf?.cumulative_return_pct ?? 0;
   const spyReturn = latestPerf?.spy_cumulative_pct ?? 0;
   const alpha = totalReturn - spyReturn;
@@ -84,100 +86,122 @@ export default function PortfolioPage() {
         <span style={{ fontSize: 12 }}>Model Portfolio</span>
       </div>
 
-      <div style={{ flex: 1, margin: 32, overflowY: 'auto', display: 'flex', justifyContent: 'center' }}>
-        <div style={{ width: '100%', maxWidth: 800 }}>
-          <h1 style={{ marginBottom: 'var(--space-1)' }}>Model Portfolio</h1>
-          <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 'var(--space-6)', lineHeight: 1.5 }}>
-            AI-generated portfolio derived from Howard&apos;s intelligence network. $50,000 starting capital.
-          </p>
+      <div style={{ padding: 'var(--space-6)', overflowY: 'auto', flex: 1 }}>
+        <h1 style={{ marginBottom: 'var(--space-2)' }}>Model Portfolio</h1>
+        <p style={{ fontSize: 12, color: 'var(--text-tertiary)', marginBottom: 'var(--space-6)' }}>
+          AI-generated portfolio derived from Howard&apos;s intelligence network. $10M starting capital. Rebalanced weekly.
+        </p>
 
-          {loading ? (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
-              {[1, 2, 3, 4].map((i) => (
-                <div key={i} className="skeleton" style={{ height: 80, borderRadius: 'var(--radius-md)' }} />
+        {loading ? (
+          <SkeletonRows count={6} />
+        ) : !snapshot ? (
+          <div className="mono" style={{ fontSize: 12, color: 'var(--text-tertiary)', padding: 'var(--space-4) 0' }}>
+            No portfolio yet. Run the pipeline to generate: <code>npx tsx scripts/generate-portfolio.ts --rebalance</code>
+          </div>
+        ) : (
+          <>
+            {/* Meta badges */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)', marginBottom: 'var(--space-6)', flexWrap: 'wrap' }}>
+              <RiskBadge posture={snapshot.risk_posture} />
+              <span className="mono" style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>
+                {snapshot.total_positions} positions
+              </span>
+              <span className="mono" style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>
+                {snapshot.cash_allocation}% cash
+              </span>
+              <span className="mono" style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>
+                Rebalanced {formatDate(snapshot.generated_at)}
+              </span>
+            </div>
+
+            {/* Thesis */}
+            <div style={{
+              padding: 'var(--space-4)',
+              border: '1px solid var(--border)',
+              borderRadius: 'var(--radius-md)',
+              background: 'var(--bg-panel)',
+              marginBottom: 'var(--space-6)',
+              fontSize: 13,
+              lineHeight: 1.6,
+              color: 'var(--text-secondary)',
+            }}>
+              {snapshot.thesis_summary}
+            </div>
+
+            {/* Stats */}
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(4, 1fr)',
+              gap: 'var(--space-3)',
+              marginBottom: 'var(--space-6)',
+            }}>
+              {[
+                { label: 'NAV', value: formatCurrency(nav) },
+                { label: 'Total Return', value: formatPct(totalReturn), color: totalReturn >= 0 ? '#22c55e' : '#ef4444' },
+                { label: 'vs SPY', value: formatPct(alpha), color: alpha >= 0 ? '#22c55e' : '#ef4444' },
+                { label: 'Daily', value: formatPct(latestPerf?.daily_return_pct ?? null), color: (latestPerf?.daily_return_pct ?? 0) >= 0 ? '#22c55e' : '#ef4444' },
+              ].map((s) => (
+                <div key={s.label} style={{
+                  padding: 'var(--space-3)',
+                  border: '1px solid var(--border)',
+                  borderRadius: 'var(--radius-md)',
+                  background: 'var(--bg-panel)',
+                }}>
+                  <div style={{ fontSize: 10, color: 'var(--text-tertiary)', marginBottom: 'var(--space-1)' }}>{s.label}</div>
+                  <div className="mono" style={{ fontSize: 20, fontWeight: 600, color: s.color || 'var(--text-primary)' }}>{s.value}</div>
+                </div>
               ))}
             </div>
-          ) : !snapshot ? (
-            <div className="mono" style={{ fontSize: 12, color: 'var(--text-tertiary)', padding: 'var(--space-4) 0' }}>
-              No portfolio yet. Run the pipeline to generate: <code>npx tsx scripts/generate-portfolio.ts --rebalance</code>
-            </div>
-          ) : (
-            <>
-              {/* Meta */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)', marginBottom: 'var(--space-4)', flexWrap: 'wrap' }}>
-                <RiskBadge posture={snapshot.risk_posture} />
-                <span className="mono" style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>
-                  {snapshot.total_positions} positions
-                </span>
-                <span className="mono" style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>
-                  {snapshot.cash_allocation}% cash
-                </span>
-                <span className="mono" style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>
-                  Rebalanced {formatDate(snapshot.generated_at)}
-                </span>
-              </div>
 
-              {/* Thesis */}
+            {/* NAV Chart */}
+            {performance.length >= 2 && (
               <div style={{
                 padding: 'var(--space-4)',
                 border: '1px solid var(--border)',
                 borderRadius: 'var(--radius-md)',
                 background: 'var(--bg-panel)',
-                marginBottom: 'var(--space-5)',
-                fontSize: 13,
-                lineHeight: 1.6,
-                color: 'var(--text-secondary)',
+                marginBottom: 'var(--space-6)',
               }}>
-                {snapshot.thesis_summary}
+                <div style={{ fontSize: 11, color: 'var(--text-tertiary)', marginBottom: 'var(--space-2)' }}>Portfolio NAV</div>
+                <Sparkline
+                  data={performance.map((p) => p.nav)}
+                  positive={totalReturn >= 0}
+                  width={700}
+                  height={80}
+                />
               </div>
+            )}
 
-              {/* Stats */}
-              <div style={{
+            {/* Positions Table */}
+            <div className="table-scroll"><div style={{
+              border: '1px solid var(--border)',
+              borderRadius: 'var(--radius-md)',
+              overflow: 'hidden',
+            }}>
+              {/* Table header */}
+              <div className="mono" style={{
                 display: 'grid',
-                gridTemplateColumns: 'repeat(4, 1fr)',
-                gap: 'var(--space-3)',
-                marginBottom: 'var(--space-5)',
+                gridTemplateColumns: GRID_COLS,
+                padding: 'var(--space-3) var(--space-4)',
+                background: 'var(--bg-surface)',
+                borderBottom: '1px solid var(--border)',
+                gap: 'var(--space-2)',
+                fontSize: 10,
+                color: 'var(--text-tertiary)',
+                letterSpacing: '0.03em',
               }}>
-                {[
-                  { label: 'NAV', value: formatCurrency(nav) },
-                  { label: 'Total Return', value: formatPct(totalReturn), color: totalReturn >= 0 ? '#22c55e' : '#ef4444' },
-                  { label: 'vs SPY', value: formatPct(alpha), color: alpha >= 0 ? '#22c55e' : '#ef4444' },
-                  { label: 'Daily', value: formatPct(latestPerf?.daily_return_pct ?? null), color: (latestPerf?.daily_return_pct ?? 0) >= 0 ? '#22c55e' : '#ef4444' },
-                ].map((s) => (
-                  <div key={s.label} style={{
-                    padding: 'var(--space-3)',
-                    border: '1px solid var(--border)',
-                    borderRadius: 'var(--radius-md)',
-                    background: 'var(--bg-panel)',
-                  }}>
-                    <div style={{ fontSize: 10, color: 'var(--text-tertiary)', marginBottom: 'var(--space-1)' }}>{s.label}</div>
-                    <div className="mono" style={{ fontSize: 20, fontWeight: 600, color: s.color || 'var(--text-primary)' }}>{s.value}</div>
-                  </div>
-                ))}
+                <span />
+                <span>TICKER</span>
+                <span>NAME</span>
+                <span style={{ textAlign: 'right' }}>ALLOC</span>
+                <span style={{ textAlign: 'right' }}>ENTRY</span>
+                <span style={{ textAlign: 'right' }}>CURRENT</span>
+                <span style={{ textAlign: 'right' }}>P&L</span>
+                <span style={{ textAlign: 'right' }}>CONV</span>
               </div>
 
-              {/* NAV Chart */}
-              {performance.length >= 2 && (
-                <div style={{
-                  padding: 'var(--space-4)',
-                  border: '1px solid var(--border)',
-                  borderRadius: 'var(--radius-md)',
-                  background: 'var(--bg-panel)',
-                  marginBottom: 'var(--space-5)',
-                }}>
-                  <div style={{ fontSize: 11, color: 'var(--text-tertiary)', marginBottom: 'var(--space-2)' }}>Portfolio NAV</div>
-                  <Sparkline
-                    data={performance.map((p) => p.nav)}
-                    positive={totalReturn >= 0}
-                    width={700}
-                    height={80}
-                  />
-                </div>
-              )}
-
-              {/* Positions */}
-              <div style={{ fontSize: 12, color: 'var(--text-tertiary)', marginBottom: 'var(--space-2)' }}>Positions</div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
+              {/* Position rows */}
+              <div className="stagger-in">
                 {positions.map((pos) => {
                   const pnl = pos.entry_price && pos.current_price
                     ? ((pos.current_price - pos.entry_price) / pos.entry_price * (pos.direction === 'long' ? 1 : -1)) * 100
@@ -187,18 +211,14 @@ export default function PortfolioPage() {
                   return (
                     <div
                       key={pos.id}
-                      style={{
-                        border: '1px solid var(--border)',
-                        borderRadius: 'var(--radius-md)',
-                        background: 'var(--bg-panel)',
-                        cursor: 'pointer',
-                      }}
+                      style={{ borderBottom: '1px solid var(--border)', cursor: 'pointer', transition: 'background 0.1s ease' }}
                       onClick={() => setExpandedId(expanded ? null : pos.id)}
+                      onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--bg-surface-hover)'; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
                     >
-                      {/* Row */}
                       <div style={{
                         display: 'grid',
-                        gridTemplateColumns: '28px 80px 1fr 70px 90px 90px 80px 60px',
+                        gridTemplateColumns: GRID_COLS,
                         alignItems: 'center',
                         padding: 'var(--space-3) var(--space-4)',
                         gap: 'var(--space-2)',
@@ -235,9 +255,9 @@ export default function PortfolioPage() {
                       {/* Expanded detail */}
                       {expanded && (
                         <div style={{
-                          padding: '0 var(--space-4) var(--space-4)',
+                          padding: 'var(--space-3) var(--space-4) var(--space-4)',
                           borderTop: '1px solid var(--border)',
-                          paddingTop: 'var(--space-3)',
+                          background: 'var(--bg-surface)',
                         }}>
                           <div style={{ fontSize: 12, lineHeight: 1.6, color: 'var(--text-secondary)', marginBottom: 'var(--space-3)' }}>
                             {pos.thesis}
@@ -278,14 +298,11 @@ export default function PortfolioPage() {
                 {/* Cash row */}
                 <div style={{
                   display: 'grid',
-                  gridTemplateColumns: '28px 80px 1fr 70px',
+                  gridTemplateColumns: GRID_COLS,
                   alignItems: 'center',
                   padding: 'var(--space-3) var(--space-4)',
                   gap: 'var(--space-2)',
-                  border: '1px solid var(--border)',
-                  borderRadius: 'var(--radius-md)',
-                  background: 'var(--bg-panel)',
-                  opacity: 0.6,
+                  opacity: 0.5,
                 }}>
                   <span style={{ fontSize: 16, color: 'var(--text-tertiary)' }}>$</span>
                   <span className="mono" style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-tertiary)' }}>CASH</span>
@@ -295,33 +312,13 @@ export default function PortfolioPage() {
                   </span>
                 </div>
               </div>
+            </div></div>
 
-              {/* Column headers */}
-              <div className="mono" style={{
-                display: 'grid',
-                gridTemplateColumns: '28px 80px 1fr 70px 90px 90px 80px 60px',
-                padding: 'var(--space-2) var(--space-4)',
-                gap: 'var(--space-2)',
-                fontSize: 9,
-                color: 'var(--text-tertiary)',
-                marginTop: 'var(--space-2)',
-              }}>
-                <span />
-                <span>TICKER</span>
-                <span>NAME</span>
-                <span style={{ textAlign: 'right' }}>ALLOC</span>
-                <span style={{ textAlign: 'right' }}>ENTRY</span>
-                <span style={{ textAlign: 'right' }}>CURRENT</span>
-                <span style={{ textAlign: 'right' }}>P&L</span>
-                <span style={{ textAlign: 'right' }}>CONV</span>
-              </div>
-
-              <div className="mono" style={{ marginTop: 'var(--space-4)', fontSize: 10, color: 'var(--text-tertiary)' }}>
-                AI-generated model portfolio. Not financial advice. Rebalanced weekly.
-              </div>
-            </>
-          )}
-        </div>
+            <div className="mono" style={{ marginTop: 'var(--space-4)', fontSize: 10, color: 'var(--text-tertiary)' }}>
+              AI-generated model portfolio. Not financial advice. Positions reassessed weekly.
+            </div>
+          </>
+        )}
       </div>
     </>
   );

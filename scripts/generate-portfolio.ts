@@ -220,7 +220,7 @@ Evaluate each position: hold, increase, decrease, or exit. Then add any new posi
   // 3. Ask Claude to synthesize
   console.log('Generating portfolio with Claude...\n');
 
-  const prompt = `You are Howard, an AI portfolio manager. You translate your financial intelligence network into a concentrated model portfolio with $50,000 starting capital.
+  const prompt = `You are Howard, an AI portfolio manager. You translate your financial intelligence network into a concentrated model portfolio with $10,000,000 starting capital.
 
 ## YOUR INTELLIGENCE
 
@@ -350,7 +350,7 @@ Respond in valid JSON:
   const { data: snapshot, error: snapErr } = await supabase
     .from('portfolio_snapshots')
     .insert({
-      starting_capital: 50000,
+      starting_capital: 10000000,
       cash_allocation: portfolio.cash_pct,
       total_positions: portfolio.positions.length,
       thesis_summary: portfolio.thesis_summary,
@@ -403,7 +403,7 @@ Respond in valid JSON:
   const { error: perfErr } = await supabase.from('portfolio_performance').insert({
     snapshot_id: snapshot.id,
     date: new Date().toISOString().split('T')[0],
-    nav: 50000,
+    nav: 10000000,
     daily_return_pct: 0,
     cumulative_return_pct: 0,
     spy_cumulative_pct: 0,
