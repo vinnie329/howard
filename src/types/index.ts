@@ -365,6 +365,7 @@ export interface PortfolioPosition {
   source_prediction_ids: string[];
   supporting_sources: string[];
   key_drivers: string[];
+  target_price: number | null;
   stop_loss_condition: string | null;
   created_at: string;
 }

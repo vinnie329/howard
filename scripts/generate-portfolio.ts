@@ -45,6 +45,7 @@ interface GeneratedPosition {
   confidence: number;
   category: string;
   time_horizon: string;
+  target_price: number | null;
   supporting_sources: string[];
   key_drivers: string[];
   stop_loss_condition: string;
@@ -257,10 +258,11 @@ Generate a concentrated model portfolio with 8-12 positions. Rules:
 5. **Confidence drives sizing** — higher confidence = larger allocation
 6. **Be specific** — use real tickers (ETFs like SPY, QQQ, GLD, TLT are fine for macro bets)
 7. **Each position needs a thesis** — 2-3 sentences explaining WHY, referencing specific sources and data
-8. **Include stop-loss conditions** — what would make you exit each position
-9. **Time horizons should skew longer-term** — most positions should be 6-12 months. Short-term (30-90 day) positions are acceptable for unique, high-conviction tactical opportunities but should be the exception, not the norm.
-10. **Categories**: macro, sector, single-stock, rates, commodities, crypto
-11. **Risk posture**: assess overall portfolio risk as aggressive/moderate/defensive based on current conditions
+8. **Include a target price** — your price target for the position (null if not applicable)
+9. **Include stop-loss conditions** — what would make you exit each position
+10. **Time horizons should skew longer-term** — most positions should be 6-12 months. Short-term (30-90 day) positions are acceptable for unique, high-conviction tactical opportunities but should be the exception, not the norm.
+11. **Categories**: macro, sector, single-stock, rates, commodities, crypto
+12. **Risk posture**: assess overall portfolio risk as aggressive/moderate/defensive based on current conditions
 
 Respond in valid JSON:
 {
@@ -278,6 +280,7 @@ Respond in valid JSON:
       "confidence": 75,
       "category": "macro",
       "time_horizon": "3 months",
+      "target_price": 480,
       "supporting_sources": ["Howard Marks", "Michael Howell"],
       "key_drivers": ["Credit spread widening", "VIX backwardation", "Liquidity withdrawal"],
       "stop_loss_condition": "SPY breaks above all-time highs with improving breadth"
@@ -385,6 +388,7 @@ Respond in valid JSON:
       confidence: pos.confidence,
       category: pos.category,
       time_horizon: pos.time_horizon,
+      target_price: pos.target_price ?? null,
       house_prediction_ids: [],
       source_prediction_ids: [],
       supporting_sources: pos.supporting_sources,

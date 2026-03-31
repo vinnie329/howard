@@ -28,13 +28,9 @@ function RiskBadge({ posture }: { posture: string }) {
   const color = posture === 'aggressive' ? '#ef4444' : posture === 'defensive' ? '#22c55e' : '#eab308';
   return (
     <span className="mono" style={{
-      fontSize: 9,
-      padding: '2px 6px',
-      borderRadius: 3,
+      fontSize: 9, padding: '2px 6px', borderRadius: 3,
       background: `color-mix(in srgb, ${color} 15%, transparent)`,
-      color,
-      letterSpacing: '0.05em',
-      textTransform: 'uppercase',
+      color, letterSpacing: '0.05em', textTransform: 'uppercase',
     }}>
       {posture}
     </span>
@@ -45,7 +41,10 @@ function ConvictionBadge({ conviction, confidence }: { conviction: string; confi
   const color = confidence >= 70 ? '#22c55e' : confidence >= 40 ? '#eab308' : '#ef4444';
   const label = conviction === 'high' ? 'HIGH' : conviction === 'medium' ? 'MED' : 'LOW';
   return (
-    <span style={{ fontSize: 9, fontFamily: 'var(--font-mono)', padding: '2px 6px', borderRadius: 3, background: `color-mix(in srgb, ${color} 15%, transparent)`, color, letterSpacing: '0.05em' }}>
+    <span style={{
+      fontSize: 9, fontFamily: 'var(--font-mono)', padding: '2px 6px', borderRadius: 3,
+      background: `color-mix(in srgb, ${color} 15%, transparent)`, color, letterSpacing: '0.05em',
+    }}>
       {label}
     </span>
   );
@@ -73,7 +72,6 @@ export default function PortfolioPage() {
   }, []);
 
   const { snapshot, positions, performance } = data;
-
   const latestPerf = performance.length > 0 ? performance[performance.length - 1] : null;
   const nav = latestPerf?.nav ?? 10000000;
   const totalReturn = latestPerf?.cumulative_return_pct ?? 0;
@@ -87,10 +85,39 @@ export default function PortfolioPage() {
       </div>
 
       <div style={{ padding: 'var(--space-6)', overflowY: 'auto', flex: 1 }}>
-        <h1 style={{ marginBottom: 'var(--space-2)' }}>Model Portfolio</h1>
-        <p style={{ fontSize: 12, color: 'var(--text-tertiary)', marginBottom: 'var(--space-6)' }}>
-          AI-generated portfolio derived from Howard&apos;s intelligence network. $10M starting capital. Rebalanced weekly.
-        </p>
+        {/* ── Section 1: Header ── */}
+        <div style={{ marginBottom: 'var(--space-8)' }}>
+          <h1 style={{ marginBottom: 'var(--space-2)' }}>Model Portfolio</h1>
+          <p style={{ fontSize: 12, color: 'var(--text-tertiary)', marginBottom: 'var(--space-4)' }}>
+            AI-generated portfolio derived from Howard&apos;s intelligence network. $10M starting capital. Rebalanced weekly.
+          </p>
+
+          {!loading && snapshot && (
+            <>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)', marginBottom: 'var(--space-4)', flexWrap: 'wrap' }}>
+                <RiskBadge posture={snapshot.risk_posture} />
+                <span className="mono" style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>
+                  {snapshot.total_positions} positions
+                </span>
+                <span className="mono" style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>
+                  {snapshot.cash_allocation}% cash
+                </span>
+                <span className="mono" style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>
+                  Rebalanced {formatDate(snapshot.generated_at)}
+                </span>
+              </div>
+              <div style={{
+                padding: 'var(--space-4)',
+                border: '1px solid var(--border)',
+                borderRadius: 'var(--radius-md)',
+                background: 'var(--bg-panel)',
+                fontSize: 13, lineHeight: 1.6, color: 'var(--text-secondary)',
+              }}>
+                {snapshot.thesis_summary}
+              </div>
+            </>
+          )}
+        </div>
 
         {loading ? (
           <SkeletonRows count={6} />
@@ -100,79 +127,52 @@ export default function PortfolioPage() {
           </div>
         ) : (
           <>
-            {/* Meta badges */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)', marginBottom: 'var(--space-6)', flexWrap: 'wrap' }}>
-              <RiskBadge posture={snapshot.risk_posture} />
-              <span className="mono" style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>
-                {snapshot.total_positions} positions
-              </span>
-              <span className="mono" style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>
-                {snapshot.cash_allocation}% cash
-              </span>
-              <span className="mono" style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>
-                Rebalanced {formatDate(snapshot.generated_at)}
-              </span>
-            </div>
+            {/* ── Section 2: Core KPIs ── */}
+            <div style={{ marginBottom: 'var(--space-8)' }}>
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(4, 1fr)',
+                gap: 'var(--space-3)',
+              }}>
+                {[
+                  { label: 'NAV', value: formatCurrency(nav) },
+                  { label: 'Total Return', value: formatPct(totalReturn), color: totalReturn >= 0 ? '#22c55e' : '#ef4444' },
+                  { label: 'vs SPY', value: formatPct(alpha), color: alpha >= 0 ? '#22c55e' : '#ef4444' },
+                  { label: 'Daily', value: formatPct(latestPerf?.daily_return_pct ?? null), color: (latestPerf?.daily_return_pct ?? 0) >= 0 ? '#22c55e' : '#ef4444' },
+                ].map((s) => (
+                  <div key={s.label} style={{
+                    padding: 'var(--space-3)',
+                    border: '1px solid var(--border)',
+                    borderRadius: 'var(--radius-md)',
+                    background: 'var(--bg-panel)',
+                  }}>
+                    <div style={{ fontSize: 10, color: 'var(--text-tertiary)', marginBottom: 'var(--space-1)' }}>{s.label}</div>
+                    <div className="mono" style={{ fontSize: 20, fontWeight: 600, color: s.color || 'var(--text-primary)' }}>{s.value}</div>
+                  </div>
+                ))}
+              </div>
 
-            {/* Thesis */}
-            <div style={{
-              padding: 'var(--space-4)',
-              border: '1px solid var(--border)',
-              borderRadius: 'var(--radius-md)',
-              background: 'var(--bg-panel)',
-              marginBottom: 'var(--space-6)',
-              fontSize: 13,
-              lineHeight: 1.6,
-              color: 'var(--text-secondary)',
-            }}>
-              {snapshot.thesis_summary}
-            </div>
-
-            {/* Stats */}
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(4, 1fr)',
-              gap: 'var(--space-3)',
-              marginBottom: 'var(--space-6)',
-            }}>
-              {[
-                { label: 'NAV', value: formatCurrency(nav) },
-                { label: 'Total Return', value: formatPct(totalReturn), color: totalReturn >= 0 ? '#22c55e' : '#ef4444' },
-                { label: 'vs SPY', value: formatPct(alpha), color: alpha >= 0 ? '#22c55e' : '#ef4444' },
-                { label: 'Daily', value: formatPct(latestPerf?.daily_return_pct ?? null), color: (latestPerf?.daily_return_pct ?? 0) >= 0 ? '#22c55e' : '#ef4444' },
-              ].map((s) => (
-                <div key={s.label} style={{
-                  padding: 'var(--space-3)',
+              {/* NAV Chart */}
+              {performance.length >= 2 && (
+                <div style={{
+                  padding: 'var(--space-4)',
                   border: '1px solid var(--border)',
                   borderRadius: 'var(--radius-md)',
                   background: 'var(--bg-panel)',
+                  marginTop: 'var(--space-3)',
                 }}>
-                  <div style={{ fontSize: 10, color: 'var(--text-tertiary)', marginBottom: 'var(--space-1)' }}>{s.label}</div>
-                  <div className="mono" style={{ fontSize: 20, fontWeight: 600, color: s.color || 'var(--text-primary)' }}>{s.value}</div>
+                  <div style={{ fontSize: 11, color: 'var(--text-tertiary)', marginBottom: 'var(--space-2)' }}>Portfolio NAV</div>
+                  <Sparkline
+                    data={performance.map((p) => p.nav)}
+                    positive={totalReturn >= 0}
+                    width={700}
+                    height={80}
+                  />
                 </div>
-              ))}
+              )}
             </div>
 
-            {/* NAV Chart */}
-            {performance.length >= 2 && (
-              <div style={{
-                padding: 'var(--space-4)',
-                border: '1px solid var(--border)',
-                borderRadius: 'var(--radius-md)',
-                background: 'var(--bg-panel)',
-                marginBottom: 'var(--space-6)',
-              }}>
-                <div style={{ fontSize: 11, color: 'var(--text-tertiary)', marginBottom: 'var(--space-2)' }}>Portfolio NAV</div>
-                <Sparkline
-                  data={performance.map((p) => p.nav)}
-                  positive={totalReturn >= 0}
-                  width={700}
-                  height={80}
-                />
-              </div>
-            )}
-
-            {/* Positions Table */}
+            {/* ── Section 3: Positions Table ── */}
             <div className="table-scroll"><div style={{
               border: '1px solid var(--border)',
               borderRadius: 'var(--radius-md)',
@@ -240,9 +240,7 @@ export default function PortfolioPage() {
                           ${pos.current_price?.toFixed(2) || 'N/A'}
                         </span>
                         <span className="mono" style={{
-                          fontSize: 12,
-                          fontWeight: 500,
-                          textAlign: 'right',
+                          fontSize: 12, fontWeight: 500, textAlign: 'right',
                           color: pnl === null ? 'var(--text-tertiary)' : pnl >= 0 ? '#22c55e' : '#ef4444',
                         }}>
                           {pnl !== null ? formatPct(pnl) : 'N/A'}
@@ -259,7 +257,7 @@ export default function PortfolioPage() {
                           borderTop: '1px solid var(--border)',
                           background: 'var(--bg-surface)',
                         }}>
-                          <div style={{ fontSize: 12, lineHeight: 1.6, color: 'var(--text-secondary)', marginBottom: 'var(--space-3)' }}>
+                          <div style={{ fontSize: 12, lineHeight: 1.6, color: 'var(--text-secondary)', marginBottom: 'var(--space-4)' }}>
                             {pos.thesis}
                           </div>
 
@@ -284,6 +282,11 @@ export default function PortfolioPage() {
                               <div style={{ color: 'var(--text-tertiary)', marginBottom: 'var(--space-1)' }}>Details</div>
                               <div style={{ color: 'var(--text-secondary)' }}>Horizon: {pos.time_horizon}</div>
                               <div style={{ color: 'var(--text-secondary)' }}>Confidence: {pos.confidence}%</div>
+                              {pos.target_price != null && (
+                                <div style={{ color: pos.direction === 'long' ? '#22c55e' : '#ef4444' }}>
+                                  Target: ${pos.target_price.toFixed(2)}
+                                </div>
+                              )}
                               {pos.stop_loss_condition && (
                                 <div style={{ color: '#ef4444' }}>Stop: {pos.stop_loss_condition}</div>
                               )}
