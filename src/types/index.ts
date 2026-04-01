@@ -330,3 +330,54 @@ export interface DailyUpdate {
   };
   generated_at: string;
 }
+
+// ── Model Portfolio ──
+
+export interface PortfolioSnapshot {
+  id: string;
+  generated_at: string;
+  starting_capital: number;
+  cash_allocation: number;
+  total_positions: number;
+  thesis_summary: string;
+  risk_posture: 'aggressive' | 'moderate' | 'defensive';
+  rebalance_reasoning: string | null;
+  supersedes: string | null;
+  is_current: boolean;
+  created_at: string;
+}
+
+export interface PortfolioPosition {
+  id: string;
+  snapshot_id: string;
+  ticker: string;
+  asset_name: string;
+  direction: 'long' | 'short';
+  allocation_pct: number;
+  entry_price: number | null;
+  current_price: number | null;
+  thesis: string;
+  conviction: 'high' | 'medium' | 'low';
+  confidence: number;
+  category: string;
+  time_horizon: string;
+  house_prediction_ids: string[];
+  source_prediction_ids: string[];
+  supporting_sources: string[];
+  key_drivers: string[];
+  target_price: number | null;
+  stop_loss_condition: string | null;
+  created_at: string;
+}
+
+export interface PortfolioPerformance {
+  id: string;
+  snapshot_id: string;
+  date: string;
+  nav: number;
+  daily_return_pct: number | null;
+  cumulative_return_pct: number | null;
+  spy_cumulative_pct: number | null;
+  positions_data: Array<{ ticker: string; price: number; return_pct: number }>;
+  created_at: string;
+}

@@ -18,6 +18,9 @@ import { createClient } from '@supabase/supabase-js';
 import { config } from 'dotenv';
 config({ path: '.env.local' });
 
+import { fetchCreditSpreads, formatCreditBlock } from '../src/lib/fetchers/credit-spreads';
+import { fetchOptionsSentiment, formatOptionsBlock } from '../src/lib/fetchers/options-sentiment';
+
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 if (!supabaseUrl || !supabaseKey) {
@@ -51,6 +54,65 @@ interface GeneratedPrediction {
   invalidation_criteria: string;
   category: string;
   themes: string[];
+}
+
+// ── Technicals (200d/200w MA deviations) ────────────────────────────
+
+const TECHNICAL_SYMBOLS = [
+  { ticker: 'NVDA', name: 'NVIDIA' }, { ticker: 'AVGO', name: 'Broadcom' },
+  { ticker: 'MSFT', name: 'Microsoft' }, { ticker: 'GOOGL', name: 'Google' },
+  { ticker: 'AMZN', name: 'Amazon' }, { ticker: 'META', name: 'Meta' },
+  { ticker: 'AMD', name: 'AMD' }, { ticker: 'TSM', name: 'TSMC' },
+  { ticker: 'BTC-USD', name: 'Bitcoin' }, { ticker: 'ETH-USD', name: 'Ethereum' },
+  { ticker: 'GC=F', name: 'Gold' }, { ticker: 'SI=F', name: 'Silver' },
+  { ticker: 'HG=F', name: 'Copper' }, { ticker: 'CL=F', name: 'Crude Oil' },
+  { ticker: '^GSPC', name: 'S&P 500' }, { ticker: '^IXIC', name: 'NASDAQ' },
+  { ticker: 'SPY', name: 'S&P 500 ETF' }, { ticker: 'QQQ', name: 'NASDAQ 100 ETF' },
+  { ticker: 'TLT', name: '20+ Year Treasury' },
+];
+
+function computeSMA(prices: number[], period: number): number | null {
+  if (prices.length < period) return null;
+  const slice = prices.slice(-period);
+  return slice.reduce((sum, p) => sum + p, 0) / period;
+}
+
+async function fetchChartData(ticker: string, range: string, interval: string): Promise<number[]> {
+  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ticker)}?range=${range}&interval=${interval}`;
+  try {
+    const res = await fetch(url, { headers: { 'User-Agent': 'Howard/1.0' } });
+    if (!res.ok) return [];
+    const data = await res.json();
+    const closes: (number | null)[] = data.chart?.result?.[0]?.indicators?.quote?.[0]?.close ?? [];
+    return closes.filter((v): v is number => v !== null);
+  } catch {
+    return [];
+  }
+}
+
+async function fetchTechnicalData(): Promise<string> {
+  const lines: string[] = [];
+  for (const sym of TECHNICAL_SYMBOLS) {
+    try {
+      const [daily, weekly] = await Promise.all([
+        fetchChartData(sym.ticker, '1y', '1d'),
+        fetchChartData(sym.ticker, '5y', '1wk'),
+      ]);
+      if (daily.length === 0) continue;
+      const price = daily[daily.length - 1];
+      const displaySymbol = sym.ticker.replace('=F', '').replace('^', '').replace('-USD', '');
+      const ma200d = computeSMA(daily, 200);
+      const dev200d = ma200d ? ((price - ma200d) / ma200d) * 100 : null;
+      const ma200w = computeSMA(weekly, 200);
+      const dev200w = ma200w ? ((price - ma200w) / ma200w) * 100 : null;
+
+      let line = `${sym.name} (${displaySymbol}): $${Number(price).toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
+      if (dev200d != null) line += ` | 200d: ${dev200d > 0 ? '+' : ''}${dev200d.toFixed(1)}%`;
+      if (dev200w != null) line += ` | 200w: ${dev200w > 0 ? '+' : ''}${dev200w.toFixed(1)}%`;
+      lines.push(line);
+    } catch { /* skip */ }
+  }
+  return lines.join('\n');
 }
 
 /** Fetch current price for an asset. */
@@ -107,6 +169,18 @@ async function main() {
   console.log(`  Sources: ${sources.length}`);
   console.log(`  Active house predictions: ${existingHouse.length}\n`);
 
+  // Fetch live market sentiment + technicals
+  console.log('Fetching market sentiment data...');
+  const [creditRecords, optionsSentiment] = await Promise.all([
+    fetchCreditSpreads(supabase),
+    fetchOptionsSentiment(supabase),
+  ]);
+
+  console.log('Fetching technicals...');
+  const technicalsBlock = await fetchTechnicalData();
+  const techCount = technicalsBlock.split('\n').filter(Boolean).length;
+  console.log(`  ${techCount} symbols\n`);
+
   // 2. Build context for Claude
   const outlookSummary = outlooks.map((o) => {
     return `[${o.time_horizon.toUpperCase()}] "${o.title}" — ${o.sentiment} (confidence: ${o.confidence}/100)
@@ -157,6 +231,18 @@ ${outlookSummary || 'No outlooks available yet.'}
 ### Source Predictions (weighted by credibility)
 ${predictionsSummary || 'No source predictions available yet.'}
 
+### Credit Markets
+HY/IG spreads are leading risk sentiment indicators. TED spread and SOFR signal funding stress. These move before equities.
+${formatCreditBlock(creditRecords)}
+
+### Options Market Sentiment
+VIX term structure, SKEW (institutional tail-risk hedging), and put/call ratios.
+${formatOptionsBlock(optionsSentiment)}
+
+### Technicals (deviation from 200-day and 200-week moving averages)
+Assets far above their MAs may be extended; assets far below may be mean-reversion candidates. Use this to calibrate entry timing and confidence.
+${technicalsBlock || 'No technicals data available.'}
+
 ### Existing Active House Predictions (do not duplicate)
 ${existingClaims || 'None yet.'}
 
@@ -204,8 +290,8 @@ Respond in valid JSON array format:
 ]`;
 
   const response = await anthropic.messages.create({
-    model: 'claude-sonnet-4-5-20250514',
-    max_tokens: 4000,
+    model: 'claude-opus-4-6',
+    max_tokens: 16000,
     messages: [{ role: 'user', content: prompt }],
   });
 

@@ -102,7 +102,7 @@ export default function HouseViewPage() {
       <div style={{ padding: 'var(--space-6)', overflowY: 'auto', flex: 1 }}>
         <h1 style={{ marginBottom: 'var(--space-2)' }}>House View</h1>
         <p style={{ fontSize: 12, color: 'var(--text-tertiary)', marginBottom: 'var(--space-6)' }}>
-          Howard's synthesized, falsifiable predictions — measuring whether this system has predictive value
+          Howard&apos;s synthesized, falsifiable predictions — measuring whether this system has predictive value
         </p>
 
         <div style={{ marginBottom: 'var(--space-6)' }}>
@@ -347,8 +347,6 @@ function CalibrationView({
       </div>
     );
   }
-
-  const _maxTotal = Math.max(...calibration.map((c) => c.total_predictions), 1);
 
   return (
     <div>

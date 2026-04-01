@@ -184,6 +184,50 @@ async function getVideoMeta(videoId: string): Promise<{ title: string; published
   });
 }
 
+// --- Segment extraction ---
+
+async function extractSegment(
+  transcript: string,
+  sourceName: string,
+  videoTitle: string,
+): Promise<string> {
+  const Anthropic = (await import('@anthropic-ai/sdk')).default;
+  const anthropic = new Anthropic();
+
+  console.log(`  Extracting ${sourceName}'s segment from transcript (${transcript.length} chars)...`);
+
+  const response = await anthropic.messages.create({
+    model: 'claude-sonnet-4-6',
+    max_tokens: 16000,
+    messages: [{
+      role: 'user',
+      content: `This is a transcript from a podcast/interview episode titled "${videoTitle}". The episode covers multiple topics and may feature multiple guests or segments.
+
+Extract ONLY the portion of the transcript where "${sourceName}" is speaking or being interviewed. Include the interviewer's questions directed at ${sourceName} for context, but exclude segments about unrelated topics or featuring other guests.
+
+If ${sourceName} appears throughout the entire transcript (i.e. they are the sole guest), return the full transcript unchanged.
+
+If you cannot identify ${sourceName}'s segment, return the full transcript unchanged.
+
+Return ONLY the extracted transcript text. No commentary, no labels, no markdown.
+
+TRANSCRIPT:
+${transcript}`,
+    }],
+  });
+
+  const extracted = response.content[0].type === 'text' ? response.content[0].text : '';
+
+  if (extracted.length < 200) {
+    console.log(`  Segment extraction returned too little (${extracted.length} chars) — using full transcript`);
+    return transcript;
+  }
+
+  const pct = ((1 - extracted.length / transcript.length) * 100).toFixed(0);
+  console.log(`  Extracted segment: ${extracted.length} chars (trimmed ${pct}% of transcript)`);
+  return extracted;
+}
+
 // --- Main ---
 
 async function main() {
@@ -195,8 +239,12 @@ async function main() {
     args.splice(guestIdx, 2);
   }
 
+  // --no-extract to skip segment extraction
+  const noExtract = args.includes('--no-extract');
+  if (noExtract) args.splice(args.indexOf('--no-extract'), 1);
+
   if (args.length < 2) {
-    console.error('Usage: npx tsx scripts/add-video.ts <video-id-or-url> <source-slug> [--guest "Name"]');
+    console.error('Usage: npx tsx scripts/add-video.ts <video-id-or-url> <source-slug> [--guest "Name"] [--no-extract]');
     process.exit(1);
   }
 
@@ -246,6 +294,15 @@ async function main() {
     console.error(`\nFailed to get transcript (${transcript?.length || 0} chars). Inserting without transcript.`);
   } else {
     console.log(`\nTranscript: ${transcript.length} chars`);
+
+    // Extract only the relevant source's segment for multi-topic podcasts
+    if (!noExtract && transcript.length > 10000) {
+      try {
+        transcript = await extractSegment(transcript, source.name, meta.title);
+      } catch (err) {
+        console.log(`  Segment extraction failed (${err instanceof Error ? err.message : err}) — using full transcript`);
+      }
+    }
   }
 
   // Upsert content row

@@ -8,6 +8,10 @@ import Anthropic from '@anthropic-ai/sdk';
 import { config } from 'dotenv';
 config({ path: '.env.local' });
 
+import { fetchCOT, formatCOTBlock } from '../src/lib/fetchers/cftc-cot';
+import { fetchCreditSpreads, formatCreditBlock } from '../src/lib/fetchers/credit-spreads';
+import { fetchOptionsSentiment, formatOptionsBlock } from '../src/lib/fetchers/options-sentiment';
+
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 if (!supabaseUrl || !supabaseKey) {
@@ -156,6 +160,19 @@ async function main() {
     .order('confidence', { ascending: false });
   console.log(`  ${housePredictions?.length ?? 0} active house predictions\n`);
 
+  // 6. CFTC COT positioning
+  console.log('Fetching CFTC COT data...');
+  const cotRecords = await fetchCOT(supabase);
+
+  // 7. Credit spreads
+  console.log('Fetching credit spreads...');
+  const creditRecords = await fetchCreditSpreads(supabase);
+
+  // 8. Options sentiment
+  console.log('Fetching options sentiment...');
+  const optionsSentiment = await fetchOptionsSentiment(supabase);
+  console.log('');
+
   // ── Format data blocks ──────────────────────────────────────────────
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -224,6 +241,18 @@ ${fatPitchBlock}
 
 ═══ HOUSE VIEW PREDICTIONS (${housePredictions?.length ?? 0} active) ═══
 ${housePredictionsBlock || 'No active house predictions.'}
+
+═══ CFTC COMMITMENTS OF TRADERS (weekly positioning) ═══
+Commercial vs speculative positioning in futures. Crowded spec trades often precede reversals.
+${formatCOTBlock(cotRecords)}
+
+═══ CREDIT MARKETS ═══
+HY/IG spreads are leading risk sentiment indicators. TED spread and SOFR signal funding stress. These move before equities.
+${formatCreditBlock(creditRecords)}
+
+═══ OPTIONS MARKET SENTIMENT ═══
+VIX term structure, SKEW (institutional tail-risk hedging), and put/call ratios.
+${formatOptionsBlock(optionsSentiment)}
 
 Return a JSON object with this exact structure:
 {

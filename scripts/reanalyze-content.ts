@@ -28,28 +28,57 @@ async function reanalyze() {
   console.log('=== Howard Content Re-Analyzer ===\n');
   console.log(`Time: ${new Date().toISOString()}\n`);
 
-  // Step 1: Delete existing predictions and analyses
-  console.log('Clearing existing predictions...');
-  const { error: predDelErr } = await supabase.from('predictions').delete().not('id', 'is', null);
-  if (predDelErr) {
-    console.error('Failed to delete predictions:', predDelErr.message);
-    process.exit(1);
-  }
+  // Check for --id flag to target a single content item
+  const idFlag = process.argv.find((a) => a.startsWith('--id='));
+  const targetId = idFlag ? idFlag.split('=')[1] : null;
 
-  console.log('Clearing existing analyses...');
-  const { error: anaDelErr } = await supabase.from('analyses').delete().not('id', 'is', null);
-  if (anaDelErr) {
-    console.error('Failed to delete analyses:', anaDelErr.message);
-    process.exit(1);
+  if (targetId) {
+    console.log(`Targeting single content: ${targetId}\n`);
+
+    // Delete only the targeted content's predictions and analyses
+    console.log('Clearing existing predictions for this content...');
+    const { error: predDelErr } = await supabase.from('predictions').delete().eq('content_id', targetId);
+    if (predDelErr) {
+      console.error('Failed to delete predictions:', predDelErr.message);
+      process.exit(1);
+    }
+
+    console.log('Clearing existing analyses for this content...');
+    const { error: anaDelErr } = await supabase.from('analyses').delete().eq('content_id', targetId);
+    if (anaDelErr) {
+      console.error('Failed to delete analyses:', anaDelErr.message);
+      process.exit(1);
+    }
+  } else {
+    // Full re-analyze: wipe everything
+    console.log('Clearing ALL existing predictions...');
+    const { error: predDelErr } = await supabase.from('predictions').delete().not('id', 'is', null);
+    if (predDelErr) {
+      console.error('Failed to delete predictions:', predDelErr.message);
+      process.exit(1);
+    }
+
+    console.log('Clearing ALL existing analyses...');
+    const { error: anaDelErr } = await supabase.from('analyses').delete().not('id', 'is', null);
+    if (anaDelErr) {
+      console.error('Failed to delete analyses:', anaDelErr.message);
+      process.exit(1);
+    }
   }
 
   console.log('Cleared!\n');
 
-  // Step 2: Load all content
-  const { data: allContent, error: contentError } = await supabase
+  // Load content
+  let query = supabase
     .from('content')
     .select('id, title, raw_text, source_id, platform, published_at, sources(name)')
     .order('published_at', { ascending: false });
+
+  if (targetId) {
+    query = query.eq('id', targetId);
+  }
+
+  const { data: allContent, error: contentError } = await query;
 
   if (contentError || !allContent) {
     console.error('Failed to load content:', contentError?.message);

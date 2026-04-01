@@ -16,6 +16,10 @@ function daysUntil(deadline: string): number {
   return Math.ceil((new Date(deadline).getTime() - Date.now()) / 86400000);
 }
 
+function formatPrice(n: number): string {
+  return '$' + n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
 export default function AssetDetailPage() {
   const params = useParams();
   const asset = decodeURIComponent(params.asset as string);
@@ -31,7 +35,7 @@ export default function AssetDetailPage() {
     // Fetch current price
     const tickerMap: Record<string, string> = {
       'S&P 500': '^GSPC', SPX: '^GSPC', NASDAQ: '^IXIC',
-      Gold: 'GC=F', GLD: 'GLD', Silver: 'SI=F', Oil: 'CL=F',
+      Gold: 'GC=F', GLD: 'GC=F', Silver: 'SI=F', Oil: 'CL=F',
       Bitcoin: 'BTC-USD', 'BTC-USD': 'BTC-USD', TLT: 'TLT',
       Copper: 'HG=F', 'HG=F': 'HG=F', DXY: 'DX-Y.NYB',
     };
@@ -52,6 +56,17 @@ export default function AssetDetailPage() {
   const isOverdue = days < 0;
   const dirColor = latest?.direction === 'long' ? '#22c55e' : latest?.direction === 'short' ? '#ef4444' : 'var(--text-tertiary)';
   const dirArrow = latest?.direction === 'long' ? '\u2191' : latest?.direction === 'short' ? '\u2193' : '\u2194';
+
+  const tvSymbolMap: Record<string, string> = {
+    'S&P 500': 'SP:SPX', SPX: 'SP:SPX', NASDAQ: 'NASDAQ:NDX',
+    Gold: 'COMEX:GC1!', GLD: 'AMEX:GLD', Silver: 'COMEX:SI1!', Oil: 'NYMEX:CL1!',
+    Bitcoin: 'BITSTAMP:BTCUSD', 'BTC-USD': 'BITSTAMP:BTCUSD',
+    TLT: 'NASDAQ:TLT', Copper: 'COMEX:HG1!', 'HG=F': 'COMEX:HG1!',
+    DXY: 'TVC:DXY', NVDA: 'NASDAQ:NVDA', TSLA: 'NASDAQ:TSLA',
+    ETH: 'BITSTAMP:ETHUSD', 'ETH-USD': 'BITSTAMP:ETHUSD',
+    SOL: 'BINANCE:SOLUSD', 'SOL-USD': 'BINANCE:SOLUSD',
+  };
+  const tvSymbol = tvSymbolMap[asset] || asset;
 
   return (
     <>
@@ -83,6 +98,25 @@ export default function AssetDetailPage() {
               }}>
                 {latest.direction.toUpperCase()}
               </span>
+              <a
+                href={`https://www.tradingview.com/chart/?symbol=${encodeURIComponent(tvSymbol)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mono"
+                style={{
+                  fontSize: 10,
+                  color: 'var(--text-tertiary)',
+                  textDecoration: 'none',
+                  padding: '2px 8px',
+                  borderRadius: 3,
+                  border: '1px solid var(--border)',
+                  transition: 'color 0.15s, border-color 0.15s',
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--text-primary)'; e.currentTarget.style.borderColor = 'var(--text-tertiary)'; }}
+                onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-tertiary)'; e.currentTarget.style.borderColor = 'var(--border)'; }}
+              >
+                TradingView ↗
+              </a>
             </div>
 
             <p style={{ fontSize: 14, color: 'var(--text-primary)', marginBottom: 'var(--space-6)', lineHeight: 1.5 }}>
@@ -95,8 +129,8 @@ export default function AssetDetailPage() {
                 { value: latest.conviction.toUpperCase(), label: 'Conviction', color: latest.confidence >= 70 ? '#22c55e' : latest.confidence >= 40 ? '#eab308' : '#ef4444' },
                 { value: latest.time_horizon, label: 'Time Horizon' },
                 { value: isOverdue ? `${Math.abs(days)}d overdue` : `${days}d left`, label: `Deadline · ${formatDate(latest.deadline)}`, color: isOverdue ? '#ef4444' : days <= 7 ? '#eab308' : undefined },
-                { value: latest.reference_value !== null ? `$${latest.reference_value.toFixed(2)}` : '—', label: `Price at Call · ${formatDate(latest.created_at)}` },
-                { value: currentPrice !== null ? `$${currentPrice.toFixed(2)}` : '—', label: 'Current Price' },
+                { value: latest.reference_value !== null ? formatPrice(latest.reference_value) : '—', label: `Price at Call · ${formatDate(latest.created_at)}` },
+                { value: currentPrice !== null ? formatPrice(currentPrice) : '—', label: 'Current Price' },
               ]} />
             </div>
 
@@ -150,8 +184,8 @@ export default function AssetDetailPage() {
               </h2>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
-                {predictions.map((pred, i) => {
-                  const isLatest = i === predictions.length - 1;
+                {[...predictions].reverse().map((pred, i) => {
+                  const isLatest = pred.id === predictions[predictions.length - 1].id;
                   const isSuperseded = !!pred.superseded_by;
                   const isResolved = pred.outcome !== 'pending' && !isSuperseded;
                   const pConfColor = pred.confidence >= 70 ? '#22c55e' : pred.confidence >= 40 ? '#eab308' : '#ef4444';
@@ -172,14 +206,18 @@ export default function AssetDetailPage() {
                     statusColor = 'var(--text-tertiary)';
                   }
 
-                  const prevConf = i > 0 ? predictions[i - 1].confidence : null;
+                  // Find chronologically previous prediction for confidence delta
+                  const chronIndex = predictions.indexOf(pred);
+                  const prevConf = chronIndex > 0 ? predictions[chronIndex - 1].confidence : null;
                   const delta = prevConf !== null ? pred.confidence - prevConf : null;
+                  const isFirst = i === 0;
+                  const isLast = i === predictions.length - 1;
 
                   return (
                     <div key={pred.id} style={{ display: 'flex', gap: 'var(--space-3)' }}>
                       {/* Timeline rail */}
                       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: 16, flexShrink: 0 }}>
-                        <div style={{ width: 2, flex: '1 0 8px', background: i === 0 ? 'transparent' : 'var(--border)' }} />
+                        <div style={{ width: 2, flex: '1 0 8px', background: isFirst ? 'transparent' : 'var(--border)' }} />
                         <div style={{
                           width: isLatest ? 12 : 8,
                           height: isLatest ? 12 : 8,
@@ -188,7 +226,7 @@ export default function AssetDetailPage() {
                           flexShrink: 0,
                           border: isLatest ? `2px solid ${statusColor}` : 'none',
                         }} />
-                        <div style={{ width: 2, flex: '1 0 8px', background: isLatest ? 'transparent' : 'var(--border)' }} />
+                        <div style={{ width: 2, flex: '1 0 8px', background: isLast ? 'transparent' : 'var(--border)' }} />
                       </div>
 
                       {/* Entry content */}

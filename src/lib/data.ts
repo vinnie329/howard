@@ -1,5 +1,5 @@
 import { getSupabaseClient } from './supabase';
-import type { Source, Analysis, ContentWithAnalysis, Prediction, Outlook, OutlookHistory, TrendingTopic, SourcePerformance, BacktestRun, HousePrediction, HouseCalibration, HouseTrackRecord } from '@/types';
+import type { Source, Analysis, ContentWithAnalysis, Prediction, Outlook, OutlookHistory, TrendingTopic, SourcePerformance, BacktestRun, HousePrediction, HouseCalibration, HouseTrackRecord, PortfolioSnapshot, PortfolioPosition, PortfolioPerformance } from '@/types';
 import {
   mockSources,
   mockContentWithAnalysis,
@@ -31,9 +31,9 @@ export async function getSources(): Promise<Source[]> {
       slug: s.slug,
       bio: s.bio || '',
       avatar_url: s.avatar_url || '',
-      domains: s.domains as string[],
-      scores: s.scores as Source['scores'],
-      weighted_score: s.weighted_score,
+      domains: (Array.isArray(s.domains) ? s.domains : []) as string[],
+      scores: (s.scores || {}) as Source['scores'],
+      weighted_score: s.weighted_score ?? 0,
       created_at: s.created_at,
       updated_at: s.updated_at,
     }));
@@ -1074,5 +1074,56 @@ export async function getHouseTrackRecord(): Promise<HouseTrackRecord | null> {
     return data as HouseTrackRecord;
   } catch {
     return null;
+  }
+}
+
+// ── Model Portfolio ──
+
+export async function getPortfolioSnapshot(): Promise<PortfolioSnapshot | null> {
+  if (!hasSupabase) return null;
+  try {
+    const supabase = getSupabaseClient();
+    const { data, error } = await supabase
+      .from('portfolio_snapshots')
+      .select('*')
+      .eq('is_current', true)
+      .single();
+    if (error || !data) return null;
+    return data as PortfolioSnapshot;
+  } catch {
+    return null;
+  }
+}
+
+export async function getPortfolioPositions(snapshotId: string): Promise<PortfolioPosition[]> {
+  if (!hasSupabase) return [];
+  try {
+    const supabase = getSupabaseClient();
+    const { data, error } = await supabase
+      .from('portfolio_positions')
+      .select('*')
+      .eq('snapshot_id', snapshotId)
+      .order('allocation_pct', { ascending: false });
+    if (error || !data) return [];
+    return data as PortfolioPosition[];
+  } catch {
+    return [];
+  }
+}
+
+export async function getPortfolioPerformance(snapshotId: string, limit = 90): Promise<PortfolioPerformance[]> {
+  if (!hasSupabase) return [];
+  try {
+    const supabase = getSupabaseClient();
+    const { data, error } = await supabase
+      .from('portfolio_performance')
+      .select('*')
+      .eq('snapshot_id', snapshotId)
+      .order('date', { ascending: true })
+      .limit(limit);
+    if (error || !data) return [];
+    return data as PortfolioPerformance[];
+  } catch {
+    return [];
   }
 }

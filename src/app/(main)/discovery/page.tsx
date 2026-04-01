@@ -133,7 +133,7 @@ export default function DiscoveryPipeline() {
                         </div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-4)' }}>
                           <span className="mono" style={{ fontSize: 10, color: 'var(--text-tertiary)' }}>
-                            {source.domains[0]}
+                            {source.domains?.[0] ?? ''}
                           </span>
                           <span style={{
                             fontSize: 13,
@@ -154,7 +154,7 @@ export default function DiscoveryPipeline() {
                           gap: 'var(--space-2) var(--space-4)',
                         }}>
                           {dimensionKeys.map((key) => {
-                            const value = source.scores[key];
+                            const value = source.scores?.[key] ?? 0;
                             const barColor = value >= 4.5 ? '#22c55e'
                               : value >= 3.5 ? 'var(--accent)'
                               : value >= 2.5 ? 'var(--text-tertiary)'

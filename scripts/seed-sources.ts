@@ -233,6 +233,25 @@ const sources: Array<{
     youtube_search_queries: ['Dan Sundheim D1 Capital', 'Dan Sundheim interview'],
     substack_url: null,
   },
+  {
+    name: 'Matt Huang',
+    slug: 'matt-huang',
+    bio: 'Co-founder and managing partner of Paradigm. Former partner at Sequoia Capital. Also founded Tempo, a new blockchain. Leading crypto and web3 investor with deep conviction in decentralized systems and digital assets.',
+    avatar_url: '/avatars/matt-huang.jpg',
+    domains: ['Crypto / Web3', 'Venture / Startups'],
+    scores: {
+      intelligence: 5,
+      intuition_eq: 4,
+      sincerity: 4,
+      access: 5,
+      independence: 4,
+      capital_at_risk: 5,
+      reputational_sensitivity: 4,
+      performance: 5,
+    },
+    youtube_search_queries: ['Matt Huang Paradigm', 'Matt Huang interview'],
+    substack_url: null,
+  },
 ];
 
 async function seed() {

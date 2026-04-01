@@ -250,6 +250,23 @@ export async function fetchSubstackEmails(
           continue;
         }
 
+        // Skip non-content emails (invoices, receipts, promos, account notifications)
+        const subjectLower = subject.toLowerCase();
+        const NON_CONTENT_PATTERNS = [
+          'invoice', 'receipt', 'payment', 'billing', 'subscription',
+          'your card', 'charge', 'renew', 'expired', 'update your',
+          'welcome to', 'confirm your', 'verify your', 'reset your',
+          'referral', 'invite', 'gift', 'discount', 'off your',
+          'black friday', 'cyber monday', 'special offer', 'limited time',
+          'founding member', 'upgrade to paid', 'go paid', 'subscribe to',
+          'thank you for subscribing', 'thanks for subscribing',
+          'your subscription', 'manage your subscription',
+        ];
+        if (NON_CONTENT_PATTERNS.some(p => subjectLower.includes(p))) {
+          console.log(`    ✕ Skipped (non-content): ${subject}`);
+          continue;
+        }
+
         // Extract HTML and post URL first (needed for dedup)
         const html = extractHtmlBody(msgData.payload);
         if (!html) {
@@ -258,6 +275,13 @@ export async function fetchSubstackEmails(
         }
 
         const postUrl = extractPostUrl(html);
+
+        // Real newsletter posts always link to a /p/ URL — skip if missing
+        if (!postUrl || !postUrl.includes('/p/')) {
+          console.log(`    ✕ Skipped (no post URL — likely promo/invoice): ${subject}`);
+          continue;
+        }
+
         const externalId = `substack-${msg.id}`;
 
         // Dedup: check by external_id OR by post URL (catches manual additions)

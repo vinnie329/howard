@@ -40,3 +40,8 @@ next-env.d.ts
 
 # supabase local state
 supabase/.temp/
+
+# local SQLite database
+data/*.db
+data/*.db-shm
+data/*.db-wal
