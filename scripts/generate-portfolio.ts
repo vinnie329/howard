@@ -310,11 +310,15 @@ Respond in valid JSON:
     process.exit(1);
   }
 
-  // Validate allocations
-  const totalAlloc = portfolio.positions.reduce((s, p) => s + p.allocation_pct, 0) + portfolio.cash_pct;
-  if (totalAlloc > 105) {
-    console.error(`Allocations exceed 100%: ${totalAlloc.toFixed(1)}%`);
-    process.exit(1);
+  // Validate and normalize allocations if needed
+  const positionTotal = portfolio.positions.reduce((s, p) => s + p.allocation_pct, 0);
+  const totalAlloc = positionTotal + portfolio.cash_pct;
+  if (totalAlloc > 100) {
+    console.log(`Allocations total ${totalAlloc.toFixed(1)}% — normalizing to 100%`);
+    const scale = (100 - portfolio.cash_pct) / positionTotal;
+    for (const pos of portfolio.positions) {
+      pos.allocation_pct = Math.round(pos.allocation_pct * scale * 10) / 10;
+    }
   }
 
   console.log(`Portfolio: ${portfolio.risk_posture.toUpperCase()} | ${portfolio.positions.length} positions | ${portfolio.cash_pct}% cash`);
