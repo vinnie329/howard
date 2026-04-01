@@ -147,6 +147,15 @@ async function main() {
     .order('created_at', { ascending: false });
   console.log(`  ${analyses?.length ?? 0} recent analyses\n`);
 
+  // 5. House predictions (active shorts/longs from house view)
+  console.log('Fetching house predictions...');
+  const { data: housePredictions } = await supabase
+    .from('house_predictions')
+    .select('*')
+    .eq('outcome', 'pending')
+    .order('confidence', { ascending: false });
+  console.log(`  ${housePredictions?.length ?? 0} active house predictions\n`);
+
   // ── Format data blocks ──────────────────────────────────────────────
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -182,6 +191,16 @@ async function main() {
     ? fatPitchCandidates.map((t) => `${t.name} (${t.ticker}): ${t.dev200d!.toFixed(1)}% from 200d MA, price $${t.price.toLocaleString(undefined, { maximumFractionDigits: 2 })}`).join('\n')
     : 'No assets currently >15% below 200d MA.';
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const housePredictionsBlock = (housePredictions ?? []).map((hp: any) => {
+    const arrow = hp.direction === 'long' ? '↑ LONG' : hp.direction === 'short' ? '↓ SHORT' : '↔ NEUTRAL';
+    return `${arrow} ${hp.asset} [${hp.confidence}% confidence, ${hp.conviction}]\n` +
+      `  Claim: ${hp.claim}\n` +
+      `  Target: ${hp.target_condition}\n` +
+      `  Thesis: ${hp.thesis}\n` +
+      `  Horizon: ${hp.time_horizon} (${hp.deadline_days}d)`;
+  }).join('\n\n');
+
   // ── Prompt Claude ─────────────────────────────────────────────────────
 
   const prompt = `You are an elite macro strategist and portfolio positioning advisor. You have access to a private intelligence database tracking trusted investors, analysts, and founders. Below is today's complete data set.
@@ -203,11 +222,17 @@ ${technicals.text}
 ═══ FAT PITCH CANDIDATES (>15% below 200d MA) ═══
 ${fatPitchBlock}
 
+═══ HOUSE VIEW PREDICTIONS (${housePredictions?.length ?? 0} active) ═══
+${housePredictionsBlock || 'No active house predictions.'}
+
 Return a JSON object with this exact structure:
 {
   "narrative": "3-5 paragraphs of positioning prose. This is the core — a cohesive macro view synthesizing all data. Reference specific sources by name, specific price levels, and specific thesis points. Write in a direct, authoritative style. Start with the macro regime, then flow to sector views, then individual positioning. Do NOT use markdown formatting — write plain prose with line breaks between paragraphs.",
   "opportunities": [
     { "ticker": "SYMBOL", "name": "Full Name", "rationale": "1-2 sentence reason this is interesting NOW" }
+  ],
+  "shorts": [
+    { "ticker": "SYMBOL", "name": "Full Name", "rationale": "1-2 sentence reason to be short/underweight this asset NOW", "confidence": 65 }
   ],
   "fat_pitches": [
     { "ticker": "SYMBOL", "name": "Full Name", "dev200d": -20.5 }
@@ -218,11 +243,13 @@ Return a JSON object with this exact structure:
 
 Guidelines:
 - "posture" reflects your overall read of the environment — be honest
-- "opportunities" should be 3-8 thesis-driven positions supported by the data (NOT just technically oversold)
+- "opportunities" should be 3-8 thesis-driven LONG positions supported by the data (NOT just technically oversold)
+- "shorts" should be 2-5 specific SHORT/UNDERWEIGHT positions derived from house view predictions. Every house view prediction with direction "short" and confidence >= 40% MUST appear here. Include the confidence score from the house view. These are active bearish positions, not just vague "avoids".
 - "fat_pitches" should be assets meaningfully below their moving averages (use the fat pitch candidates above as input, include dev200d values)
-- "avoids" should be 2-4 things to stay away from with brief reasoning
+- "avoids" should be 2-4 broader themes/sectors to stay away from (distinct from specific shorts)
 - The narrative should feel like it was written by a human CIO, not a template
 - Be contrarian where the data supports it — don't just summarize consensus
+- IMPORTANT: The narrative MUST address both sides of the book — long opportunities AND short positions. Don't only talk about what to buy.
 
 Return ONLY the JSON object, no other text.`;
 

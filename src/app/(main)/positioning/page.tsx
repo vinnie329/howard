@@ -192,6 +192,40 @@ export default function PositioningPage() {
                 </div>
               )}
 
+              {/* Shorts */}
+              {positioning.shorts && positioning.shorts.length > 0 && (
+                <div style={{ marginBottom: 'var(--space-6)' }}>
+                  <SectionLabel>Short / Underweight</SectionLabel>
+                  <div style={{ marginTop: 'var(--space-3)', display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
+                    {positioning.shorts.map((s) => (
+                      <div key={s.ticker} style={{
+                        display: 'flex',
+                        alignItems: 'flex-start',
+                        gap: 'var(--space-3)',
+                      }}>
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, flexShrink: 0 }}>
+                          <AssetPill ticker={s.ticker} name={s.name} />
+                          <span className="mono" style={{
+                            fontSize: 9,
+                            padding: '1px 5px',
+                            borderRadius: 'var(--radius-sm)',
+                            background: '#ef444418',
+                            border: '1px solid #ef444440',
+                            color: '#ef4444',
+                            fontWeight: 600,
+                          }}>
+                            {s.confidence}%
+                          </span>
+                        </span>
+                        <span style={{ fontSize: 12, color: 'var(--text-tertiary)', lineHeight: 1.5, paddingTop: 2 }}>
+                          {s.rationale}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {/* Fat pitches */}
               {positioning.fat_pitches.length > 0 && (
                 <div style={{ marginBottom: 'var(--space-6)' }}>
@@ -226,7 +260,7 @@ export default function PositioningPage() {
 
               {/* Footer */}
               <div className="mono" style={{ fontSize: 10, color: 'var(--text-tertiary)' }}>
-                Generated {generatedAt} · {positioning.opportunities.length} opportunities · {positioning.fat_pitches.length} fat pitch{positioning.fat_pitches.length !== 1 ? 'es' : ''}
+                Generated {generatedAt} · {positioning.opportunities.length} opportunities · {positioning.shorts?.length ?? 0} shorts · {positioning.fat_pitches.length} fat pitch{positioning.fat_pitches.length !== 1 ? 'es' : ''}
               </div>
             </>
           )}
