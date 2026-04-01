@@ -1,14 +1,21 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import Sparkline from '@/components/ui/Sparkline';
 import { SkeletonRows } from '@/components/ui/Skeleton';
 import type { PortfolioSnapshot, PortfolioPosition, PortfolioPerformance } from '@/types';
+
+interface LiveKpis {
+  nav: number;
+  total_return_pct: number;
+  spy_cumulative_pct: number;
+  daily_return_pct: number;
+}
 
 interface PortfolioData {
   snapshot: PortfolioSnapshot | null;
   positions: PortfolioPosition[];
   performance: PortfolioPerformance[];
+  liveKpis: LiveKpis | null;
 }
 
 function formatDate(iso: string): string {
@@ -56,10 +63,22 @@ function DirectionArrow({ direction }: { direction: string }) {
   return <span style={{ color, fontSize: 16, fontWeight: 600 }}>{arrow}</span>;
 }
 
+function tradingViewUrl(ticker: string): string {
+  const map: Record<string, string> = {
+    'BZ=F': 'NYMEX:BZ1!', 'CL=F': 'NYMEX:CL1!', 'GC=F': 'COMEX:GC1!',
+    'SI=F': 'COMEX:SI1!', 'HG=F': 'COMEX:HG1!', 'NG=F': 'NYMEX:NG1!',
+    'BTC-USD': 'COINBASE:BTCUSD', 'ETH-USD': 'COINBASE:ETHUSD',
+    '^GSPC': 'SP:SPX', '^IXIC': 'NASDAQ:IXIC', '^TNX': 'TVC:US10Y',
+    'DX-Y.NYB': 'TVC:DXY',
+  };
+  const symbol = map[ticker] || ticker;
+  return `https://www.tradingview.com/chart/?symbol=${encodeURIComponent(symbol)}`;
+}
+
 const GRID_COLS = '28px 72px 1fr 64px 88px 88px 76px 56px';
 
 export default function PortfolioPage() {
-  const [data, setData] = useState<PortfolioData>({ snapshot: null, positions: [], performance: [] });
+  const [data, setData] = useState<PortfolioData>({ snapshot: null, positions: [], performance: [], liveKpis: null });
   const [loading, setLoading] = useState(true);
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
@@ -71,12 +90,12 @@ export default function PortfolioPage() {
       .finally(() => setLoading(false));
   }, []);
 
-  const { snapshot, positions, performance } = data;
-  const latestPerf = performance.length > 0 ? performance[performance.length - 1] : null;
-  const nav = latestPerf?.nav ?? 10000000;
-  const totalReturn = latestPerf?.cumulative_return_pct ?? 0;
-  const spyReturn = latestPerf?.spy_cumulative_pct ?? 0;
+  const { snapshot, positions, liveKpis } = data;
+  const nav = liveKpis?.nav ?? 10000000;
+  const totalReturn = liveKpis?.total_return_pct ?? 0;
+  const spyReturn = liveKpis?.spy_cumulative_pct ?? 0;
   const alpha = totalReturn - spyReturn;
+  const dailyReturn = liveKpis?.daily_return_pct ?? 0;
 
   return (
     <>
@@ -138,7 +157,7 @@ export default function PortfolioPage() {
                   { label: 'NAV', value: formatCurrency(nav) },
                   { label: 'Total Return', value: formatPct(totalReturn), color: totalReturn >= 0 ? '#22c55e' : '#ef4444' },
                   { label: 'vs SPY', value: formatPct(alpha), color: alpha >= 0 ? '#22c55e' : '#ef4444' },
-                  { label: 'Daily', value: formatPct(latestPerf?.daily_return_pct ?? null), color: (latestPerf?.daily_return_pct ?? 0) >= 0 ? '#22c55e' : '#ef4444' },
+                  { label: 'Daily', value: formatPct(dailyReturn), color: dailyReturn >= 0 ? '#22c55e' : '#ef4444' },
                 ].map((s) => (
                   <div key={s.label} style={{
                     padding: 'var(--space-3)',
@@ -152,24 +171,6 @@ export default function PortfolioPage() {
                 ))}
               </div>
 
-              {/* NAV Chart */}
-              {performance.length >= 2 && (
-                <div style={{
-                  padding: 'var(--space-4)',
-                  border: '1px solid var(--border)',
-                  borderRadius: 'var(--radius-md)',
-                  background: 'var(--bg-panel)',
-                  marginTop: 'var(--space-3)',
-                }}>
-                  <div style={{ fontSize: 11, color: 'var(--text-tertiary)', marginBottom: 'var(--space-2)' }}>Portfolio NAV</div>
-                  <Sparkline
-                    data={performance.map((p) => p.nav)}
-                    positive={totalReturn >= 0}
-                    width={700}
-                    height={80}
-                  />
-                </div>
-              )}
             </div>
 
             {/* ── Section 3: Positions Table ── */}
@@ -290,6 +291,15 @@ export default function PortfolioPage() {
                               {pos.stop_loss_condition && (
                                 <div style={{ color: '#ef4444' }}>Stop: {pos.stop_loss_condition}</div>
                               )}
+                              <a
+                                href={tradingViewUrl(pos.ticker)}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                onClick={(e) => e.stopPropagation()}
+                                style={{ color: 'var(--text-secondary)', textDecoration: 'none', marginTop: 4, display: 'inline-block' }}
+                              >
+                                TradingView &rarr;
+                              </a>
                             </div>
                           </div>
                         </div>

@@ -21,6 +21,7 @@ if (!supabaseUrl || !supabaseKey) {
 
 const supabase = createClient(supabaseUrl, supabaseKey);
 
+// Inline price fetcher (mirrors src/lib/prices.ts but avoids path-alias issues in scripts)
 async function fetchPrice(ticker: string): Promise<number | null> {
   const tickerMap: Record<string, string> = {
     'S&P 500': '^GSPC', SPY: 'SPY', SPX: '^GSPC',
