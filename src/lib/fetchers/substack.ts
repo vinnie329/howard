@@ -275,12 +275,7 @@ export async function fetchSubstackEmails(
         }
 
         const postUrl = extractPostUrl(html);
-
-        // Real newsletter posts always link to a /p/ URL — skip if missing
-        if (!postUrl || !postUrl.includes('/p/')) {
-          console.log(`    ✕ Skipped (no post URL — likely promo/invoice): ${subject}`);
-          continue;
-        }
+        const contentUrl = postUrl || `https://mail.google.com/mail/u/0/#inbox/${msg.threadId}`;
 
         const externalId = `substack-${msg.id}`;
 
@@ -296,11 +291,11 @@ export async function fetchSubstackEmails(
           continue;
         }
 
-        if (postUrl) {
+        {
           const { data: existingByUrl } = await supabase
             .from('content')
             .select('id')
-            .eq('url', postUrl)
+            .eq('url', contentUrl)
             .single();
 
           if (existingByUrl) {
@@ -339,7 +334,7 @@ export async function fetchSubstackEmails(
           platform: 'substack',
           external_id: externalId,
           title: subject,
-          url: postUrl || `https://mail.google.com/mail/u/0/#inbox/${msg.threadId}`,
+          url: contentUrl,
           published_at: publishedAt,
           raw_text: rawText.slice(0, 50000),
         });
