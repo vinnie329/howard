@@ -59,7 +59,8 @@ export async function analyzeContent(
   title: string,
   rawText: string,
   sourceName: string,
-  apiKey: string
+  apiKey: string,
+  priorContext?: string
 ): Promise<AnalysisResult> {
   const client = new Anthropic({ apiKey });
 
@@ -69,6 +70,17 @@ export async function analyzeContent(
     ? rawText.slice(0, maxChars) + '\n\n[...transcript truncated]'
     : rawText;
 
+  const contextBlock = priorContext
+    ? `\n\nIMPORTANT CONTEXT — Howard's existing knowledge base:
+${priorContext}
+
+Use this context to:
+- Note when this content REINFORCES, CONTRADICTS, or EVOLVES positions from prior analysis
+- Identify genuinely NEW information vs. repetition of known views
+- Reference specific prior positions in your summary when relevant (e.g. "reinforces Howell's bearish liquidity thesis" or "contradicts his March view on Fed policy")
+- Weight your sentiment score relative to what we already know — a repeated bearish view is less newsworthy than a shift\n`
+    : '';
+
   const response = await client.messages.create({
     model: 'claude-opus-4-6',
     max_tokens: 2000,
@@ -76,7 +88,7 @@ export async function analyzeContent(
       {
         role: 'user',
         content: `You are analyzing content from ${sourceName}, a financial analyst/investor. Extract structured insights from this content.
-
+${contextBlock}
 Title: ${title}
 Transcript/Text:
 ${text}

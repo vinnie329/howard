@@ -32,6 +32,48 @@ function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+/**
+ * Build prior context for a source: latest daily summary + recent analyses from this source.
+ * This gives the LLM Howard's institutional memory so it can identify shifts, contradictions,
+ * and genuinely new information rather than treating each piece of content in isolation.
+ */
+async function buildPriorContext(sourceId: string, sourceName: string): Promise<string | undefined> {
+  const parts: string[] = [];
+
+  // 1. Latest daily update summary (Howard's current market view)
+  try {
+    const { data: latest } = await supabase
+      .from('daily_update_cache')
+      .select('data')
+      .order('key', { ascending: false })
+      .limit(1)
+      .single();
+
+    if (latest?.data?.summary) {
+      parts.push(`=== Howard's Latest Market Summary ===\n${latest.data.summary}`);
+    }
+  } catch {}
+
+  // 2. Recent analyses from this same source (last 10)
+  try {
+    const { data: recentAnalyses } = await supabase
+      .from('analyses')
+      .select('display_title, sentiment_overall, sentiment_score, summary, themes, created_at, content!inner(source_id)')
+      .eq('content.source_id', sourceId)
+      .order('created_at', { ascending: false })
+      .limit(10);
+
+    if (recentAnalyses && recentAnalyses.length > 0) {
+      const lines = recentAnalyses.map((a) =>
+        `- "${a.display_title}" (${a.sentiment_overall}, ${a.sentiment_score}): ${a.summary}`
+      );
+      parts.push(`=== Recent Analysis from ${sourceName} (${recentAnalyses.length} most recent) ===\n${lines.join('\n')}`);
+    }
+  } catch {}
+
+  return parts.length > 0 ? parts.join('\n\n') : undefined;
+}
+
 async function analyzeAll() {
   console.log('=== Howard Content Analyzer ===\n');
   console.log(`Time: ${new Date().toISOString()}\n`);
@@ -93,6 +135,12 @@ async function analyzeAll() {
     console.log(`  Text length: ${item.raw_text.length} chars`);
 
     try {
+      // Build prior context from Howard's knowledge base
+      const priorContext = await buildPriorContext(item.source_id, sourceName);
+      if (priorContext) {
+        console.log(`  Prior context: ${(priorContext.length / 1024).toFixed(1)}KB`);
+      }
+
       const MAX_RETRIES = 3;
       let result: Awaited<ReturnType<typeof analyzeContent>> | null = null;
       for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
@@ -101,7 +149,8 @@ async function analyzeAll() {
             item.title,
             item.raw_text,
             sourceName,
-            anthropicKey
+            anthropicKey,
+            priorContext
           );
           break;
         } catch (retryErr) {
