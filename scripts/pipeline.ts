@@ -5,24 +5,26 @@
  *   1. Fetch new content (YouTube, Oaktree, etc.)
  *   2. Retry missing transcripts (yt-dlp + Gemini fallback)
  *   3. Analyze unprocessed content (Claude)
- *   4. Generate missing embeddings (Voyage AI)
- *   5. Evaluate & update outlooks (Claude)
- *   6. Generate signals (Claude + Yahoo Finance)
- *   7. Fetch positioning data (CFTC COT, credit spreads, options sentiment)
- *   8. Generate positioning (Claude synthesis)
- *   9. Fetch 13F holdings (SEC EDGAR)
- *  10. Fetch prediction markets (Kalshi + Polymarket)
- *  11. Fetch FedWatch rate probabilities
- *  12. Backtest source predictions (Claude + Yahoo Finance)
- *  13. Generate house view predictions (Claude synthesis)
- *  14. Evaluate house predictions (Claude + Yahoo Finance)
- *  15. Generate daily update (Claude synthesis — must be last)
+ *   4. Update knowledge state (source + theme compilation)
+ *   5. Generate missing embeddings (Voyage AI)
+ *   6. Evaluate & update outlooks (Claude)
+ *   7. Generate signals (Claude + Yahoo Finance)
+ *   8. Fetch positioning data (CFTC COT, credit spreads, options sentiment)
+ *   9. Generate positioning (Claude synthesis)
+ *  10. Fetch 13F holdings (SEC EDGAR)
+ *  11. Fetch prediction markets (Kalshi + Polymarket)
+ *  12. Fetch FedWatch rate probabilities
+ *  13. Backtest source predictions (Claude + Yahoo Finance)
+ *  14. Generate house view predictions (Claude synthesis)
+ *  15. Evaluate house predictions (Claude + Yahoo Finance)
+ *  16. Generate daily update (Claude synthesis — must be last)
  *
  * Usage:
  *   npx tsx scripts/pipeline.ts                # run all steps
  *   npx tsx scripts/pipeline.ts --fetch        # only fetch
  *   npx tsx scripts/pipeline.ts --transcripts  # only transcript retry
  *   npx tsx scripts/pipeline.ts --analyze      # only analyze
+ *   npx tsx scripts/pipeline.ts --knowledge    # only knowledge state compilation
  *   npx tsx scripts/pipeline.ts --embed        # only embeddings
  *   npx tsx scripts/pipeline.ts --outlook      # only outlook
  *   npx tsx scripts/pipeline.ts --signals      # only signals
@@ -78,6 +80,7 @@ const runAll = stepArgs.length === 0;
 const runFetch = runAll || args.includes('--fetch');
 const runTranscripts = runAll || args.includes('--transcripts');
 const runAnalyze = runAll || args.includes('--analyze');
+const runKnowledge = runAll || args.includes('--knowledge');
 const runEmbed = runAll || args.includes('--embed');
 const runOutlook = runAll || args.includes('--outlook');
 const runSignals = runAll || args.includes('--signals');
@@ -101,6 +104,7 @@ const STEP_TIMEOUTS: Record<string, number> = {
   'scripts/fetch-all.ts': 15 * 60 * 1000,
   'scripts/fetch-missing-transcripts.ts': 10 * 60 * 1000,
   'scripts/analyze-content.ts': 10 * 60 * 1000,
+  'scripts/update-knowledge-state.ts': 10 * 60 * 1000,
 };
 const DEFAULT_TIMEOUT = 5 * 60 * 1000; // 5 min
 
@@ -136,23 +140,24 @@ function run(label: string, script: string) {
 console.log('\n  Howard Pipeline\n');
 
 const steps: [boolean, string, string][] = [
-  [runFetch, 'Step 1/17 — Fetch content', 'scripts/fetch-all.ts'],
-  [runTranscripts, 'Step 2/17 — Retry missing transcripts', 'scripts/fetch-missing-transcripts.ts'],
-  [runAnalyze, 'Step 3/17 — Analyze content', 'scripts/analyze-content.ts'],
-  [runEmbed, 'Step 4/17 — Generate embeddings', 'scripts/generate-embeddings.ts'],
-  [runOutlook, 'Step 5/17 — Update outlooks', 'scripts/update-outlook.ts'],
-  [runSignals, 'Step 6/17 — Generate signals', 'scripts/generate-signals.ts'],
-  [runPosData, 'Step 7/17 — Fetch positioning data (COT, credit, options)', 'scripts/fetch-positioning-data.ts'],
-  [runPositioning, 'Step 8/17 — Generate positioning', 'scripts/generate-positioning.ts'],
-  [run13f, 'Step 9/17 — Fetch 13F holdings', 'scripts/fetch-13f.ts'],
-  [runMarkets, 'Step 10/17 — Fetch prediction markets', 'scripts/fetch-prediction-markets.ts'],
-  [runFedWatch, 'Step 11/17 — Fetch FedWatch probabilities', 'scripts/fetch-fedwatch.ts'],
-  [runBacktest, 'Step 12/17 — Backtest source predictions', 'scripts/backtest-predictions.ts'],
-  [runHouseView, 'Step 13/17 — Generate house view predictions', 'scripts/generate-house-view.ts'],
-  [runHouseEval, 'Step 14/17 — Evaluate house predictions', 'scripts/evaluate-house-view.ts'],
-  [runPortfolio, 'Step 15/17 — Generate model portfolio', 'scripts/generate-portfolio.ts'],
-  [runTrackPortfolio, 'Step 16/17 — Track portfolio performance', 'scripts/track-portfolio-performance.ts'],
-  [runDaily, 'Step 17/17 — Generate daily update', 'scripts/generate-daily-update.ts'],
+  [runFetch, 'Step 1/18 — Fetch content', 'scripts/fetch-all.ts'],
+  [runTranscripts, 'Step 2/18 — Retry missing transcripts', 'scripts/fetch-missing-transcripts.ts'],
+  [runAnalyze, 'Step 3/18 — Analyze content', 'scripts/analyze-content.ts'],
+  [runKnowledge, 'Step 4/18 — Update knowledge state', 'scripts/update-knowledge-state.ts'],
+  [runEmbed, 'Step 5/18 — Generate embeddings', 'scripts/generate-embeddings.ts'],
+  [runOutlook, 'Step 6/18 — Update outlooks', 'scripts/update-outlook.ts'],
+  [runSignals, 'Step 7/18 — Generate signals', 'scripts/generate-signals.ts'],
+  [runPosData, 'Step 8/18 — Fetch positioning data (COT, credit, options)', 'scripts/fetch-positioning-data.ts'],
+  [runPositioning, 'Step 9/18 — Generate positioning', 'scripts/generate-positioning.ts'],
+  [run13f, 'Step 10/18 — Fetch 13F holdings', 'scripts/fetch-13f.ts'],
+  [runMarkets, 'Step 11/18 — Fetch prediction markets', 'scripts/fetch-prediction-markets.ts'],
+  [runFedWatch, 'Step 12/18 — Fetch FedWatch probabilities', 'scripts/fetch-fedwatch.ts'],
+  [runBacktest, 'Step 13/18 — Backtest source predictions', 'scripts/backtest-predictions.ts'],
+  [runHouseView, 'Step 14/18 — Generate house view predictions', 'scripts/generate-house-view.ts'],
+  [runHouseEval, 'Step 15/18 — Evaluate house predictions', 'scripts/evaluate-house-view.ts'],
+  [runPortfolio, 'Step 16/18 — Generate model portfolio', 'scripts/generate-portfolio.ts'],
+  [runTrackPortfolio, 'Step 17/18 — Track portfolio performance', 'scripts/track-portfolio-performance.ts'],
+  [runDaily, 'Step 18/18 — Generate daily update', 'scripts/generate-daily-update.ts'],
 ];
 
 const active = steps.filter(([enabled]) => enabled);

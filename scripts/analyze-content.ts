@@ -37,10 +37,23 @@ function sleep(ms: number) {
  * This gives the LLM Howard's institutional memory so it can identify shifts, contradictions,
  * and genuinely new information rather than treating each piece of content in isolation.
  */
-async function buildPriorContext(sourceId: string, sourceName: string): Promise<string | undefined> {
+async function buildPriorContext(sourceId: string, sourceName: string, themes?: string[]): Promise<string | undefined> {
   const parts: string[] = [];
 
-  // 1. Latest daily update summary (Howard's current market view)
+  // 1. Source knowledge state (Layer 2 — compiled per-source memory)
+  try {
+    const { data: sourceState } = await supabase
+      .from('source_state')
+      .select('state')
+      .eq('source_id', sourceId)
+      .single();
+
+    if (sourceState?.state) {
+      parts.push(`=== ${sourceName} — Compiled Knowledge State ===\n${sourceState.state}`);
+    }
+  } catch {}
+
+  // 2. Latest daily update summary (Howard's current market view)
   try {
     const { data: latest } = await supabase
       .from('daily_update_cache')
@@ -54,7 +67,7 @@ async function buildPriorContext(sourceId: string, sourceName: string): Promise<
     }
   } catch {}
 
-  // 2. Recent analyses from this same source (last 10)
+  // 3. Recent analyses from this same source (last 10) — fallback if no source state
   try {
     const { data: recentAnalyses } = await supabase
       .from('analyses')
@@ -71,6 +84,24 @@ async function buildPriorContext(sourceId: string, sourceName: string): Promise<
     }
   } catch {}
 
+  // 4. Relevant theme states (Layer 3 — cross-source synthesis for themes this source covers)
+  if (themes && themes.length > 0) {
+    try {
+      // Fetch theme states for this source's known domains/themes
+      const { data: themeStates } = await supabase
+        .from('theme_state')
+        .select('theme, state')
+        .in('theme', themes.slice(0, 5)); // Top 5 most relevant
+
+      if (themeStates && themeStates.length > 0) {
+        const themeBlock = themeStates.map((t) =>
+          `### ${t.theme}\n${t.state}`
+        ).join('\n\n');
+        parts.push(`=== Cross-Source Theme Intelligence ===\n${themeBlock}`);
+      }
+    } catch {}
+  }
+
   return parts.length > 0 ? parts.join('\n\n') : undefined;
 }
 
@@ -81,7 +112,7 @@ async function analyzeAll() {
   // Find content without analyses
   const { data: allContent, error: contentError } = await supabase
     .from('content')
-    .select('id, title, raw_text, source_id, platform, published_at, sources(name, weighted_score)')
+    .select('id, title, raw_text, source_id, platform, published_at, sources(name, weighted_score, domains)')
     .order('published_at', { ascending: false });
 
   if (contentError || !allContent) {
@@ -136,7 +167,8 @@ async function analyzeAll() {
 
     try {
       // Build prior context from Howard's knowledge base
-      const priorContext = await buildPriorContext(item.source_id, sourceName);
+      const sourceDomains = (item.sources as unknown as { domains: string[] } | null)?.domains || [];
+      const priorContext = await buildPriorContext(item.source_id, sourceName, sourceDomains);
       if (priorContext) {
         console.log(`  Prior context: ${(priorContext.length / 1024).toFixed(1)}KB`);
       }
