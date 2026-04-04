@@ -109,7 +109,7 @@ async function updateSourceStates() {
 
     try {
       const response = await anthropic.messages.create({
-        model: 'claude-sonnet-4-5-20250514',
+        model: 'claude-sonnet-4-6',
         max_tokens: 1500,
         messages: [{
           role: 'user',
@@ -256,7 +256,7 @@ async function updateThemeStates() {
 
     try {
       const response = await anthropic.messages.create({
-        model: 'claude-sonnet-4-5-20250514',
+        model: 'claude-sonnet-4-6',
         max_tokens: 1200,
         messages: [{
           role: 'user',
