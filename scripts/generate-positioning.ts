@@ -279,6 +279,7 @@ Guidelines:
 - The narrative should feel like it was written by a human CIO, not a template
 - Be contrarian where the data supports it — don't just summarize consensus
 - IMPORTANT: The narrative MUST address both sides of the book — long opportunities AND short positions. Don't only talk about what to buy.
+- Use 200-day and 200-week moving average deviations as a key positioning input. Assets significantly extended above their 200d and 200w MAs are overextended and vulnerable to mean reversion — weigh this heavily when recommending longs. Assets deeply below their 200d/200w MAs deserve attention as potential fat pitches.
 
 Return ONLY the JSON object, no other text.`;
 
