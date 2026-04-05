@@ -311,16 +311,27 @@ Respond in valid JSON array format:
     process.exit(1);
   }
 
-  // Normalize asset tickers to avoid duplicates (e.g. GLD → GC=F, SLV → SI=F)
+  // Normalize asset tickers to canonical form to avoid duplicates
   const assetNormMap: Record<string, string> = {
-    'GLD': 'GC=F', 'IAU': 'GC=F',       // Gold ETFs → Gold futures
-    'SLV': 'SI=F',                         // Silver ETF → Silver futures
-    'USO': 'CL=F',                         // Oil ETF → Oil futures
-    'CPER': 'HG=F',                        // Copper ETF → Copper futures
+    'GLD': 'GC=F', 'IAU': 'GC=F', 'Gold': 'GC=F',   // Gold → futures
+    'SLV': 'SI=F', 'Silver': 'SI=F',                   // Silver → futures
+    'USO': 'CL=F', 'Oil': 'CL=F', 'Crude': 'CL=F',   // Oil → futures
+    'CPER': 'HG=F', 'Copper': 'HG=F',                  // Copper → futures
+    'SPX': 'SPY', 'S&P 500': 'SPY', '^GSPC': 'SPY',   // S&P → SPY
+    'NASDAQ': 'QQQ', '^IXIC': 'QQQ',                   // NASDAQ → QQQ
+    'BTC': 'BTC-USD', 'Bitcoin': 'BTC-USD',             // Bitcoin
+    'ETH': 'ETH-USD', 'Ethereum': 'ETH-USD',           // Ethereum
   };
   for (const pred of generated) {
     if (assetNormMap[pred.asset]) {
       pred.asset = assetNormMap[pred.asset];
+    }
+  }
+
+  // Also normalize existing house predictions for comparison
+  for (const h of existingHouse) {
+    if (assetNormMap[h.asset]) {
+      h.asset = assetNormMap[h.asset];
     }
   }
 
@@ -332,7 +343,6 @@ Respond in valid JSON array format:
     if (existing !== undefined) {
       // Keep the one with higher confidence
       if (pred.confidence > generated[existing].confidence) {
-        // Replace the earlier one
         generated[existing] = { ...generated[existing], confidence: -1 }; // mark for removal
         seen.set(key, idx);
         return true;
@@ -363,9 +373,9 @@ Respond in valid JSON array format:
     if (!dryRun) {
       const deadline = new Date(now.getTime() + pred.deadline_days * 24 * 60 * 60 * 1000);
 
-      // Check if this supersedes an existing prediction on the same asset
+      // Check if this supersedes an existing prediction on the same asset+direction
       const existing = existingHouse.find(
-        (h) => h.asset === pred.asset && h.category === pred.category
+        (h) => h.asset === pred.asset && h.direction === pred.direction
       );
 
       const row = {
