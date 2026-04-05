@@ -64,7 +64,7 @@ function synthesize(): HouseViewPrediction[] {
     },
     {
       claim: 'Gold reaches $4,900/oz by end of 2026',
-      asset: 'GLD',
+      asset: 'GC=F',
       direction: 'long',
       target_condition: 'Gold futures (GC=F) trade above $4,900/oz',
       time_horizon: '10 months',
