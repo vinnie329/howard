@@ -859,6 +859,7 @@ export async function getRelatedPredictions(
 export interface PositioningData {
   narrative: string;
   opportunities: Array<{ ticker: string; name: string; rationale: string }>;
+  shorts: Array<{ ticker: string; name: string; rationale: string; confidence: number }>;
   fat_pitches: Array<{ ticker: string; name: string; dev200d: number }>;
   avoids: string[];
   posture: 'aggressive' | 'lean-in' | 'neutral' | 'cautious' | 'defensive';

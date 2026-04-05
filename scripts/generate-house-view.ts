@@ -120,7 +120,7 @@ async function fetchPrice(ticker: string): Promise<number | null> {
   const tickerMap: Record<string, string> = {
     'S&P 500': '^GSPC', 'SPY': 'SPY', 'SPX': '^GSPC',
     'NASDAQ': '^IXIC', 'QQQ': 'QQQ',
-    'Gold': 'GC=F', 'GLD': 'GLD',
+    'Gold': 'GC=F', 'GLD': 'GC=F',
     'Bitcoin': 'BTC-USD', 'BTC': 'BTC-USD', 'BTC-USD': 'BTC-USD',
     'Silver': 'SI=F', 'Oil': 'CL=F', 'Crude': 'CL=F',
     'TLT': 'TLT', 'US10Y': '^TNX', 'DXY': 'DX-Y.NYB',
@@ -310,6 +310,39 @@ Respond in valid JSON array format:
     console.error('Invalid JSON in response:', e);
     process.exit(1);
   }
+
+  // Normalize asset tickers to avoid duplicates (e.g. GLD → GC=F, SLV → SI=F)
+  const assetNormMap: Record<string, string> = {
+    'GLD': 'GC=F', 'IAU': 'GC=F',       // Gold ETFs → Gold futures
+    'SLV': 'SI=F',                         // Silver ETF → Silver futures
+    'USO': 'CL=F',                         // Oil ETF → Oil futures
+    'CPER': 'HG=F',                        // Copper ETF → Copper futures
+  };
+  for (const pred of generated) {
+    if (assetNormMap[pred.asset]) {
+      pred.asset = assetNormMap[pred.asset];
+    }
+  }
+
+  // Deduplicate: if multiple predictions share the same asset+direction, keep the higher confidence one
+  const seen = new Map<string, number>();
+  generated = generated.filter((pred, idx) => {
+    const key = `${pred.asset}:${pred.direction}`;
+    const existing = seen.get(key);
+    if (existing !== undefined) {
+      // Keep the one with higher confidence
+      if (pred.confidence > generated[existing].confidence) {
+        // Replace the earlier one
+        generated[existing] = { ...generated[existing], confidence: -1 }; // mark for removal
+        seen.set(key, idx);
+        return true;
+      }
+      console.log(`  Deduplicating: "${pred.claim}" (duplicate ${pred.asset} ${pred.direction})`);
+      return false;
+    }
+    seen.set(key, idx);
+    return true;
+  }).filter(p => p.confidence >= 0);
 
   console.log(`Generated ${generated.length} house predictions:\n`);
 

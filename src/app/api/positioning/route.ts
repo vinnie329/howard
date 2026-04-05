@@ -7,6 +7,7 @@ export const dynamic = 'force-dynamic';
 export interface PositioningData {
   narrative: string;
   opportunities: Array<{ ticker: string; name: string; rationale: string }>;
+  shorts: Array<{ ticker: string; name: string; rationale: string; confidence: number }>;
   fat_pitches: Array<{ ticker: string; name: string; dev200d: number }>;
   avoids: string[];
   posture: 'aggressive' | 'lean-in' | 'neutral' | 'cautious' | 'defensive';
@@ -63,7 +64,7 @@ export async function GET(request: NextRequest) {
   }
 
   // Gather data for inline generation
-  const [outlookResult, signalsResult, analysesResult] = await Promise.all([
+  const [outlookResult, signalsResult, analysesResult, housePredictionsResult] = await Promise.all([
     Promise.resolve(supabase.from('outlook').select('*'))
       .then((r) => r.data ?? []).catch(() => [] as never[]),
     Promise.resolve(supabase.from('signals_cache').select('data').eq('key', todayKey).single())
@@ -73,6 +74,12 @@ export async function GET(request: NextRequest) {
         .select('sentiment_overall, sentiment_score, assets_mentioned, themes, summary, content:content_id(title, published_at, source:source_id(name))')
         .gte('created_at', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString())
         .order('created_at', { ascending: false })
+    ).then((r) => r.data ?? []).catch(() => [] as never[]),
+    Promise.resolve(
+      supabase.from('house_predictions')
+        .select('*')
+        .eq('outcome', 'pending')
+        .order('confidence', { ascending: false })
     ).then((r) => r.data ?? []).catch(() => [] as never[]),
   ]);
 
@@ -94,6 +101,12 @@ export async function GET(request: NextRequest) {
     return `[${src}] "${a.content?.title ?? ''}" — ${a.sentiment_overall}\n  ${a.summary ?? ''}`;
   }).join('\n\n');
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const housePredictionsBlock = (housePredictionsResult as any[]).map((hp) => {
+    const arrow = hp.direction === 'long' ? '↑ LONG' : hp.direction === 'short' ? '↓ SHORT' : '↔ NEUTRAL';
+    return `${arrow} ${hp.asset} [${hp.confidence}% confidence, ${hp.conviction}]\n  ${hp.claim}\n  Target: ${hp.target_condition}`;
+  }).join('\n\n');
+
   const prompt = `You are an elite macro strategist. Synthesize this intelligence into a positioning view.
 
 ═══ OUTLOOKS ═══
@@ -105,14 +118,20 @@ ${signalsBlock}
 ═══ RECENT ANALYSES ═══
 ${analysesBlock}
 
+═══ HOUSE VIEW PREDICTIONS ═══
+${housePredictionsBlock || 'No active house predictions.'}
+
 Return a JSON object:
 {
-  "narrative": "3-5 paragraphs of positioning prose. Direct, authoritative. Reference specific sources and data. No markdown.",
+  "narrative": "3-5 paragraphs of positioning prose. Direct, authoritative. Reference specific sources and data. Address BOTH long and short positions. No markdown.",
   "opportunities": [{ "ticker": "SYM", "name": "Name", "rationale": "Why now" }],
+  "shorts": [{ "ticker": "SYM", "name": "Name", "rationale": "Why short/underweight now", "confidence": 65 }],
   "fat_pitches": [{ "ticker": "SYM", "name": "Name", "dev200d": -20.5 }],
-  "avoids": ["what to avoid"],
+  "avoids": ["broader themes to avoid"],
   "posture": "aggressive" | "lean-in" | "neutral" | "cautious" | "defensive"
 }
+
+IMPORTANT: Every house view prediction with direction "short" and confidence >= 40% MUST appear in the "shorts" array. Include BTC, QQQ, NVDA, SPY etc. if they have active short predictions. Include the confidence score from the house view.
 
 Return ONLY the JSON object.`;
 
