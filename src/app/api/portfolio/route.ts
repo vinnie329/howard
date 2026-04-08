@@ -1,68 +1,90 @@
 import { NextResponse } from 'next/server';
-import {
-  getPortfolioSnapshot,
-  getPortfolioPositions,
-  getPortfolioPerformance,
-} from '@/lib/data';
+import { getSupabaseServiceClient } from '@/lib/supabase';
 import { fetchPrice, fetchPrices } from '@/lib/prices';
 
 export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+export const fetchCache = 'force-no-store';
 
 export async function GET() {
-  const snapshot = await getPortfolioSnapshot();
+  const supabase = getSupabaseServiceClient();
 
-  if (!snapshot) {
-    return NextResponse.json({ snapshot: null, positions: [], performance: [], liveKpis: null });
+  // Fetch current snapshot directly with service key
+  const { data: snapshot, error: snapErr } = await supabase
+    .from('portfolio_snapshots')
+    .select('*')
+    .eq('is_current', true)
+    .order('generated_at', { ascending: false })
+    .limit(1)
+    .single();
+
+  if (snapErr || !snapshot) {
+    return NextResponse.json(
+      { snapshot: null, positions: [], performance: [], liveKpis: null, debug: { error: snapErr?.message } },
+      { headers: { 'Cache-Control': 'no-store, max-age=0' } }
+    );
   }
 
-  const [positions, performance] = await Promise.all([
-    getPortfolioPositions(snapshot.id),
-    getPortfolioPerformance(snapshot.id),
+  const [{ data: positions }, { data: performance }] = await Promise.all([
+    supabase
+      .from('portfolio_positions')
+      .select('*')
+      .eq('snapshot_id', snapshot.id)
+      .order('allocation_pct', { ascending: false }),
+    supabase
+      .from('portfolio_performance')
+      .select('*')
+      .eq('snapshot_id', snapshot.id)
+      .order('date', { ascending: true })
+      .limit(90),
   ]);
 
+  const pos = positions || [];
+  const perf = performance || [];
+
   // Fetch live prices for all position tickers + SPY benchmark
-  const tickers = positions.map((p) => p.ticker);
+  const tickers = pos.map((p) => p.ticker);
   const [livePrices, spyPrice] = await Promise.all([
     fetchPrices(tickers),
     fetchPrice('SPY'),
   ]);
 
   // Overlay live prices onto positions
-  const livePositions = positions.map((pos) => ({
-    ...pos,
-    current_price: livePrices[pos.ticker] ?? pos.current_price,
+  const livePositions = pos.map((p) => ({
+    ...p,
+    current_price: livePrices[p.ticker] ?? p.current_price,
   }));
 
   // Compute live KPIs from current prices
   let weightedReturn = 0;
-  for (const pos of livePositions) {
-    const entry = pos.entry_price;
-    const current = pos.current_price;
+  for (const p of livePositions) {
+    const entry = p.entry_price;
+    const current = p.current_price;
     if (entry && current && entry > 0) {
       const rawReturn = (current - entry) / entry;
-      const dirReturn = pos.direction === 'long' ? rawReturn : -rawReturn;
-      weightedReturn += dirReturn * (pos.allocation_pct / 100);
+      const dirReturn = p.direction === 'long' ? rawReturn : -rawReturn;
+      weightedReturn += dirReturn * (p.allocation_pct / 100);
     }
   }
 
   const nav = snapshot.starting_capital * (1 + weightedReturn);
   const totalReturnPct = weightedReturn * 100;
 
-  // SPY benchmark: compare current SPY to SPY price on portfolio inception
+  // SPY benchmark
   let spyCumulativePct = 0;
-  if (spyPrice && performance.length > 0) {
-    const firstPerf = performance[0];
+  if (spyPrice && perf.length > 0) {
+    const firstPerf = perf[0];
     const firstSpyEntry = (firstPerf.positions_data as Array<{ ticker: string; price: number }>)
-      ?.find((p) => p.ticker === 'SPY');
+      ?.find((e) => e.ticker === 'SPY');
     if (firstSpyEntry?.price && firstSpyEntry.price > 0) {
       spyCumulativePct = ((spyPrice - firstSpyEntry.price) / firstSpyEntry.price) * 100;
     }
   }
 
-  // Daily return: compare live NAV to previous day's stored NAV
+  // Daily return
   let dailyReturnPct = 0;
-  if (performance.length > 0) {
-    const prevNav = performance[performance.length - 1].nav;
+  if (perf.length > 0) {
+    const prevNav = perf[perf.length - 1].nav;
     if (prevNav && prevNav > 0) {
       dailyReturnPct = ((nav - prevNav) / prevNav) * 100;
     }
@@ -76,10 +98,12 @@ export async function GET() {
   };
 
   return NextResponse.json(
-    { snapshot, positions: livePositions, performance, liveKpis },
+    { snapshot, positions: livePositions, performance: perf, liveKpis },
     {
       headers: {
         'Cache-Control': 'no-store, max-age=0',
+        'CDN-Cache-Control': 'no-store',
+        'Vercel-CDN-Cache-Control': 'no-store',
       },
     }
   );
