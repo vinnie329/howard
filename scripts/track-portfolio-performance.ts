@@ -126,9 +126,12 @@ async function main() {
     }
   }
 
-  // Calculate NAV
+  // Calculate NAV (starting_capital carries forward from previous portfolio)
   const nav = snapshot.starting_capital * (1 + weightedReturn);
-  const cumulativeReturn = weightedReturn * 100;
+
+  // Cumulative return is relative to the ORIGINAL $10M, not the carry-forward capital
+  const ORIGINAL_CAPITAL = 10000000;
+  const cumulativeReturn = ((nav - ORIGINAL_CAPITAL) / ORIGINAL_CAPITAL) * 100;
 
   // Get previous day's NAV for daily return
   const { data: prevPerf } = await supabase

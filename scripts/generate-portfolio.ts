@@ -339,25 +339,79 @@ Respond in valid JSON:
     return;
   }
 
-  // 5. Mark previous snapshot as not current
+  // 5. Calculate carry-forward NAV from previous portfolio
+  const { data: prevSnap } = await supabase
+    .from('portfolio_snapshots')
+    .select('id, starting_capital')
+    .eq('is_current', true)
+    .single();
+
+  let carryForwardNav = 10000000; // Default for first portfolio
+  const realizedPnl: Array<{ ticker: string; direction: string; entry: number; exit: number; pnl_pct: number; pnl_usd: number; allocation: number }> = [];
+
+  if (prevSnap) {
+    // Get latest performance record for current NAV
+    const { data: lastPerf } = await supabase
+      .from('portfolio_performance')
+      .select('nav')
+      .eq('snapshot_id', prevSnap.id)
+      .order('date', { ascending: false })
+      .limit(1)
+      .single();
+
+    if (lastPerf?.nav) {
+      carryForwardNav = lastPerf.nav;
+    }
+
+    // Calculate realized PnL on positions being closed
+    const { data: oldPositions } = await supabase
+      .from('portfolio_positions')
+      .select('ticker, direction, allocation_pct, entry_price, current_price')
+      .eq('snapshot_id', prevSnap.id);
+
+    const newTickers = new Set(portfolio.positions.map((p: GeneratedPosition) => `${p.ticker}:${p.direction}`));
+
+    for (const old of oldPositions || []) {
+      const key = `${old.ticker}:${old.direction}`;
+      if (!newTickers.has(key) && old.entry_price && old.current_price) {
+        const rawReturn = (old.current_price - old.entry_price) / old.entry_price;
+        const dirReturn = old.direction === 'long' ? rawReturn : -rawReturn;
+        const positionValue = carryForwardNav * (old.allocation_pct / 100);
+        realizedPnl.push({
+          ticker: old.ticker,
+          direction: old.direction,
+          entry: old.entry_price,
+          exit: old.current_price,
+          pnl_pct: dirReturn * 100,
+          pnl_usd: positionValue * dirReturn,
+          allocation: old.allocation_pct,
+        });
+      }
+    }
+
+    if (realizedPnl.length > 0) {
+      console.log('\n  Realized PnL on closed positions:');
+      for (const r of realizedPnl) {
+        console.log(`    ${r.direction.toUpperCase()} ${r.ticker}: $${r.entry.toFixed(2)} → $${r.exit.toFixed(2)} = ${r.pnl_pct >= 0 ? '+' : ''}${r.pnl_pct.toFixed(2)}% ($${r.pnl_usd >= 0 ? '+' : ''}${r.pnl_usd.toFixed(0)})`);
+      }
+      const totalRealizedUsd = realizedPnl.reduce((s, r) => s + r.pnl_usd, 0);
+      console.log(`    Total realized: $${totalRealizedUsd >= 0 ? '+' : ''}${totalRealizedUsd.toFixed(0)}`);
+    }
+
+    console.log(`\n  Carry-forward NAV: $${carryForwardNav.toLocaleString(undefined, { maximumFractionDigits: 0 })}`);
+  }
+
+  // Mark previous snapshot as not current
   await supabase
     .from('portfolio_snapshots')
     .update({ is_current: false })
     .eq('is_current', true);
 
-  // Get previous snapshot ID for supersedes
-  const { data: prevSnap } = await supabase
-    .from('portfolio_snapshots')
-    .select('id')
-    .order('generated_at', { ascending: false })
-    .limit(1)
-    .single();
-
-  // 6. Insert new snapshot
+  // 6. Insert new snapshot with carry-forward NAV
   const { data: snapshot, error: snapErr } = await supabase
     .from('portfolio_snapshots')
     .insert({
-      starting_capital: 10000000,
+      starting_capital: carryForwardNav,
       cash_allocation: portfolio.cash_pct,
       total_positions: portfolio.positions.length,
       thesis_summary: portfolio.thesis_summary,
