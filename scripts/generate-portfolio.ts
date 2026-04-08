@@ -91,21 +91,75 @@ async function main() {
   console.log(`Time: ${new Date().toISOString()}`);
   console.log(`Mode: ${dryRun ? 'DRY RUN' : forceRebalance ? 'FORCE REBALANCE' : 'Normal'}\n`);
 
-  // Check if we need to rebalance
+  // Check if we need to rebalance — only on house view changes or stop/target hits
   if (!forceRebalance && !dryRun) {
     const { data: current } = await supabase
       .from('portfolio_snapshots')
-      .select('generated_at')
+      .select('id, generated_at')
       .eq('is_current', true)
       .single();
 
     if (current) {
-      const daysSince = (Date.now() - new Date(current.generated_at).getTime()) / 86400000;
-      if (daysSince < 7) {
-        console.log(`Last rebalance was ${daysSince.toFixed(1)} days ago. Skipping (use --rebalance to force).`);
+      // Check 1: Any new or updated house predictions since last rebalance?
+      const { data: newHousePreds } = await supabase
+        .from('house_predictions')
+        .select('id')
+        .gt('created_at', current.generated_at)
+        .eq('outcome', 'pending')
+        .limit(1);
+
+      const { data: resolvedHousePreds } = await supabase
+        .from('house_predictions')
+        .select('id')
+        .gt('evaluated_at', current.generated_at)
+        .neq('outcome', 'pending')
+        .limit(1);
+
+      const houseViewChanged = (newHousePreds && newHousePreds.length > 0) ||
+        (resolvedHousePreds && resolvedHousePreds.length > 0);
+
+      // Check 2: Any positions hit stop-loss or targets?
+      const { data: positions } = await supabase
+        .from('portfolio_positions')
+        .select('ticker, direction, entry_price, current_price, target_price, stop_loss_condition')
+        .eq('snapshot_id', current.id);
+
+      let stopOrTargetHit = false;
+      if (positions) {
+        for (const pos of positions) {
+          if (!pos.entry_price || !pos.current_price) continue;
+          const rawReturn = (pos.current_price - pos.entry_price) / pos.entry_price;
+          const dirReturn = pos.direction === 'long' ? rawReturn : -rawReturn;
+
+          // Target hit: position returned 80%+ of target move
+          if (pos.target_price && pos.entry_price) {
+            const targetReturn = Math.abs((pos.target_price - pos.entry_price) / pos.entry_price);
+            if (dirReturn >= targetReturn * 0.8) {
+              console.log(`  ⚡ Target approaching: ${pos.ticker} (${(dirReturn * 100).toFixed(1)}% vs ${(targetReturn * 100).toFixed(1)}% target)`);
+              stopOrTargetHit = true;
+            }
+          }
+
+          // Stop-loss: position lost more than 10%
+          if (dirReturn < -0.10) {
+            console.log(`  ⚡ Stop-loss triggered: ${pos.ticker} (${(dirReturn * 100).toFixed(1)}%)`);
+            stopOrTargetHit = true;
+          }
+        }
+      }
+
+      if (!houseViewChanged && !stopOrTargetHit) {
+        console.log('No rebalance needed:');
+        console.log('  - No new house predictions since last rebalance');
+        console.log('  - No stops or targets hit');
+        console.log('  (use --rebalance to force)');
         return;
       }
-      console.log(`Last rebalance was ${daysSince.toFixed(1)} days ago. Generating new portfolio.\n`);
+
+      const reasons: string[] = [];
+      if (houseViewChanged) reasons.push('house view updated');
+      if (stopOrTargetHit) reasons.push('stop/target hit');
+      console.log(`Rebalance triggered: ${reasons.join(' + ')}\n`);
     }
   }
 
@@ -416,7 +470,7 @@ Respond in valid JSON:
       total_positions: portfolio.positions.length,
       thesis_summary: portfolio.thesis_summary,
       risk_posture: portfolio.risk_posture,
-      rebalance_reasoning: forceRebalance ? 'Manual rebalance' : 'Scheduled weekly rebalance',
+      rebalance_reasoning: forceRebalance ? 'Manual rebalance' : 'House view changed or stop/target hit',
       supersedes: prevSnap?.id || null,
       is_current: true,
     })
