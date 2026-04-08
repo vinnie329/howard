@@ -346,6 +346,23 @@ export default function PositioningPage() {
                       </div>
                     ))}
                   </div>
+
+                  {entry.drivers.length > 0 && (
+                    <div style={{
+                      marginTop: 'var(--space-2)',
+                      paddingTop: 'var(--space-2)',
+                      borderTop: '1px solid var(--border)',
+                    }}>
+                      <div className="mono" style={{ fontSize: 9, color: 'var(--text-tertiary)', marginBottom: 3 }}>
+                        Driven by
+                      </div>
+                      {entry.drivers.map((d, i) => (
+                        <div key={i} style={{ fontSize: 10, color: 'var(--text-secondary)', lineHeight: 1.4, marginBottom: 2 }}>
+                          {d}
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               ))}
             </div>

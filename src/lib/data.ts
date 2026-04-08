@@ -888,6 +888,7 @@ export interface PositioningChange {
   removed_shorts: string[];
   added_avoids: string[];
   removed_avoids: string[];
+  drivers: string[]; // house view changes that drove this positioning shift
 }
 
 export async function getPositioningHistory(limit = 10): Promise<PositioningChange[]> {
@@ -933,6 +934,39 @@ export async function getPositioningHistory(limit = 10): Promise<PositioningChan
         added_avoids.length > 0 || removed_avoids.length > 0;
 
       if (hasChanges) {
+        // Find house view changes that drove this positioning shift
+        const prevDate = data[i + 1].key;
+        const currDate = data[i].key;
+        const drivers: string[] = [];
+
+        // New house predictions between these dates
+        const { data: newPreds } = await supabase
+          .from('house_predictions')
+          .select('claim, asset, direction, confidence')
+          .gte('created_at', prevDate + 'T00:00:00')
+          .lt('created_at', currDate + 'T23:59:59')
+          .order('confidence', { ascending: false })
+          .limit(5);
+
+        for (const p of newPreds || []) {
+          const arrow = p.direction === 'long' ? '↑' : p.direction === 'short' ? '↓' : '↔';
+          drivers.push(`New: ${arrow} ${p.asset} ${p.confidence}% — ${p.claim.length > 60 ? p.claim.slice(0, 60) + '…' : p.claim}`);
+        }
+
+        // Resolved house predictions between these dates
+        const { data: resolvedPreds } = await supabase
+          .from('house_predictions')
+          .select('claim, asset, outcome')
+          .gte('evaluated_at', prevDate + 'T00:00:00')
+          .lt('evaluated_at', currDate + 'T23:59:59')
+          .neq('outcome', 'pending')
+          .limit(5);
+
+        for (const p of resolvedPreds || []) {
+          const icon = p.outcome === 'correct' ? '✓' : p.outcome === 'incorrect' ? '✗' : '—';
+          drivers.push(`Resolved ${icon}: ${p.asset} — ${p.claim.length > 50 ? p.claim.slice(0, 50) + '…' : p.claim}`);
+        }
+
         changes.push({
           date: data[i].key,
           posture_change,
@@ -942,6 +976,7 @@ export async function getPositioningHistory(limit = 10): Promise<PositioningChan
           removed_shorts,
           added_avoids,
           removed_avoids,
+          drivers,
         });
       }
     }
