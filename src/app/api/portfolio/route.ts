@@ -79,7 +79,7 @@ export async function GET() {
     { snapshot, positions: livePositions, performance, liveKpis },
     {
       headers: {
-        'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=120',
+        'Cache-Control': 'no-store, max-age=0',
       },
     }
   );
