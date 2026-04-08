@@ -879,6 +879,79 @@ export async function getPositioning(refresh = false): Promise<PositioningData |
   }
 }
 
+export interface PositioningChange {
+  date: string;
+  posture_change: { from: string; to: string } | null;
+  added_opportunities: string[];
+  removed_opportunities: string[];
+  added_shorts: string[];
+  removed_shorts: string[];
+  added_avoids: string[];
+  removed_avoids: string[];
+}
+
+export async function getPositioningHistory(limit = 10): Promise<PositioningChange[]> {
+  if (!hasSupabase) return [];
+
+  try {
+    const supabase = getSupabaseClient();
+    const { data, error } = await supabase
+      .from('positioning_cache')
+      .select('key, data, generated_at')
+      .order('key', { ascending: false })
+      .limit(limit + 1); // +1 to compute diffs
+
+    if (error || !data || data.length < 2) return [];
+
+    const changes: PositioningChange[] = [];
+    for (let i = 0; i < data.length - 1; i++) {
+      const curr = data[i].data as PositioningData;
+      const prev = data[i + 1].data as PositioningData;
+      if (!curr || !prev) continue;
+
+      const currOpps = new Set((curr.opportunities || []).map((o) => o.ticker));
+      const prevOpps = new Set((prev.opportunities || []).map((o) => o.ticker));
+      const currShorts = new Set((curr.shorts || []).map((s) => s.ticker));
+      const prevShorts = new Set((prev.shorts || []).map((s) => s.ticker));
+      const currAvoids = new Set(curr.avoids || []);
+      const prevAvoids = new Set(prev.avoids || []);
+
+      const added_opportunities = Array.from(currOpps).filter((t) => !prevOpps.has(t));
+      const removed_opportunities = Array.from(prevOpps).filter((t) => !currOpps.has(t));
+      const added_shorts = Array.from(currShorts).filter((t) => !prevShorts.has(t));
+      const removed_shorts = Array.from(prevShorts).filter((t) => !currShorts.has(t));
+      const added_avoids = Array.from(currAvoids).filter((a) => !prevAvoids.has(a));
+      const removed_avoids = Array.from(prevAvoids).filter((a) => !currAvoids.has(a));
+
+      const posture_change = curr.posture !== prev.posture
+        ? { from: prev.posture, to: curr.posture }
+        : null;
+
+      const hasChanges = posture_change ||
+        added_opportunities.length > 0 || removed_opportunities.length > 0 ||
+        added_shorts.length > 0 || removed_shorts.length > 0 ||
+        added_avoids.length > 0 || removed_avoids.length > 0;
+
+      if (hasChanges) {
+        changes.push({
+          date: data[i].key,
+          posture_change,
+          added_opportunities,
+          removed_opportunities,
+          added_shorts,
+          removed_shorts,
+          added_avoids,
+          removed_avoids,
+        });
+      }
+    }
+
+    return changes;
+  } catch {
+    return [];
+  }
+}
+
 // --- Performance Tracking ---
 
 export async function getSourcePerformance(): Promise<SourcePerformance[]> {

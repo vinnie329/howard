@@ -1,8 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { getPositioning } from '@/lib/data';
-import type { PositioningData } from '@/lib/data';
+import { getPositioning, getPositioningHistory } from '@/lib/data';
+import type { PositioningData, PositioningChange } from '@/lib/data';
 import { SkeletonRows } from '@/components/ui/Skeleton';
 
 const POSTURE_CONFIG: Record<string, { label: string; color: string }> = {
@@ -65,14 +65,18 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
 
 export default function PositioningPage() {
   const [positioning, setPositioning] = useState<PositioningData | null>(null);
+  const [history, setHistory] = useState<PositioningChange[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
   const fetchData = (refresh = false) => {
     if (refresh) setRefreshing(true);
     else setLoading(true);
-    getPositioning(refresh)
-      .then((data) => setPositioning(data))
+    Promise.all([getPositioning(refresh), getPositioningHistory(10)])
+      .then(([data, hist]) => {
+        setPositioning(data);
+        setHistory(hist);
+      })
       .catch(() => {})
       .finally(() => {
         setLoading(false);
@@ -96,13 +100,9 @@ export default function PositioningPage() {
         <span style={{ fontSize: 12 }}>Positioning</span>
       </div>
 
-      <div style={{
-        padding: 'var(--space-8) var(--space-6)',
-        overflowY: 'auto',
-        flex: 1,
-        display: 'flex',
-        justifyContent: 'center',
-      }}>
+      <div className="page-two-col" style={{ display: 'flex', overflow: 'hidden', flex: 1 }}>
+        {/* Center column — Positioning */}
+        <div className="page-two-col-main" style={{ flex: 1, overflowY: 'auto', padding: 'var(--space-8) var(--space-6)', display: 'flex', justifyContent: 'center' }}>
         <div style={{ width: '100%', maxWidth: 600 }}>
           {loading ? (
             <SkeletonRows count={5} />
@@ -263,6 +263,92 @@ export default function PositioningPage() {
                 Generated {generatedAt} · {positioning.opportunities.length} opportunities · {positioning.shorts?.length ?? 0} shorts · {positioning.fat_pitches.length} fat pitch{positioning.fat_pitches.length !== 1 ? 'es' : ''}
               </div>
             </>
+          )}
+        </div>
+        </div>
+
+        {/* Right column — Changelog */}
+        <div className="page-two-col-aside" style={{
+          width: 340,
+          minWidth: 340,
+          overflowY: 'auto',
+          padding: 'var(--space-6)',
+          borderLeft: '1px solid var(--border)',
+          marginLeft: 'auto',
+        }}>
+          <div className="label" style={{ marginBottom: 'var(--space-4)' }}>
+            Positioning Changes
+          </div>
+
+          {loading ? (
+            <SkeletonRows count={4} />
+          ) : history.length === 0 ? (
+            <div className="mono" style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>
+              No changes yet.
+            </div>
+          ) : (
+            <div className="stagger-in" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
+              {history.map((entry) => (
+                <div
+                  key={entry.date}
+                  style={{
+                    padding: 'var(--space-3)',
+                    background: 'var(--bg-panel)',
+                    border: '1px solid var(--border)',
+                    borderRadius: 'var(--radius-sm)',
+                  }}
+                >
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 'var(--space-2)',
+                    marginBottom: 'var(--space-2)',
+                  }}>
+                    <span className="mono" style={{ fontSize: 11, color: 'var(--text-primary)', fontWeight: 500 }}>
+                      {new Date(entry.date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                    </span>
+                    {entry.posture_change && (
+                      <span className="mono" style={{ fontSize: 9, color: 'var(--text-secondary)' }}>
+                        {entry.posture_change.from} → {entry.posture_change.to}
+                      </span>
+                    )}
+                  </div>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                    {entry.added_opportunities.map((t) => (
+                      <div key={'ao' + t} className="mono" style={{ fontSize: 10, color: '#22c55e' }}>
+                        + Long {t}
+                      </div>
+                    ))}
+                    {entry.removed_opportunities.map((t) => (
+                      <div key={'ro' + t} className="mono" style={{ fontSize: 10, color: '#ef4444' }}>
+                        − Long {t}
+                      </div>
+                    ))}
+                    {entry.added_shorts.map((t) => (
+                      <div key={'as' + t} className="mono" style={{ fontSize: 10, color: '#f97316' }}>
+                        + Short {t}
+                      </div>
+                    ))}
+                    {entry.removed_shorts.map((t) => (
+                      <div key={'rs' + t} className="mono" style={{ fontSize: 10, color: '#22c55e' }}>
+                        − Short {t}
+                      </div>
+                    ))}
+                    {entry.added_avoids.map((a) => (
+                      <div key={'aa' + a} className="mono" style={{ fontSize: 10, color: 'var(--text-tertiary)' }}>
+                        + Avoid: {a.length > 40 ? a.slice(0, 40) + '…' : a}
+                      </div>
+                    ))}
+                    {entry.removed_avoids.map((a) => (
+                      <div key={'ra' + a} className="mono" style={{ fontSize: 10, color: 'var(--text-tertiary)', textDecoration: 'line-through' }}>
+                        {a.length > 40 ? a.slice(0, 40) + '…' : a}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
           )}
         </div>
       </div>
