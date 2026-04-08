@@ -272,103 +272,113 @@ Evaluate each position: hold, increase, decrease, or exit. Then add any new posi
     }
   }
 
-  // 3. Ask Claude to synthesize
-  console.log('Generating portfolio with Claude...\n');
+  // 3. Mechanically translate house predictions into portfolio positions
+  // The house view is the PM. The portfolio is the execution. No discretion.
+  console.log('Translating house view into portfolio...\n');
 
-  const prompt = `You are Howard, an AI portfolio manager. You translate your financial intelligence network into a concentrated model portfolio with $10,000,000 starting capital.
+  // Filter to tradeable predictions with confidence > 50% — below that, the house view
+  // isn't confident enough to put capital at risk
+  const tradeablePreds = housePredictions.filter((h) => h.confidence > 50 && h.asset);
 
-## YOUR INTELLIGENCE
+  if (tradeablePreds.length === 0) {
+    console.log('No tradeable house predictions (>= 40% confidence). Skipping portfolio generation.');
+    return;
+  }
 
-### Current Outlooks
-${outlookBlock || 'No outlooks available yet.'}
+  // Size positions proportional to confidence, normalize to sum to ~90% (10% cash)
+  const totalConfidence = tradeablePreds.reduce((s, h) => s + h.confidence, 0);
+  const targetInvested = 90; // 90% invested, 10% cash
 
-### House Predictions (your own high-conviction calls)
-${houseBlock || 'No house predictions yet.'}
+  const mechanicalPositions = tradeablePreds.map((h) => {
+    const rawAlloc = (h.confidence / totalConfidence) * targetInvested;
+    // Clamp to 5-20% range
+    const allocation = Math.max(5, Math.min(20, Math.round(rawAlloc * 10) / 10));
+    return {
+      ticker: h.asset,
+      asset_name: h.asset,
+      direction: h.direction as 'long' | 'short',
+      allocation_pct: allocation,
+      thesis: h.thesis || h.claim,
+      conviction: h.conviction as 'high' | 'medium' | 'low',
+      confidence: h.confidence,
+      category: h.category || 'macro',
+      time_horizon: h.time_horizon || '6 months',
+      target_price: h.target_value,
+      supporting_sources: h.supporting_sources || [],
+      key_drivers: h.key_drivers || [],
+      stop_loss_condition: h.invalidation_criteria || '',
+      house_prediction_ids: [h.id],
+    };
+  });
 
-### Source Predictions (weighted by credibility)
-${predBlock || 'No source predictions yet.'}
+  // Normalize allocations to sum to targetInvested
+  const totalAlloc = mechanicalPositions.reduce((s, p) => s + p.allocation_pct, 0);
+  if (totalAlloc > 0) {
+    const scale = targetInvested / totalAlloc;
+    for (const p of mechanicalPositions) {
+      p.allocation_pct = Math.round(p.allocation_pct * scale * 10) / 10;
+    }
+  }
 
-### Institutional Holdings (13F smart money)
-${holdingsBlock || 'No holdings data yet.'}
+  // Now ask Claude only for the thesis summary and risk posture — NOT position selection
+  const positionsSummary = mechanicalPositions.map((p) =>
+    `${p.direction.toUpperCase()} ${p.ticker} ${p.allocation_pct}% (${p.confidence}% confidence) — ${p.thesis.slice(0, 80)}`
+  ).join('\n');
 
-### CFTC COT Positioning
-${cotBlock || 'No COT data yet.'}
+  const prompt = `You are Howard, an AI portfolio manager. The house view has generated the following positions mechanically from house predictions. Your job is NOT to change the positions — only to provide:
 
+1. A 2-3 sentence thesis summary explaining the overall portfolio positioning
+2. A risk posture assessment (aggressive/moderate/defensive)
+
+## POSITIONS (already decided — do not modify)
+${positionsSummary}
+
+## MARKET CONTEXT
 ### Credit Markets
 ${formatCreditBlock(creditRecords)}
 
 ### Options Market Sentiment
 ${formatOptionsBlock(optionsSentiment)}
-${currentPortfolioBlock}
-
-## INSTRUCTIONS
-
-Generate a concentrated model portfolio with 8-12 positions. Rules:
-
-1. **Allocations must sum to ≤95%** — maintain at least 5% cash reserve (more in uncertain markets)
-2. **Each position: 5-20% allocation** — no position over 20%, no micro-positions under 5%
-3. **Include both long AND short positions** if your intelligence warrants it
-4. **Weight toward consensus** — positions where multiple high-credibility sources agree AND data confirms should get larger allocations
-5. **Confidence drives sizing** — higher confidence = larger allocation
-6. **Be specific** — use real tickers (ETFs like SPY, QQQ, GLD, TLT are fine for macro bets)
-7. **Each position needs a thesis** — 2-3 sentences explaining WHY, referencing specific sources and data
-8. **Include a target price** — your price target for the position (null if not applicable)
-9. **Include stop-loss conditions** — what would make you exit each position
-10. **Time horizons should skew longer-term** — most positions should be 6-12 months. Short-term (30-90 day) positions are acceptable for unique, high-conviction tactical opportunities but should be the exception, not the norm.
-11. **Categories**: macro, sector, single-stock, rates, commodities, crypto
-12. **Risk posture**: assess overall portfolio risk as aggressive/moderate/defensive based on current conditions
 
 Respond in valid JSON:
 {
-  "thesis_summary": "2-3 sentence overall portfolio thesis explaining your market view and positioning",
-  "risk_posture": "aggressive|moderate|defensive",
-  "cash_pct": 10,
-  "positions": [
-    {
-      "ticker": "SPY",
-      "asset_name": "S&P 500 ETF",
-      "direction": "short",
-      "allocation_pct": 15,
-      "thesis": "Multiple high-credibility sources calling for correction. Credit spreads widening, VIX in backwardation signals near-term fear.",
-      "conviction": "high",
-      "confidence": 75,
-      "category": "macro",
-      "time_horizon": "3 months",
-      "target_price": 480,
-      "supporting_sources": ["Howard Marks", "Michael Howell"],
-      "key_drivers": ["Credit spread widening", "VIX backwardation", "Liquidity withdrawal"],
-      "stop_loss_condition": "SPY breaks above all-time highs with improving breadth"
-    }
-  ]
+  "thesis_summary": "2-3 sentence overall thesis",
+  "risk_posture": "aggressive|moderate|defensive"
 }`;
 
   const response = await anthropic.messages.create({
     model: 'claude-sonnet-4-6',
-    max_tokens: 8000,
+    max_tokens: 500,
     messages: [{ role: 'user', content: prompt }],
   });
 
   const text = response.content[0].type === 'text' ? response.content[0].text : '';
   const jsonMatch = text.match(/\{[\s\S]*\}/);
-  if (!jsonMatch) {
-    console.error('Failed to parse Claude response as JSON.');
-    console.error('Raw response:', text.substring(0, 500));
-    process.exit(1);
+
+  let thesisSummary = 'Portfolio mechanically derived from house view predictions.';
+  let riskPosture = 'defensive';
+  if (jsonMatch) {
+    try {
+      const meta = JSON.parse(jsonMatch[0]);
+      thesisSummary = meta.thesis_summary || thesisSummary;
+      riskPosture = meta.risk_posture || riskPosture;
+    } catch { /* use defaults */ }
   }
 
-  let portfolio: GeneratedPortfolio;
-  try {
-    portfolio = JSON.parse(jsonMatch[0]);
-  } catch (e) {
-    console.error('Invalid JSON in response:', e);
-    process.exit(1);
-  }
+  const cashPct = Math.round(100 - mechanicalPositions.reduce((s, p) => s + p.allocation_pct, 0));
+
+  const portfolio: GeneratedPortfolio = {
+    thesis_summary: thesisSummary,
+    risk_posture: riskPosture,
+    cash_pct: cashPct,
+    positions: mechanicalPositions,
+  };
 
   // Validate and normalize allocations if needed
   const positionTotal = portfolio.positions.reduce((s, p) => s + p.allocation_pct, 0);
-  const totalAlloc = positionTotal + portfolio.cash_pct;
-  if (totalAlloc > 100) {
-    console.log(`Allocations total ${totalAlloc.toFixed(1)}% — normalizing to 100%`);
+  const totalAllocCheck = positionTotal + portfolio.cash_pct;
+  if (totalAllocCheck > 100) {
+    console.log(`Allocations total ${totalAllocCheck.toFixed(1)}% — normalizing to 100%`);
     const scale = (100 - portfolio.cash_pct) / positionTotal;
     for (const pos of portfolio.positions) {
       pos.allocation_pct = Math.round(pos.allocation_pct * scale * 10) / 10;
