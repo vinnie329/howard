@@ -1219,6 +1219,122 @@ export async function getPortfolioPositions(snapshotId: string): Promise<Portfol
   }
 }
 
+export interface PortfolioRebalance {
+  date: string;
+  reasoning: string;
+  risk_posture: string;
+  added: Array<{ ticker: string; direction: string; allocation: number }>;
+  removed: Array<{ ticker: string; direction: string; pnl_pct: number | null }>;
+  resized: Array<{ ticker: string; direction: string; from: number; to: number }>;
+  drivers: string[];
+}
+
+export async function getPortfolioRebalanceHistory(): Promise<PortfolioRebalance[]> {
+  if (!hasSupabase) return [];
+
+  try {
+    const supabase = getSupabaseClient();
+
+    // Get all snapshots with their positions
+    const { data: snapshots, error } = await supabase
+      .from('portfolio_snapshots')
+      .select('id, generated_at, rebalance_reasoning, risk_posture, supersedes')
+      .order('generated_at', { ascending: false })
+      .limit(10);
+
+    if (error || !snapshots || snapshots.length < 2) return [];
+
+    const rebalances: PortfolioRebalance[] = [];
+
+    for (let i = 0; i < snapshots.length - 1; i++) {
+      const curr = snapshots[i];
+      const prev = snapshots[i + 1];
+
+      // Fetch positions for both snapshots
+      const [{ data: currPos }, { data: prevPos }] = await Promise.all([
+        supabase.from('portfolio_positions')
+          .select('ticker, direction, allocation_pct, entry_price, current_price')
+          .eq('snapshot_id', curr.id),
+        supabase.from('portfolio_positions')
+          .select('ticker, direction, allocation_pct, entry_price, current_price')
+          .eq('snapshot_id', prev.id),
+      ]);
+
+      if (!currPos || !prevPos) continue;
+
+      const currMap = new Map(currPos.map((p) => [`${p.ticker}:${p.direction}`, p]));
+      const prevMap = new Map(prevPos.map((p) => [`${p.ticker}:${p.direction}`, p]));
+
+      const added: PortfolioRebalance['added'] = [];
+      const removed: PortfolioRebalance['removed'] = [];
+      const resized: PortfolioRebalance['resized'] = [];
+
+      // Find added positions
+      Array.from(currMap.entries()).forEach(([key, pos]) => {
+        if (!prevMap.has(key)) {
+          added.push({ ticker: pos.ticker, direction: pos.direction, allocation: pos.allocation_pct });
+        }
+      });
+
+      // Find removed positions with realized PnL
+      Array.from(prevMap.entries()).forEach(([key, pos]) => {
+        if (!currMap.has(key)) {
+          let pnl_pct: number | null = null;
+          if (pos.entry_price && pos.current_price) {
+            const raw = (pos.current_price - pos.entry_price) / pos.entry_price;
+            pnl_pct = (pos.direction === 'long' ? raw : -raw) * 100;
+          }
+          removed.push({ ticker: pos.ticker, direction: pos.direction, pnl_pct });
+        }
+      });
+
+      // Find resized positions
+      Array.from(currMap.entries()).forEach(([key, currP]) => {
+        const prevP = prevMap.get(key);
+        if (prevP && Math.abs(currP.allocation_pct - prevP.allocation_pct) >= 1) {
+          resized.push({
+            ticker: currP.ticker,
+            direction: currP.direction,
+            from: prevP.allocation_pct,
+            to: currP.allocation_pct,
+          });
+        }
+      });
+
+      // Find house prediction drivers
+      const drivers: string[] = [];
+      const { data: newPreds } = await supabase
+        .from('house_predictions')
+        .select('claim, asset, direction, confidence')
+        .gte('created_at', prev.generated_at)
+        .lt('created_at', curr.generated_at)
+        .order('confidence', { ascending: false })
+        .limit(5);
+
+      for (const p of newPreds || []) {
+        const arrow = p.direction === 'long' ? '↑' : '��';
+        drivers.push(`${arrow} ${p.asset} ${p.confidence}% — ${p.claim.length > 55 ? p.claim.slice(0, 55) + '…' : p.claim}`);
+      }
+
+      if (added.length > 0 || removed.length > 0 || resized.length > 0) {
+        rebalances.push({
+          date: curr.generated_at.slice(0, 10),
+          reasoning: curr.rebalance_reasoning || '',
+          risk_posture: curr.risk_posture || '',
+          added,
+          removed,
+          resized,
+          drivers,
+        });
+      }
+    }
+
+    return rebalances;
+  } catch {
+    return [];
+  }
+}
+
 export async function getPortfolioPerformance(snapshotId: string, limit = 90): Promise<PortfolioPerformance[]> {
   if (!hasSupabase) return [];
   try {
