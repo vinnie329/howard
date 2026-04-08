@@ -2,9 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { SkeletonRows } from '@/components/ui/Skeleton';
-import { getPortfolioRebalanceHistory } from '@/lib/data';
 import type { PortfolioSnapshot, PortfolioPosition, PortfolioPerformance } from '@/types';
-import type { PortfolioRebalance } from '@/lib/data';
 
 interface LiveKpis {
   nav: number;
@@ -81,19 +79,13 @@ const GRID_COLS = '28px 72px 1fr 64px 88px 88px 76px 56px';
 
 export default function PortfolioPage() {
   const [data, setData] = useState<PortfolioData>({ snapshot: null, positions: [], performance: [], liveKpis: null });
-  const [rebalances, setRebalances] = useState<PortfolioRebalance[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
   useEffect(() => {
-    Promise.all([
-      fetch('/api/portfolio').then((res) => res.json()),
-      getPortfolioRebalanceHistory(),
-    ])
-      .then(([d, rb]) => {
-        setData(d as PortfolioData);
-        setRebalances(rb);
-      })
+    fetch('/api/portfolio')
+      .then((res) => res.json())
+      .then((d: PortfolioData) => setData(d))
       .catch(() => {})
       .finally(() => setLoading(false));
   }, []);
@@ -111,9 +103,7 @@ export default function PortfolioPage() {
         <span style={{ fontSize: 12 }}>Model Portfolio</span>
       </div>
 
-      <div className="page-two-col" style={{ display: 'flex', overflow: 'hidden', flex: 1 }}>
-        {/* Center column — Portfolio */}
-        <div className="page-two-col-main" style={{ flex: 1, overflowY: 'auto', padding: 'var(--space-6)' }}>
+      <div style={{ padding: 'var(--space-6)', overflowY: 'auto', flex: 1 }}>
         {/* ── Section 1: Header ── */}
         <div style={{ marginBottom: 'var(--space-8)' }}>
           <h1 style={{ marginBottom: 'var(--space-2)' }}>Model Portfolio</h1>
@@ -338,107 +328,10 @@ export default function PortfolioPage() {
             </div></div>
 
             <div className="mono" style={{ marginTop: 'var(--space-4)', fontSize: 10, color: 'var(--text-tertiary)' }}>
-              AI-generated model portfolio. Not financial advice.
+              AI-generated model portfolio. Not financial advice. Positions reassessed weekly.
             </div>
           </>
         )}
-        </div>
-
-        {/* Right column — Rebalance History */}
-        <div className="page-two-col-aside" style={{
-          width: 340,
-          minWidth: 340,
-          overflowY: 'auto',
-          padding: 'var(--space-6)',
-          borderLeft: '1px solid var(--border)',
-          marginLeft: 'auto',
-        }}>
-          <div className="label" style={{ marginBottom: 'var(--space-4)' }}>
-            Rebalance History
-          </div>
-
-          {loading ? (
-            <SkeletonRows count={4} />
-          ) : rebalances.length === 0 ? (
-            <div className="mono" style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>
-              No rebalances yet.
-            </div>
-          ) : (
-            <div className="stagger-in" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
-              {rebalances.map((rb) => (
-                <div
-                  key={rb.date}
-                  style={{
-                    padding: 'var(--space-3)',
-                    background: 'var(--bg-panel)',
-                    border: '1px solid var(--border)',
-                    borderRadius: 'var(--radius-sm)',
-                  }}
-                >
-                  <div style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 'var(--space-2)',
-                    marginBottom: 'var(--space-2)',
-                  }}>
-                    <span className="mono" style={{ fontSize: 11, color: 'var(--text-primary)', fontWeight: 500 }}>
-                      {new Date(rb.date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                    </span>
-                    {rb.risk_posture && (
-                      <span className="mono" style={{
-                        fontSize: 9, padding: '1px 5px', borderRadius: 2,
-                        background: 'var(--bg-surface)', color: 'var(--text-tertiary)',
-                        border: '1px solid var(--border)',
-                      }}>
-                        {rb.risk_posture}
-                      </span>
-                    )}
-                  </div>
-
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                    {rb.added.map((a) => (
-                      <div key={'a' + a.ticker} className="mono" style={{ fontSize: 10, color: '#22c55e' }}>
-                        + {a.direction === 'short' ? 'Short' : 'Long'} {a.ticker} ({a.allocation}%)
-                      </div>
-                    ))}
-                    {rb.removed.map((r) => (
-                      <div key={'r' + r.ticker} className="mono" style={{ fontSize: 10, color: '#ef4444' }}>
-                        − {r.direction === 'short' ? 'Short' : 'Long'} {r.ticker}
-                        {r.pnl_pct !== null && (
-                          <span style={{ color: r.pnl_pct >= 0 ? '#22c55e' : '#ef4444', marginLeft: 4 }}>
-                            ({r.pnl_pct >= 0 ? '+' : ''}{r.pnl_pct.toFixed(1)}%)
-                          </span>
-                        )}
-                      </div>
-                    ))}
-                    {rb.resized.map((r) => (
-                      <div key={'s' + r.ticker} className="mono" style={{ fontSize: 10, color: 'var(--text-secondary)' }}>
-                        ~ {r.ticker} {r.from}% → {r.to}%
-                      </div>
-                    ))}
-                  </div>
-
-                  {rb.drivers.length > 0 && (
-                    <div style={{
-                      marginTop: 'var(--space-2)',
-                      paddingTop: 'var(--space-2)',
-                      borderTop: '1px solid var(--border)',
-                    }}>
-                      <div className="mono" style={{ fontSize: 9, color: 'var(--text-tertiary)', marginBottom: 3 }}>
-                        Driven by
-                      </div>
-                      {rb.drivers.map((d, i) => (
-                        <div key={i} style={{ fontSize: 10, color: 'var(--text-secondary)', lineHeight: 1.4, marginBottom: 2 }}>
-                          {d}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
       </div>
     </>
   );
