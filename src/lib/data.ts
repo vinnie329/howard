@@ -1148,6 +1148,97 @@ export async function getHousePredictionsForAsset(asset: string): Promise<HouseP
   }
 }
 
+export interface HouseViewChange {
+  date: string;
+  added: Array<{ asset: string; direction: string; claim: string; confidence: number; conviction: string }>;
+  updated: Array<{ asset: string; direction: string; claim: string; confidence: number; prev_confidence: number; conviction: string; prev_claim: string }>;
+  removed: Array<{ asset: string; direction: string; claim: string; confidence: number; outcome: string }>;
+}
+
+export async function getHouseViewHistory(limit = 10): Promise<HouseViewChange[]> {
+  if (!hasSupabase) return [];
+
+  try {
+    const supabase = getSupabaseClient();
+
+    // Fetch all predictions including superseded ones, ordered by creation
+    const { data, error } = await supabase
+      .from('house_predictions')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error || !data) return [];
+
+    const preds = data as HousePrediction[];
+    const byId = new Map(preds.map(p => [p.id, p]));
+
+    // Group predictions by creation timestamp (within 10 min = same run)
+    const runs: Map<string, HousePrediction[]> = new Map();
+    for (const p of preds) {
+      const t = new Date(p.created_at);
+      const bucket = new Date(Math.floor(t.getTime() / 600000) * 600000).toISOString();
+      const group = runs.get(bucket) || [];
+      group.push(p);
+      runs.set(bucket, group);
+    }
+
+    // For each run, classify changes
+    const changes: HouseViewChange[] = [];
+
+    // Sort runs by date descending
+    const sortedRuns = Array.from(runs.entries()).sort((a, b) => b[0].localeCompare(a[0]));
+
+    for (const [bucket, group] of sortedRuns) {
+      const added: HouseViewChange['added'] = [];
+      const updated: HouseViewChange['updated'] = [];
+      const removed: HouseViewChange['removed'] = [];
+
+      for (const p of group) {
+        if (p.supersedes) {
+          // This prediction replaced an earlier one — it's an update
+          const prev = byId.get(p.supersedes);
+          updated.push({
+            asset: p.asset,
+            direction: p.direction,
+            claim: p.claim,
+            confidence: p.confidence,
+            prev_confidence: prev?.confidence ?? p.confidence,
+            conviction: p.conviction,
+            prev_claim: prev?.claim ?? '',
+          });
+        } else if (p.outcome === 'expired' && !p.superseded_by) {
+          // Expired without replacement — it was removed
+          removed.push({
+            asset: p.asset,
+            direction: p.direction,
+            claim: p.claim,
+            confidence: p.confidence,
+            outcome: p.outcome,
+          });
+        } else if (!p.supersedes && p.version === 1) {
+          // New prediction (version 1, not replacing anything)
+          added.push({
+            asset: p.asset,
+            direction: p.direction,
+            claim: p.claim,
+            confidence: p.confidence,
+            conviction: p.conviction,
+          });
+        }
+      }
+
+      // Only include runs that had actual changes
+      if (added.length > 0 || updated.length > 0 || removed.length > 0) {
+        changes.push({ date: bucket, added, updated, removed });
+      }
+    }
+
+    return changes.slice(0, limit);
+  } catch {
+    return [];
+  }
+}
+
 export async function getHouseCalibration(): Promise<HouseCalibration[]> {
   if (!hasSupabase) return [];
 

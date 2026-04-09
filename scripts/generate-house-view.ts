@@ -1,15 +1,19 @@
 /**
- * generate-house-view.ts — Generate Howard's house predictions.
+ * generate-house-view.ts — Maintain Howard's house predictions.
  *
- * Synthesizes all source predictions, outlooks, market data, and sentiment
- * into specific, falsifiable, time-bound predictions with confidence ratings.
+ * The house view is a STABLE, HIGH-CONVICTION document. Views are typically
+ * 3+ months in horizon and should only change when there is material reason.
  *
- * The system biases towards predictions where Howard has higher confidence,
- * weighting source credibility, prediction consensus, and data quality.
+ * Default mode: REVIEW existing views against current intelligence and only
+ * propose changes (add/update/remove) when there is significant conviction
+ * and a clearly articulated reason.
+ *
+ * --force-regen: Bypass review mode and regenerate all predictions from scratch.
+ *                Only use this for initial seeding or a full reset.
  *
  * Usage:
- *   npx tsx scripts/generate-house-view.ts              # generate new house predictions
- *   npx tsx scripts/generate-house-view.ts --refresh     # supersede stale predictions
+ *   npx tsx scripts/generate-house-view.ts              # review & material changes only
+ *   npx tsx scripts/generate-house-view.ts --force-regen # full regeneration (rare)
  *   npx tsx scripts/generate-house-view.ts --dry-run     # preview without writing
  */
 
@@ -36,7 +40,7 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 const anthropic = new Anthropic();
 
 const dryRun = process.argv.includes('--dry-run');
-const refresh = process.argv.includes('--refresh');
+const forceRegen = process.argv.includes('--force-regen');
 
 interface GeneratedPrediction {
   claim: string;
@@ -54,6 +58,13 @@ interface GeneratedPrediction {
   invalidation_criteria: string;
   category: string;
   themes: string[];
+}
+
+interface ReviewAction {
+  action: 'add' | 'update' | 'remove' | 'keep';
+  reason: string;
+  existing_id?: string;
+  prediction?: GeneratedPrediction;
 }
 
 // ── Technicals (200d/200w MA deviations) ────────────────────────────
@@ -147,7 +158,7 @@ async function fetchPrice(ticker: string): Promise<number | null> {
 async function main() {
   console.log('=== Howard House View Generator ===\n');
   console.log(`Time: ${new Date().toISOString()}`);
-  console.log(`Mode: ${dryRun ? 'DRY RUN' : refresh ? 'REFRESH' : 'Normal'}\n`);
+  console.log(`Mode: ${dryRun ? 'DRY RUN' : forceRegen ? 'FORCE REGEN' : 'REVIEW (material changes only)'}\n`);
 
   // 1. Gather all intelligence
   console.log('Gathering intelligence...\n');
@@ -218,12 +229,22 @@ async function main() {
 
   const existingClaims = existingHouse.map((h) => `- ${h.claim} (${h.asset}, confidence: ${h.confidence}%, deadline: ${h.deadline})`).join('\n');
 
-  // 3. Ask Claude to synthesize
-  console.log('Synthesizing house view with Claude...\n');
+  // Normalize asset tickers to canonical form
+  const assetNormMap: Record<string, string> = {
+    'GLD': 'GC=F', 'IAU': 'GC=F', 'Gold': 'GC=F',
+    'SLV': 'SI=F', 'Silver': 'SI=F',
+    'USO': 'CL=F', 'Oil': 'CL=F', 'Crude': 'CL=F',
+    'CPER': 'HG=F', 'Copper': 'HG=F',
+    'SPX': 'SPY', 'S&P 500': 'SPY', '^GSPC': 'SPY',
+    'NASDAQ': 'QQQ', '^IXIC': 'QQQ',
+    'BTC': 'BTC-USD', 'Bitcoin': 'BTC-USD',
+    'ETH': 'ETH-USD', 'Ethereum': 'ETH-USD',
+  };
+  for (const h of existingHouse) {
+    if (assetNormMap[h.asset]) h.asset = assetNormMap[h.asset];
+  }
 
-  const prompt = `You are Howard, an AI financial intelligence system that synthesizes predictions from multiple expert sources into a coherent house view. Your job is to generate SPECIFIC, FALSIFIABLE, TIME-BOUND predictions with calibrated confidence ratings.
-
-## YOUR INTELLIGENCE
+  const intelligenceBlock = `## YOUR INTELLIGENCE
 
 ### Current Outlooks
 ${outlookSummary || 'No outlooks available yet.'}
@@ -241,7 +262,265 @@ ${formatOptionsBlock(optionsSentiment)}
 
 ### Technicals (deviation from 200-day and 200-week moving averages)
 Assets far above their MAs may be extended; assets far below may be mean-reversion candidates. Use this to calibrate entry timing and confidence.
-${technicalsBlock || 'No technicals data available.'}
+${technicalsBlock || 'No technicals data available.'}`;
+
+  // ── Route: REVIEW mode (default) vs FORCE REGEN ──────────────────
+  if (!forceRegen && existingHouse.length > 0) {
+    await runReviewMode(existingHouse, intelligenceBlock, existingClaims);
+  } else {
+    if (!forceRegen && existingHouse.length === 0) {
+      console.log('No existing house predictions — running initial generation.\n');
+    }
+    await runFullGeneration(existingHouse, intelligenceBlock, existingClaims);
+  }
+}
+
+// ── REVIEW MODE: Only propose material changes ──────────────────────
+
+async function runReviewMode(
+  existingHouse: Array<Record<string, unknown>>,
+  intelligenceBlock: string,
+  existingClaims: string,
+) {
+  console.log('Reviewing existing house view for material changes...\n');
+
+  const prompt = `You are Howard, an AI financial intelligence system. You maintain a STABLE, HIGH-CONVICTION house view.
+
+The house view is NOT regenerated frequently. Views are typically 3+ months in horizon. Your job right now is to REVIEW the existing predictions against current intelligence and determine if any MATERIAL changes are warranted.
+
+## EXISTING HOUSE PREDICTIONS (the current view)
+${existingClaims}
+
+${intelligenceBlock}
+
+## REVIEW INSTRUCTIONS
+
+For EACH existing prediction, decide: KEEP or UPDATE or REMOVE.
+Then decide if any genuinely NEW predictions should be ADDED.
+
+**Default is KEEP.** The bar for changes is HIGH:
+
+- **KEEP** (default): The thesis is intact, no material new information contradicts it. Minor price moves within the expected range do NOT warrant changes.
+- **UPDATE**: Only if there is material new evidence that significantly changes the confidence, target, or timeline. Examples: a key driver has reversed, invalidation criteria have been partially triggered, or multiple high-credibility sources have changed their view. Updating the confidence by <10 points is NOT material — leave it alone.
+- **REMOVE**: Only if the invalidation criteria have been clearly met, the thesis has been fundamentally broken, or the prediction is no longer relevant. A view moving against us in the short term is NOT reason to remove — that's just volatility.
+- **ADD**: Only if there is strong, multi-source conviction for a NEW view that is not already covered by existing predictions. The bar for adding should be as high as for the original predictions. Do not add views just because the intelligence mentions an asset — there must be a clear, actionable, high-conviction thesis.
+
+For each action that is NOT "keep", you MUST provide a detailed reason explaining what material change in the intelligence justifies the action.
+
+Respond in valid JSON array format:
+[
+  {
+    "action": "keep",
+    "existing_id": "uuid-of-prediction",
+    "reason": "Thesis intact — no material change in drivers"
+  },
+  {
+    "action": "update",
+    "existing_id": "uuid-of-prediction",
+    "reason": "Detailed explanation of what material evidence changed...",
+    "prediction": {
+      "claim": "Updated claim text",
+      "asset": "SPY",
+      "direction": "short",
+      "target_value": 480,
+      "target_condition": "below 480",
+      "time_horizon": "6 months",
+      "deadline_days": 180,
+      "confidence": 65,
+      "conviction": "medium",
+      "thesis": "Updated thesis...",
+      "supporting_sources": ["Source1"],
+      "key_drivers": ["Driver1"],
+      "invalidation_criteria": "What would prove this wrong",
+      "category": "macro",
+      "themes": ["Theme1"]
+    }
+  },
+  {
+    "action": "remove",
+    "existing_id": "uuid-of-prediction",
+    "reason": "Detailed explanation of why the thesis is broken..."
+  },
+  {
+    "action": "add",
+    "reason": "Detailed explanation of strong multi-source conviction...",
+    "prediction": { ... full prediction object ... }
+  }
+]
+
+Remember: if nothing material has changed, it is CORRECT to return all "keep" actions. An unchanged house view is a sign of conviction, not laziness.`;
+
+  const response = await anthropic.messages.create({
+    model: 'claude-opus-4-6',
+    max_tokens: 16000,
+    messages: [{ role: 'user', content: prompt }],
+  });
+
+  const text = response.content[0].type === 'text' ? response.content[0].text : '';
+  const jsonMatch = text.match(/\[[\s\S]*\]/);
+  if (!jsonMatch) {
+    console.error('Failed to parse Claude response as JSON array.');
+    console.error('Raw response:', text.substring(0, 500));
+    process.exit(1);
+  }
+
+  let actions: ReviewAction[];
+  try {
+    actions = JSON.parse(jsonMatch[0]);
+  } catch (e) {
+    console.error('Invalid JSON in response:', e);
+    process.exit(1);
+  }
+
+  // Normalize any new prediction assets
+  const assetNormMap: Record<string, string> = {
+    'GLD': 'GC=F', 'IAU': 'GC=F', 'Gold': 'GC=F',
+    'SLV': 'SI=F', 'Silver': 'SI=F',
+    'USO': 'CL=F', 'Oil': 'CL=F', 'Crude': 'CL=F',
+    'CPER': 'HG=F', 'Copper': 'HG=F',
+    'SPX': 'SPY', 'S&P 500': 'SPY', '^GSPC': 'SPY',
+    'NASDAQ': 'QQQ', '^IXIC': 'QQQ',
+    'BTC': 'BTC-USD', 'Bitcoin': 'BTC-USD',
+    'ETH': 'ETH-USD', 'Ethereum': 'ETH-USD',
+  };
+  for (const a of actions) {
+    if (a.prediction && assetNormMap[a.prediction.asset]) {
+      a.prediction.asset = assetNormMap[a.prediction.asset];
+    }
+  }
+
+  // Report
+  const keeps = actions.filter(a => a.action === 'keep');
+  const updates = actions.filter(a => a.action === 'update');
+  const removes = actions.filter(a => a.action === 'remove');
+  const adds = actions.filter(a => a.action === 'add');
+
+  console.log(`Review results:`);
+  console.log(`  Keep:   ${keeps.length}`);
+  console.log(`  Update: ${updates.length}`);
+  console.log(`  Remove: ${removes.length}`);
+  console.log(`  Add:    ${adds.length}\n`);
+
+  for (const a of keeps) {
+    console.log(`  ✓ KEEP: ${a.existing_id} — ${a.reason}`);
+  }
+
+  const now = new Date();
+  let changes = 0;
+
+  // Process updates
+  for (const a of updates) {
+    if (!a.prediction || !a.existing_id) continue;
+    console.log(`\n  ↻ UPDATE: ${a.existing_id}`);
+    console.log(`    Reason: ${a.reason}`);
+    console.log(`    New claim: ${a.prediction.claim}`);
+    console.log(`    Confidence: ${a.prediction.confidence}% (${a.prediction.conviction})`);
+
+    if (!dryRun) {
+      const existing = existingHouse.find(h => h.id === a.existing_id);
+      const refPrice = await fetchPrice(a.prediction.asset);
+      const deadline = new Date(now.getTime() + a.prediction.deadline_days * 24 * 60 * 60 * 1000);
+
+      const row = {
+        ...a.prediction,
+        reference_value: refPrice,
+        deadline: deadline.toISOString(),
+        outcome: 'pending',
+        supersedes: a.existing_id,
+        version: existing ? ((existing.version as number) || 1) + 1 : 1,
+      };
+
+      const { data: inserted_row, error } = await supabase
+        .from('house_predictions')
+        .insert(row)
+        .select('id')
+        .single();
+
+      if (error) {
+        console.error(`    Failed to insert: ${error.message}`);
+      } else {
+        changes++;
+        if (inserted_row) {
+          await supabase
+            .from('house_predictions')
+            .update({ superseded_by: inserted_row.id, outcome: 'expired' })
+            .eq('id', a.existing_id);
+        }
+      }
+    }
+  }
+
+  // Process removals
+  for (const a of removes) {
+    if (!a.existing_id) continue;
+    console.log(`\n  ✗ REMOVE: ${a.existing_id}`);
+    console.log(`    Reason: ${a.reason}`);
+
+    if (!dryRun) {
+      const { error } = await supabase
+        .from('house_predictions')
+        .update({ outcome: 'expired' })
+        .eq('id', a.existing_id);
+
+      if (error) {
+        console.error(`    Failed to remove: ${error.message}`);
+      } else {
+        changes++;
+      }
+    }
+  }
+
+  // Process additions
+  for (const a of adds) {
+    if (!a.prediction) continue;
+    console.log(`\n  + ADD: ${a.prediction.claim}`);
+    console.log(`    Reason: ${a.reason}`);
+    console.log(`    Asset: ${a.prediction.asset} | Confidence: ${a.prediction.confidence}% (${a.prediction.conviction})`);
+
+    if (!dryRun) {
+      const refPrice = await fetchPrice(a.prediction.asset);
+      const deadline = new Date(now.getTime() + a.prediction.deadline_days * 24 * 60 * 60 * 1000);
+
+      const row = {
+        ...a.prediction,
+        reference_value: refPrice,
+        deadline: deadline.toISOString(),
+        outcome: 'pending',
+        supersedes: null,
+        version: 1,
+      };
+
+      const { error } = await supabase
+        .from('house_predictions')
+        .insert(row);
+
+      if (error) {
+        console.error(`    Failed to insert: ${error.message}`);
+      } else {
+        changes++;
+      }
+    }
+  }
+
+  console.log(`\n=== House View Review Complete ===`);
+  console.log(`Total changes: ${changes} (of ${existingHouse.length} existing views)`);
+  if (changes === 0) console.log('House view unchanged — thesis intact across the board.');
+}
+
+// ── FULL GENERATION MODE (initial seed or forced reset) ─────────────
+
+async function runFullGeneration(
+  existingHouse: Array<Record<string, unknown>>,
+  intelligenceBlock: string,
+  existingClaims: string,
+) {
+  console.log('Running full house view generation...\n');
+
+  const prompt = `You are Howard, an AI financial intelligence system that synthesizes predictions from multiple expert sources into a coherent house view. Your job is to generate SPECIFIC, FALSIFIABLE, TIME-BOUND predictions with calibrated confidence ratings.
+
+These predictions form a STABLE house view — they will persist for months and only be updated when there is material reason to change. Generate only predictions where you have genuine, high conviction.
+
+${intelligenceBlock}
 
 ### Existing Active House Predictions (do not duplicate)
 ${existingClaims || 'None yet.'}
@@ -260,9 +539,9 @@ Generate 5-8 house predictions. Each must be:
    - NEVER go above 90% — markets are inherently uncertain
    - Your confidence should reflect the ACTUAL probability you believe this will happen
 
-5. **Source-weighted**: Give more weight to predictions from sources with higher credibility scores and better track records (performance scores). A prediction backed by Howard Marks (4.39/5) should carry more weight than one from a lower-rated source.
+5. **Source-weighted**: Give more weight to predictions from sources with higher credibility scores and better track records (performance scores).
 
-6. **Bias towards conviction**: Prefer generating fewer, higher-confidence predictions over many low-confidence ones. Howard's value comes from having strong, well-reasoned calls — not from hedging everything.
+6. **Bias towards conviction**: Prefer generating fewer, higher-confidence predictions over many low-confidence ones. Howard's value comes from having strong, well-reasoned calls — not from hedging everything. Only include a prediction if you would be comfortable defending it for the next 3+ months.
 
 Categories: macro, sector, single-stock, rates, commodities, crypto
 
@@ -311,39 +590,29 @@ Respond in valid JSON array format:
     process.exit(1);
   }
 
-  // Normalize asset tickers to canonical form to avoid duplicates
+  // Normalize asset tickers
   const assetNormMap: Record<string, string> = {
-    'GLD': 'GC=F', 'IAU': 'GC=F', 'Gold': 'GC=F',   // Gold → futures
-    'SLV': 'SI=F', 'Silver': 'SI=F',                   // Silver → futures
-    'USO': 'CL=F', 'Oil': 'CL=F', 'Crude': 'CL=F',   // Oil → futures
-    'CPER': 'HG=F', 'Copper': 'HG=F',                  // Copper → futures
-    'SPX': 'SPY', 'S&P 500': 'SPY', '^GSPC': 'SPY',   // S&P → SPY
-    'NASDAQ': 'QQQ', '^IXIC': 'QQQ',                   // NASDAQ → QQQ
-    'BTC': 'BTC-USD', 'Bitcoin': 'BTC-USD',             // Bitcoin
-    'ETH': 'ETH-USD', 'Ethereum': 'ETH-USD',           // Ethereum
+    'GLD': 'GC=F', 'IAU': 'GC=F', 'Gold': 'GC=F',
+    'SLV': 'SI=F', 'Silver': 'SI=F',
+    'USO': 'CL=F', 'Oil': 'CL=F', 'Crude': 'CL=F',
+    'CPER': 'HG=F', 'Copper': 'HG=F',
+    'SPX': 'SPY', 'S&P 500': 'SPY', '^GSPC': 'SPY',
+    'NASDAQ': 'QQQ', '^IXIC': 'QQQ',
+    'BTC': 'BTC-USD', 'Bitcoin': 'BTC-USD',
+    'ETH': 'ETH-USD', 'Ethereum': 'ETH-USD',
   };
   for (const pred of generated) {
-    if (assetNormMap[pred.asset]) {
-      pred.asset = assetNormMap[pred.asset];
-    }
+    if (assetNormMap[pred.asset]) pred.asset = assetNormMap[pred.asset];
   }
 
-  // Also normalize existing house predictions for comparison
-  for (const h of existingHouse) {
-    if (assetNormMap[h.asset]) {
-      h.asset = assetNormMap[h.asset];
-    }
-  }
-
-  // Deduplicate: if multiple predictions share the same asset+direction, keep the higher confidence one
+  // Deduplicate: keep higher confidence on same asset+direction
   const seen = new Map<string, number>();
   generated = generated.filter((pred, idx) => {
     const key = `${pred.asset}:${pred.direction}`;
     const existing = seen.get(key);
     if (existing !== undefined) {
-      // Keep the one with higher confidence
       if (pred.confidence > generated[existing].confidence) {
-        generated[existing] = { ...generated[existing], confidence: -1 }; // mark for removal
+        generated[existing] = { ...generated[existing], confidence: -1 };
         seen.set(key, idx);
         return true;
       }
@@ -356,7 +625,6 @@ Respond in valid JSON array format:
 
   console.log(`Generated ${generated.length} house predictions:\n`);
 
-  // 4. Fetch reference prices and store
   const now = new Date();
   let inserted = 0;
 
@@ -373,8 +641,7 @@ Respond in valid JSON array format:
     if (!dryRun) {
       const deadline = new Date(now.getTime() + pred.deadline_days * 24 * 60 * 60 * 1000);
 
-      // Check if this supersedes an existing prediction on the same asset+direction
-      const existing = existingHouse.find(
+      const existingPred = existingHouse.find(
         (h) => h.asset === pred.asset && h.direction === pred.direction
       );
 
@@ -396,8 +663,8 @@ Respond in valid JSON array format:
         category: pred.category,
         themes: pred.themes,
         outcome: 'pending',
-        supersedes: existing?.id || null,
-        version: existing ? (existing.version || 1) + 1 : 1,
+        supersedes: (existingPred?.id as string) || null,
+        version: existingPred ? ((existingPred.version as number) || 1) + 1 : 1,
       };
 
       const { data: inserted_row, error } = await supabase
@@ -410,12 +677,11 @@ Respond in valid JSON array format:
         console.error(`    Failed to insert: ${error.message}`);
       } else {
         inserted++;
-        // Mark the old one as superseded
-        if (existing && inserted_row) {
+        if (existingPred && inserted_row) {
           await supabase
             .from('house_predictions')
             .update({ superseded_by: inserted_row.id, outcome: 'expired' })
-            .eq('id', existing.id);
+            .eq('id', existingPred.id);
         }
       }
     }
@@ -426,7 +692,6 @@ Respond in valid JSON array format:
   if (!dryRun) console.log(`Predictions stored: ${inserted}`);
   console.log(`Avg confidence: ${(generated.reduce((s, p) => s + p.confidence, 0) / generated.length).toFixed(1)}%`);
 
-  // Sort by confidence to show bias towards high-confidence
   const sorted = [...generated].sort((a, b) => b.confidence - a.confidence);
   console.log(`\nConfidence distribution:`);
   console.log(`  High (70-90%): ${sorted.filter((p) => p.confidence >= 70).length} predictions`);

@@ -15,7 +15,7 @@
  *  11. Fetch prediction markets (Kalshi + Polymarket)
  *  12. Fetch FedWatch rate probabilities
  *  13. Backtest source predictions (Claude + Yahoo Finance)
- *  14. Generate house view predictions (Claude synthesis)
+ *  14. Review house view predictions (only when --house-view is passed)
  *  15. Evaluate house predictions (Claude + Yahoo Finance)
  *  16. Generate daily update (Claude synthesis — must be last)
  *
@@ -34,12 +34,11 @@
  *   npx tsx scripts/pipeline.ts --markets      # only prediction markets
  *   npx tsx scripts/pipeline.ts --fedwatch     # only FedWatch probabilities
  *   npx tsx scripts/pipeline.ts --backtest     # only backtest source predictions
- *   npx tsx scripts/pipeline.ts --house-view   # only generate house view
+ *   npx tsx scripts/pipeline.ts --house-view   # review house view for material changes (never auto-runs)
  *   npx tsx scripts/pipeline.ts --house-eval   # only evaluate house predictions
  *   npx tsx scripts/pipeline.ts --portfolio     # only generate model portfolio
  *   npx tsx scripts/pipeline.ts --track-portfolio # only track portfolio performance
  *   npx tsx scripts/pipeline.ts --daily        # only daily update
- *   npx tsx scripts/pipeline.ts --skip-house-gen # run all except house view generation (daily mode)
  */
 
 import { execSync } from 'child_process';
@@ -75,8 +74,7 @@ if (missingOptional.length > 0) {
 }
 
 const args = process.argv.slice(2);
-const stepArgs = args.filter((a) => a !== '--skip-house-gen');
-const runAll = stepArgs.length === 0;
+const runAll = args.length === 0;
 const runFetch = runAll || args.includes('--fetch');
 const runTranscripts = runAll || args.includes('--transcripts');
 const runAnalyze = runAll || args.includes('--analyze');
@@ -90,8 +88,8 @@ const run13f = runAll || args.includes('--13f');
 const runMarkets = runAll || args.includes('--markets');
 const runFedWatch = runAll || args.includes('--fedwatch');
 const runBacktest = runAll || args.includes('--backtest');
-const skipHouseGen = args.includes('--skip-house-gen');
-const runHouseView = (!skipHouseGen && runAll) || args.includes('--house-view');
+// House view is stable & high-conviction — never auto-run, only when explicitly requested
+const runHouseView = args.includes('--house-view');
 const runHouseEval = runAll || args.includes('--house-eval');
 const runPortfolio = runAll || args.includes('--portfolio');
 const runTrackPortfolio = runAll || args.includes('--track-portfolio');

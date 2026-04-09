@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { getHousePredictions, getHouseCalibration, getHouseTrackRecord } from '@/lib/data';
+import { getHousePredictions, getHouseCalibration, getHouseTrackRecord, getHouseViewHistory } from '@/lib/data';
+import type { HouseViewChange } from '@/lib/data';
 import { SkeletonRows } from '@/components/ui/Skeleton';
 import StatsGrid from '@/components/ui/StatsGrid';
 import type { HousePrediction, HouseCalibration, HouseTrackRecord } from '@/types';
@@ -67,6 +68,7 @@ export default function HouseViewPage() {
   const [evaluatedPredictions, setEvaluatedPredictions] = useState<HousePrediction[]>([]);
   const [calibration, setCalibration] = useState<HouseCalibration[]>([]);
   const [trackRecord, setTrackRecord] = useState<HouseTrackRecord | null>(null);
+  const [changeHistory, setChangeHistory] = useState<HouseViewChange[]>([]);
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState<ViewMode>('overview');
 
@@ -76,11 +78,13 @@ export default function HouseViewPage() {
       getHousePredictions('evaluated'),
       getHouseCalibration(),
       getHouseTrackRecord(),
-    ]).then(([active, evaluated, cal, tr]) => {
+      getHouseViewHistory(15),
+    ]).then(([active, evaluated, cal, tr, history]) => {
       setActivePredictions(active);
       setEvaluatedPredictions(evaluated);
       setCalibration(cal);
       setTrackRecord(tr);
+      setChangeHistory(history);
       setLoading(false);
     });
   }, []);
@@ -99,49 +103,80 @@ export default function HouseViewPage() {
         <span style={{ fontSize: 12 }}>House View</span>
       </div>
 
-      <div style={{ padding: 'var(--space-6)', overflowY: 'auto', flex: 1 }}>
-        <h1 style={{ marginBottom: 'var(--space-2)' }}>House View</h1>
-        <p style={{ fontSize: 12, color: 'var(--text-tertiary)', marginBottom: 'var(--space-6)' }}>
-          Howard&apos;s synthesized, falsifiable predictions — measuring whether this system has predictive value
-        </p>
+      <div className="page-two-col" style={{ display: 'flex', overflow: 'hidden', flex: 1 }}>
+        {/* Main column */}
+        <div className="page-two-col-main" style={{ flex: 1, overflowY: 'auto', padding: 'var(--space-6)' }}>
+          <h1 style={{ marginBottom: 'var(--space-2)' }}>House View</h1>
+          <p style={{ fontSize: 12, color: 'var(--text-tertiary)', marginBottom: 'var(--space-6)' }}>
+            Howard&apos;s synthesized, falsifiable predictions — measuring whether this system has predictive value
+          </p>
 
-        <div style={{ marginBottom: 'var(--space-6)' }}>
-          <StatsGrid columns={3} stats={[
-            { value: totalActive.toString(), label: 'Active' },
-            { value: totalEvaluated.toString(), label: 'Evaluated' },
-            { value: correctCount.toString(), label: 'Correct' },
-            { value: `${avgConfidence.toFixed(0)}%`, label: 'Avg Confidence' },
-            { value: trackRecord ? `${(trackRecord.weighted_accuracy * 100).toFixed(1)}%` : '—', label: 'Weighted Accuracy' },
-            { value: trackRecord ? trackRecord.brier_score.toFixed(3) : '—', label: 'Brier Score' },
-          ]} />
+          <div style={{ marginBottom: 'var(--space-6)' }}>
+            <StatsGrid columns={3} stats={[
+              { value: totalActive.toString(), label: 'Active' },
+              { value: totalEvaluated.toString(), label: 'Evaluated' },
+              { value: correctCount.toString(), label: 'Correct' },
+              { value: `${avgConfidence.toFixed(0)}%`, label: 'Avg Confidence' },
+              { value: trackRecord ? `${(trackRecord.weighted_accuracy * 100).toFixed(1)}%` : '—', label: 'Weighted Accuracy' },
+              { value: trackRecord ? trackRecord.brier_score.toFixed(3) : '—', label: 'Brier Score' },
+            ]} />
+          </div>
+
+          {/* View tabs */}
+          <div className="filter-tabs" style={{ marginBottom: 'var(--space-4)' }}>
+            {([
+              ['overview', `Overview (${activePredictions.length})`],
+              ['evaluated', `Evaluated (${evaluatedPredictions.length})`],
+              ['calibration', 'Calibration'],
+            ] as [ViewMode, string][]).map(([mode, label]) => (
+              <button
+                key={mode}
+                className={`filter-tab ${view === mode ? 'active' : ''}`}
+                onClick={() => setView(mode)}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+
+          {loading ? (
+            <SkeletonRows count={6} />
+          ) : view === 'calibration' ? (
+            <CalibrationView calibration={calibration} trackRecord={trackRecord} />
+          ) : view === 'evaluated' ? (
+            <EvaluatedList predictions={evaluatedPredictions} />
+          ) : (
+            <AssetOverview predictions={activePredictions} />
+          )}
         </div>
 
-        {/* View tabs */}
-        <div className="filter-tabs" style={{ marginBottom: 'var(--space-4)' }}>
-          {([
-            ['overview', `Overview (${activePredictions.length})`],
-            ['evaluated', `Evaluated (${evaluatedPredictions.length})`],
-            ['calibration', 'Calibration'],
-          ] as [ViewMode, string][]).map(([mode, label]) => (
-            <button
-              key={mode}
-              className={`filter-tab ${view === mode ? 'active' : ''}`}
-              onClick={() => setView(mode)}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
+        {/* Right column — Change History */}
+        <div className="page-two-col-aside" style={{
+          width: 340,
+          minWidth: 340,
+          overflowY: 'auto',
+          padding: 'var(--space-6)',
+          borderLeft: '1px solid var(--border)',
+          marginLeft: 'auto',
+        }}>
+          <div className="label" style={{ marginBottom: 'var(--space-4)' }}>
+            Change History
+          </div>
 
-        {loading ? (
-          <SkeletonRows count={6} />
-        ) : view === 'calibration' ? (
-          <CalibrationView calibration={calibration} trackRecord={trackRecord} />
-        ) : view === 'evaluated' ? (
-          <EvaluatedList predictions={evaluatedPredictions} />
-        ) : (
-          <AssetOverview predictions={activePredictions} />
-        )}
+          {loading ? (
+            <SkeletonRows count={4} />
+          ) : changeHistory.length === 0 ? (
+            <div className="mono" style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>
+              No changes recorded yet.
+            </div>
+          ) : (
+            <div className="stagger-in" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
+              {changeHistory.map((entry, i) => (
+                <ChangeHistoryCard key={i} entry={entry} />
+              ))}
+            </div>
+          )}
+        </div>
       </div>
     </>
   );
@@ -427,6 +462,91 @@ function Stat({ label, value, sub }: { label: string; value: string; sub?: strin
       <div className="label" style={{ fontSize: 9, marginBottom: 2 }}>{label}</div>
       <div className="mono" style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)' }}>{value}</div>
       {sub && <div className="mono" style={{ fontSize: 9, color: 'var(--text-tertiary)' }}>{sub}</div>}
+    </div>
+  );
+}
+
+/* ── Change History sidebar card ── */
+
+function ChangeHistoryCard({ entry }: { entry: HouseViewChange }) {
+  const totalChanges = entry.added.length + entry.updated.length + entry.removed.length;
+  const isInitialSeed = entry.added.length > 0 && entry.updated.length === 0 && entry.removed.length === 0
+    && entry.added.length >= 4;
+
+  return (
+    <div style={{
+      padding: 'var(--space-3)',
+      background: 'var(--bg-panel)',
+      border: '1px solid var(--border)',
+      borderRadius: 'var(--radius-sm)',
+    }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 'var(--space-2)' }}>
+        <span className="mono" style={{ fontSize: 9, color: 'var(--text-tertiary)' }}>
+          {new Date(entry.date).toLocaleDateString('en-US', {
+            month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit',
+          })}
+        </span>
+        <span className="mono" style={{
+          fontSize: 9,
+          padding: '1px 5px',
+          borderRadius: 2,
+          background: isInitialSeed ? 'rgba(99,102,241,0.1)' : totalChanges === 0 ? 'var(--bg-surface)' : 'rgba(234,179,8,0.1)',
+          color: isInitialSeed ? '#818cf8' : totalChanges === 0 ? 'var(--text-tertiary)' : '#eab308',
+          border: `1px solid ${isInitialSeed ? 'rgba(99,102,241,0.25)' : 'var(--border)'}`,
+        }}>
+          {isInitialSeed ? 'initial' : `${totalChanges} change${totalChanges !== 1 ? 's' : ''}`}
+        </span>
+      </div>
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-1)' }}>
+        {entry.added.map((a, i) => (
+          <div key={`a${i}`} style={{ display: 'flex', alignItems: 'baseline', gap: 'var(--space-1)' }}>
+            <span style={{ color: '#22c55e', fontSize: 11, fontWeight: 600, width: 12, flexShrink: 0 }}>+</span>
+            <span className="mono" style={{ fontSize: 10, color: 'var(--text-secondary)' }}>
+              {a.direction === 'long' ? '\u2191' : a.direction === 'short' ? '\u2193' : '\u2194'}{' '}
+              {a.asset}
+            </span>
+            <span className="mono" style={{ fontSize: 9, color: 'var(--text-tertiary)', marginLeft: 'auto', flexShrink: 0 }}>
+              {a.confidence}%
+            </span>
+          </div>
+        ))}
+
+        {entry.updated.map((u, i) => (
+          <div key={`u${i}`} style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: 'var(--space-1)' }}>
+              <span style={{ color: '#eab308', fontSize: 11, fontWeight: 600, width: 12, flexShrink: 0 }}>~</span>
+              <span className="mono" style={{ fontSize: 10, color: 'var(--text-secondary)' }}>
+                {u.direction === 'long' ? '\u2191' : u.direction === 'short' ? '\u2193' : '\u2194'}{' '}
+                {u.asset}
+              </span>
+              {u.prev_confidence !== u.confidence && (
+                <span className="mono" style={{ fontSize: 9, color: 'var(--text-tertiary)', marginLeft: 'auto', flexShrink: 0 }}>
+                  {u.prev_confidence}% → {u.confidence}%
+                </span>
+              )}
+            </div>
+            {u.prev_claim !== u.claim && (
+              <div className="mono" style={{ fontSize: 9, color: 'var(--text-tertiary)', paddingLeft: 16, lineHeight: 1.3 }}>
+                was: {u.prev_claim.length > 60 ? u.prev_claim.substring(0, 60) + '...' : u.prev_claim}
+              </div>
+            )}
+          </div>
+        ))}
+
+        {entry.removed.map((r, i) => (
+          <div key={`r${i}`} style={{ display: 'flex', alignItems: 'baseline', gap: 'var(--space-1)' }}>
+            <span style={{ color: '#ef4444', fontSize: 11, fontWeight: 600, width: 12, flexShrink: 0 }}>&minus;</span>
+            <span className="mono" style={{ fontSize: 10, color: 'var(--text-tertiary)', textDecoration: 'line-through' }}>
+              {r.direction === 'long' ? '\u2191' : r.direction === 'short' ? '\u2193' : '\u2194'}{' '}
+              {r.asset}
+            </span>
+            <span className="mono" style={{ fontSize: 9, color: 'var(--text-tertiary)', marginLeft: 'auto', flexShrink: 0 }}>
+              {r.confidence}%
+            </span>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
