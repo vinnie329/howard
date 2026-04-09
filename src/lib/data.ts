@@ -1239,6 +1239,186 @@ export async function getHouseViewHistory(limit = 10): Promise<HouseViewChange[]
   }
 }
 
+export interface HouseViewChangeDetail {
+  date: string;
+  added: Array<HousePrediction>;
+  updated: Array<{ current: HousePrediction; previous: HousePrediction }>;
+  removed: Array<HousePrediction>;
+  kept: Array<HousePrediction>;
+}
+
+export async function getHouseViewChangeDetail(date: string): Promise<HouseViewChangeDetail | null> {
+  if (!hasSupabase) return null;
+
+  try {
+    const supabase = getSupabaseClient();
+    const { data, error } = await supabase
+      .from('house_predictions')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error || !data) return null;
+
+    const preds = data as HousePrediction[];
+    const byId = new Map(preds.map(p => [p.id, p]));
+
+    // Find predictions in this timestamp bucket (10-min window)
+    const bucketTime = new Date(date).getTime();
+    const group = preds.filter(p => {
+      const t = new Date(p.created_at).getTime();
+      return Math.abs(Math.floor(t / 600000) * 600000 - bucketTime) < 600000;
+    });
+
+    if (group.length === 0) return null;
+
+    const added: HousePrediction[] = [];
+    const updated: Array<{ current: HousePrediction; previous: HousePrediction }> = [];
+    const removed: HousePrediction[] = [];
+
+    for (const p of group) {
+      if (p.supersedes) {
+        const prev = byId.get(p.supersedes);
+        if (prev) {
+          updated.push({ current: p, previous: prev });
+        } else {
+          added.push(p);
+        }
+      } else if (p.outcome === 'expired' && !p.superseded_by) {
+        removed.push(p);
+      } else if (!p.supersedes && p.version === 1) {
+        added.push(p);
+      }
+    }
+
+    // Find predictions that were active at this time but NOT changed
+    const changedAssets = new Set([
+      ...added.map(p => `${p.asset}:${p.direction}`),
+      ...updated.map(u => `${u.current.asset}:${u.current.direction}`),
+      ...removed.map(p => `${p.asset}:${p.direction}`),
+    ]);
+    const kept = preds.filter(p => {
+      const createdBefore = new Date(p.created_at).getTime() < bucketTime;
+      const notSupersededYet = !p.superseded_by || new Date(p.updated_at || p.created_at).getTime() > bucketTime;
+      return createdBefore && notSupersededYet && p.outcome === 'pending' && !changedAssets.has(`${p.asset}:${p.direction}`);
+    });
+
+    return { date, added, updated, removed, kept };
+  } catch {
+    return null;
+  }
+}
+
+export interface PortfolioRebalanceDetail {
+  date: string;
+  reasoning: string;
+  risk_posture: string;
+  prev_risk_posture: string;
+  added: Array<PortfolioPosition>;
+  removed: Array<PortfolioPosition & { pnl_pct: number | null }>;
+  resized: Array<{ current: PortfolioPosition; previous: PortfolioPosition }>;
+  unchanged: Array<PortfolioPosition>;
+  drivers: string[];
+}
+
+export async function getPortfolioRebalanceDetail(date: string): Promise<PortfolioRebalanceDetail | null> {
+  if (!hasSupabase) return null;
+
+  try {
+    const supabase = getSupabaseClient();
+
+    // Find the snapshot for this date
+    const { data: snapshots, error } = await supabase
+      .from('portfolio_snapshots')
+      .select('id, generated_at, rebalance_reasoning, risk_posture, supersedes')
+      .gte('generated_at', date + 'T00:00:00')
+      .lt('generated_at', date + 'T23:59:59')
+      .order('generated_at', { ascending: false })
+      .limit(1);
+
+    if (error || !snapshots || snapshots.length === 0) return null;
+
+    const curr = snapshots[0];
+
+    // Find the previous snapshot
+    const { data: prevSnapshots } = await supabase
+      .from('portfolio_snapshots')
+      .select('id, generated_at, risk_posture')
+      .lt('generated_at', curr.generated_at)
+      .order('generated_at', { ascending: false })
+      .limit(1);
+
+    const prev = prevSnapshots?.[0];
+    if (!prev) return null;
+
+    // Fetch positions for both
+    const [{ data: currPos }, { data: prevPos }] = await Promise.all([
+      supabase.from('portfolio_positions').select('*').eq('snapshot_id', curr.id),
+      supabase.from('portfolio_positions').select('*').eq('snapshot_id', prev.id),
+    ]);
+
+    if (!currPos || !prevPos) return null;
+
+    const currMap = new Map((currPos as PortfolioPosition[]).map(p => [`${p.ticker}:${p.direction}`, p]));
+    const prevMap = new Map((prevPos as PortfolioPosition[]).map(p => [`${p.ticker}:${p.direction}`, p]));
+
+    const added: PortfolioPosition[] = [];
+    const removed: Array<PortfolioPosition & { pnl_pct: number | null }> = [];
+    const resized: Array<{ current: PortfolioPosition; previous: PortfolioPosition }> = [];
+    const unchanged: PortfolioPosition[] = [];
+
+    Array.from(currMap.entries()).forEach(([key, pos]) => {
+      const prevP = prevMap.get(key);
+      if (!prevP) {
+        added.push(pos);
+      } else if (Math.abs(pos.allocation_pct - prevP.allocation_pct) >= 1) {
+        resized.push({ current: pos, previous: prevP });
+      } else {
+        unchanged.push(pos);
+      }
+    });
+
+    Array.from(prevMap.entries()).forEach(([key, pos]) => {
+      if (!currMap.has(key)) {
+        let pnl_pct: number | null = null;
+        if (pos.entry_price && pos.current_price) {
+          const raw = (pos.current_price - pos.entry_price) / pos.entry_price;
+          pnl_pct = (pos.direction === 'long' ? raw : -raw) * 100;
+        }
+        removed.push({ ...pos, pnl_pct });
+      }
+    });
+
+    // Drivers
+    const drivers: string[] = [];
+    const { data: newPreds } = await supabase
+      .from('house_predictions')
+      .select('claim, asset, direction, confidence')
+      .gte('created_at', prev.generated_at)
+      .lt('created_at', curr.generated_at)
+      .order('confidence', { ascending: false })
+      .limit(5);
+
+    for (const p of newPreds || []) {
+      const arrow = p.direction === 'long' ? '\u2191' : '\u2193';
+      drivers.push(`${arrow} ${p.asset} ${p.confidence}% — ${p.claim.length > 80 ? p.claim.slice(0, 80) + '...' : p.claim}`);
+    }
+
+    return {
+      date,
+      reasoning: curr.rebalance_reasoning || '',
+      risk_posture: curr.risk_posture || '',
+      prev_risk_posture: prev.risk_posture || '',
+      added,
+      removed,
+      resized,
+      unchanged,
+      drivers,
+    };
+  } catch {
+    return null;
+  }
+}
+
 export async function getHouseCalibration(): Promise<HouseCalibration[]> {
   if (!hasSupabase) return [];
 

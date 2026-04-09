@@ -366,14 +366,21 @@ export default function PortfolioPage() {
           ) : (
             <div className="stagger-in" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
               {rebalances.map((rb) => (
-                <div
+                <a
                   key={rb.date}
+                  href={`/portfolio/rebalances/${rb.date}`}
                   style={{
                     padding: 'var(--space-3)',
                     background: 'var(--bg-panel)',
                     border: '1px solid var(--border)',
                     borderRadius: 'var(--radius-sm)',
+                    textDecoration: 'none',
+                    color: 'inherit',
+                    display: 'block',
+                    transition: 'border-color 0.15s',
                   }}
+                  onMouseEnter={(e) => (e.currentTarget.style.borderColor = 'var(--border-light)')}
+                  onMouseLeave={(e) => (e.currentTarget.style.borderColor = 'var(--border)')}
                 >
                   <div style={{
                     display: 'flex',
@@ -434,7 +441,7 @@ export default function PortfolioPage() {
                       ))}
                     </div>
                   )}
-                </div>
+                </a>
               ))}
             </div>
           )}

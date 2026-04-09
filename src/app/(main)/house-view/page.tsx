@@ -474,12 +474,21 @@ function ChangeHistoryCard({ entry }: { entry: HouseViewChange }) {
     && entry.added.length >= 4;
 
   return (
-    <div style={{
-      padding: 'var(--space-3)',
-      background: 'var(--bg-panel)',
-      border: '1px solid var(--border)',
-      borderRadius: 'var(--radius-sm)',
-    }}>
+    <a
+      href={`/house-view/changes/${encodeURIComponent(entry.date)}`}
+      style={{
+        padding: 'var(--space-3)',
+        background: 'var(--bg-panel)',
+        border: '1px solid var(--border)',
+        borderRadius: 'var(--radius-sm)',
+        textDecoration: 'none',
+        color: 'inherit',
+        display: 'block',
+        transition: 'border-color 0.15s',
+      }}
+      onMouseEnter={(e) => (e.currentTarget.style.borderColor = 'var(--border-light)')}
+      onMouseLeave={(e) => (e.currentTarget.style.borderColor = 'var(--border)')}
+    >
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 'var(--space-2)' }}>
         <span className="mono" style={{ fontSize: 9, color: 'var(--text-tertiary)' }}>
           {new Date(entry.date).toLocaleDateString('en-US', {
@@ -547,6 +556,6 @@ function ChangeHistoryCard({ entry }: { entry: HouseViewChange }) {
           </div>
         ))}
       </div>
-    </div>
+    </a>
   );
 }
