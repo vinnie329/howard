@@ -74,7 +74,10 @@ if (missingOptional.length > 0) {
 }
 
 const args = process.argv.slice(2);
-const runAll = args.length === 0;
+// Modifier flags that tweak behavior but shouldn't disable the default run-all mode
+const MODIFIER_FLAGS = ['--skip-house-gen'];
+const stepArgs = args.filter((a) => !MODIFIER_FLAGS.includes(a));
+const runAll = stepArgs.length === 0;
 const runFetch = runAll || args.includes('--fetch');
 const runTranscripts = runAll || args.includes('--transcripts');
 const runAnalyze = runAll || args.includes('--analyze');
