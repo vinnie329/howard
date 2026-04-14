@@ -27,6 +27,7 @@ const WHITELISTED_CHANNELS = [
   'sourceryvc',
   'lex fridman',
   'realeismanplaybook',
+  'steve eisman',
   'south park commons',
   'bloombergpodcasts',
 ];
