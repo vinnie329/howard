@@ -30,6 +30,7 @@ const WHITELISTED_CHANNELS = [
   'steve eisman',
   'south park commons',
   'bloombergpodcasts',
+  'all-in podcast',
 ];
 
 function isWhitelistedChannel(channelTitle: string): boolean {
