@@ -68,7 +68,10 @@ export async function GET() {
   }
 
   const nav = snapshot.starting_capital * (1 + weightedReturn);
-  const totalReturnPct = weightedReturn * 100;
+
+  // Total return from inception (original 10M base), not just since last rebalance
+  const INCEPTION_CAPITAL = 10_000_000;
+  const totalReturnPct = ((nav - INCEPTION_CAPITAL) / INCEPTION_CAPITAL) * 100;
 
   // SPY benchmark
   let spyCumulativePct = 0;

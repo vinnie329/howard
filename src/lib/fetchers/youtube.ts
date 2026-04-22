@@ -247,7 +247,7 @@ async function fetchTranscriptGeminiUrl(videoId: string): Promise<string | null>
             { text: GEMINI_PROMPT },
           ]}],
         }),
-        signal: AbortSignal.timeout(60000), // 60s timeout per video
+        signal: AbortSignal.timeout(120000), // 2min timeout per video
       }
     );
     if (!res.ok) {
