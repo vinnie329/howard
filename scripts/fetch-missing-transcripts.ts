@@ -3,9 +3,14 @@ import { execFile } from 'child_process';
 import { readFile, unlink, stat } from 'fs/promises';
 import { tmpdir } from 'os';
 import { join } from 'path';
+import { Agent, setGlobalDispatcher } from 'undici';
 import { analyzeContent } from '../src/lib/analysis/analyzeContent';
 import { config } from 'dotenv';
 config({ path: '.env.local' });
+
+// Gemini transcription replies can take >5min for long chunks; the default
+// undici HeadersTimeout (300s) kills them before headers arrive. Bump it.
+setGlobalDispatcher(new Agent({ headersTimeout: 600000, bodyTimeout: 600000 }));
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -169,63 +174,141 @@ async function fetchTranscriptGemini(videoId: string): Promise<string | null> {
   }
 }
 
-async function fetchTranscriptGeminiUrl(videoId: string): Promise<string | null> {
-  const geminiApiKey = process.env.GEMINI_API_KEY;
-  if (!geminiApiKey) return null;
+const GEMINI_TRANSCRIBE_PROMPT =
+  'Transcribe this video verbatim. Return only the transcript text. No timestamps, no speaker labels, no markdown formatting.';
 
+// Returns video duration in seconds via YouTube API (needed for chunking long videos).
+async function fetchVideoDuration(videoId: string): Promise<number | null> {
+  const apiKey = process.env.YOUTUBE_API_KEY;
+  if (!apiKey) return null;
+  try {
+    const url = new URL('https://www.googleapis.com/youtube/v3/videos');
+    url.searchParams.set('part', 'contentDetails');
+    url.searchParams.set('id', videoId);
+    url.searchParams.set('key', apiKey);
+    const res = await fetch(url.toString());
+    if (!res.ok) return null;
+    const data = await res.json();
+    const dur = data.items?.[0]?.contentDetails?.duration || '';
+    const h = parseInt(dur.match(/(\d+)H/)?.[1] || '0');
+    const m = parseInt(dur.match(/(\d+)M/)?.[1] || '0');
+    const s = parseInt(dur.match(/(\d+)S/)?.[1] || '0');
+    return h * 3600 + m * 60 + s;
+  } catch {
+    return null;
+  }
+}
+
+// Single Gemini URL transcription, optionally clipped via videoMetadata.
+async function geminiTranscribeOnce(
+  videoId: string,
+  apiKey: string,
+  startSec?: number,
+  endSec?: number,
+): Promise<{ ok: true; text: string } | { ok: false; tokenLimit: boolean; error: string }> {
   const ytUrl = `https://www.youtube.com/watch?v=${videoId}`;
-  console.log(`  Gemini URL transcription for ${ytUrl}...`);
+  const part: Record<string, unknown> = { file_data: { mime_type: 'video/mp4', file_uri: ytUrl } };
+  if (startSec !== undefined && endSec !== undefined) {
+    part.video_metadata = { start_offset: `${startSec}s`, end_offset: `${endSec}s` };
+  }
 
   try {
     const res = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${geminiApiKey}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${apiKey}`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          contents: [{ parts: [
-            { file_data: { mime_type: 'video/mp4', file_uri: ytUrl } },
-            { text: 'Transcribe this video verbatim. Return only the transcript text. No timestamps, no speaker labels, no markdown formatting.' },
-          ]}],
+          contents: [{ parts: [part, { text: GEMINI_TRANSCRIBE_PROMPT }] }],
         }),
-        signal: AbortSignal.timeout(60000), // 60s timeout per video
+        signal: AbortSignal.timeout(540000), // 9min — paired with undici's 10min headersTimeout
       }
     );
     if (!res.ok) {
       const errText = await res.text();
-      console.log(`  Gemini URL error: ${res.status} ${errText.slice(0, 200)}`);
-      return null;
+      const tokenLimit = errText.includes('exceeds the maximum number of tokens');
+      return { ok: false, tokenLimit, error: `${res.status} ${errText.slice(0, 200)}` };
     }
-
     const data = await res.json();
-    return data.candidates?.[0]?.content?.parts?.[0]?.text || null;
+    const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    return text ? { ok: true, text } : { ok: false, tokenLimit: false, error: 'empty response' };
   } catch (err) {
-    console.log(`  Gemini URL failed: ${err instanceof Error ? err.message : err}`);
+    return { ok: false, tokenLimit: false, error: err instanceof Error ? err.message : String(err) };
+  }
+}
+
+async function fetchTranscriptGeminiUrl(videoId: string): Promise<string | null> {
+  const geminiApiKey = process.env.GEMINI_API_KEY;
+  if (!geminiApiKey) return null;
+
+  console.log(`  Gemini URL transcription for https://www.youtube.com/watch?v=${videoId}...`);
+
+  const first = await geminiTranscribeOnce(videoId, geminiApiKey);
+  if (first.ok) return first.text;
+
+  // If single-call hit the 1M-token cap (long videos), chunk via videoMetadata.
+  if (!first.tokenLimit) {
+    console.log(`  Gemini URL error: ${first.error}`);
     return null;
   }
+  console.log(`  Hit token cap — falling back to chunked transcription.`);
+
+  const duration = await fetchVideoDuration(videoId);
+  if (!duration) {
+    console.log(`  Cannot chunk: YOUTUBE_API_KEY missing or duration unavailable.`);
+    return null;
+  }
+
+  // 25min chunks: well under 1M token cap AND each call replies fast enough to
+  // avoid the 5min undici headersTimeout on slower chunks (50min was borderline).
+  const CHUNK_SEC = 25 * 60;
+  const chunks: string[] = [];
+  for (let start = 0; start < duration; start += CHUNK_SEC) {
+    const end = Math.min(start + CHUNK_SEC, duration);
+    console.log(`    chunk ${start}–${end}s of ${duration}s...`);
+    const r = await geminiTranscribeOnce(videoId, geminiApiKey, start, end);
+    if (!r.ok) {
+      console.log(`    chunk failed: ${r.error}`);
+      return null; // partial transcript would corrupt the analysis — fail clean instead
+    }
+    chunks.push(r.text);
+  }
+  const merged = chunks.join(' ');
+  console.log(`  Chunked transcription: ${chunks.length} chunks, ${merged.length} chars`);
+  return merged;
 }
 
 async function main() {
   console.log('=== Fetch Missing Transcripts & Analyze ===\n');
 
-  // Find content with no raw_text
+  // Cap per run: at ~3min/item worst case, 10 items keeps us inside the 10min step budget.
+  // Anything beyond gets retried on the next pipeline run (newest first).
+  const MAX_PER_RUN = 10;
+
+  // Find content with no raw_text — newest first so fresh content gets analyzed quickly.
   const { data: missing } = await supabase
     .from('content')
     .select('id, title, source_id, platform, external_id, published_at, raw_text, sources(name)')
-    .or('raw_text.is.null,raw_text.eq.');
+    .or('raw_text.is.null,raw_text.eq.')
+    .order('created_at', { ascending: false });
 
   if (!missing || missing.length === 0) {
     console.log('No content with missing text.');
     return;
   }
 
-  console.log(`Found ${missing.length} items with no text:\n`);
+  const queue = missing.slice(0, MAX_PER_RUN);
+  console.log(`Found ${missing.length} items with no text — processing ${queue.length} this run:\n`);
 
-  for (const item of missing) {
+  let recovered = 0;
+  const stillMissing: { id: string; title: string; platform: string }[] = [];
+
+  for (const item of queue) {
     console.log(`"${item.title}" (${item.platform}/${item.external_id})`);
 
     if (item.platform !== 'youtube') {
       console.log('  Skipping (not YouTube)\n');
+      stillMissing.push({ id: item.id, title: item.title, platform: item.platform });
       continue;
     }
 
@@ -252,6 +335,7 @@ async function main() {
       }
       if (!transcript || transcript.length < 100) {
         console.log(`  No usable transcript (${transcript?.length || 0} chars)\n`);
+        stillMissing.push({ id: item.id, title: item.title, platform: item.platform });
         continue;
       }
 
@@ -301,10 +385,26 @@ async function main() {
         });
       }
 
+      recovered++;
       console.log(`  ✓ Done\n`);
     } catch (err) {
       console.error(`  ✕ Failed: ${err instanceof Error ? err.message : err}\n`);
+      stillMissing.push({ id: item.id, title: item.title, platform: item.platform });
     }
+  }
+
+  // Loud summary so accumulating orphans are visible in pipeline logs.
+  console.log(`\n=== Transcript retry summary ===`);
+  console.log(`  Processed: ${queue.length} (cap: ${MAX_PER_RUN})`);
+  console.log(`  Recovered: ${recovered}`);
+  console.log(`  Still missing this run: ${stillMissing.length}`);
+  console.log(`  Total backlog after run: ${missing.length - recovered}`);
+  if (stillMissing.length > 0) {
+    console.log(`\n  Items still without raw_text:`);
+    for (const m of stillMissing) console.log(`    - ${m.id} | ${m.platform} | ${m.title}`);
+  }
+  if (missing.length - recovered > MAX_PER_RUN) {
+    console.log(`\n  ⚠ Backlog exceeds per-run cap — run scripts/retry-empty-transcripts.ts to drain.`);
   }
 }
 

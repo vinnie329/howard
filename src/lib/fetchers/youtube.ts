@@ -31,6 +31,7 @@ const WHITELISTED_CHANNELS = [
   'south park commons',
   'bloombergpodcasts',
   'all-in podcast',
+  'cheeky pint',
 ];
 
 function isWhitelistedChannel(channelTitle: string): boolean {
