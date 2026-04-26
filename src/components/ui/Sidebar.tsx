@@ -27,7 +27,6 @@ const navItems: NavItem[] = [
   { label: 'Predictions Ledger', href: '/predictions' },
   { label: 'Performance', href: '/performance' },
   { label: '13F Holdings', href: '/holdings' },
-  { label: 'Canvas', href: '/canvas' },
   { label: 'Sources', href: '/discovery' },
 ];
 
