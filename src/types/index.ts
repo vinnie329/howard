@@ -120,12 +120,6 @@ export interface TrendingTopic {
   trend: 'up' | 'down' | 'stable';
 }
 
-export interface UntrackedSignal {
-  name: string;
-  mentioned_by: string[];
-  context: string;
-}
-
 export interface PulseSummaryData {
   sentiment: string;
   theme: string;

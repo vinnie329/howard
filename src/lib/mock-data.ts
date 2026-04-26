@@ -2,7 +2,6 @@ import type {
   Source,
   ContentWithAnalysis,
   TrendingTopic,
-  UntrackedSignal,
   PulseSummaryData,
   Prediction,
   Outlook,
@@ -332,29 +331,6 @@ export const mockTrendingTopics: TrendingTopic[] = [
   { rank: 6, title: 'Gold as Safe Haven', mentions: 3, trend: 'stable' },
   { rank: 7, title: 'AI Revenue Gap', mentions: 3, trend: 'down' },
   { rank: 8, title: 'Fed Balance Sheet', mentions: 2, trend: 'stable' },
-];
-
-export const mockUntrackedSignals: UntrackedSignal[] = [
-  {
-    name: 'Stanley Druckenmiller',
-    mentioned_by: ['Michael Howell'],
-    context: 'Referenced in liquidity analysis as having similar positioning concerns',
-  },
-  {
-    name: 'Jensen Huang',
-    mentioned_by: ['Dylan Patel'],
-    context: 'NVIDIA CEO — GPU CapEx narrative depends on his forward guidance',
-  },
-  {
-    name: 'Warren Buffett',
-    mentioned_by: ['Howard Marks'],
-    context: 'Cash pile positioning cited as signal of market overvaluation',
-  },
-  {
-    name: 'Lisa Su',
-    mentioned_by: ['Dylan Patel'],
-    context: 'AMD strategy relevant to semiconductor cycle thesis',
-  },
 ];
 
 export const mockPulseSummary: PulseSummaryData = {

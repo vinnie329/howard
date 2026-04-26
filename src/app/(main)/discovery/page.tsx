@@ -3,7 +3,6 @@
 import { useState, useEffect } from 'react';
 import { getSources } from '@/lib/data';
 import { DIMENSION_LABELS } from '@/lib/scoring';
-import { mockUntrackedSignals } from '@/lib/mock-data';
 import SourcePill from '@/components/ui/SourcePill';
 import StatsGrid from '@/components/ui/StatsGrid';
 import AddSourceModal from '@/components/ui/AddSourceModal';
@@ -38,48 +37,6 @@ export default function DiscoveryPipeline() {
       </div>
 
       <div className="dashboard">
-        {/* Candidates */}
-        <div className="panel-left" style={{ width: 360, minWidth: 360 }}>
-          <div className="panel-header">Source Candidates</div>
-
-          <div className="panel-section">
-            <div className="panel-section-title">Referenced by Tracked Sources</div>
-            {mockUntrackedSignals.map((signal) => (
-              <div
-                key={signal.name}
-                style={{
-                  padding: 'var(--space-3)',
-                  marginBottom: 'var(--space-2)',
-                  background: 'var(--bg-panel)',
-                  border: '1px solid var(--border)',
-                  borderRadius: 'var(--radius-sm)',
-                }}
-              >
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-2)' }}>
-                  <span style={{ fontSize: 13, fontWeight: 500 }}>{signal.name}</span>
-                  <button style={{
-                    fontSize: 10,
-                    padding: '2px 8px',
-                    borderRadius: 'var(--radius-sm)',
-                    background: 'var(--accent-dim)',
-                    color: 'var(--accent)',
-                    border: 'none',
-                    cursor: 'pointer',
-                  }}>
-                    + Track
-                  </button>
-                </div>
-                <div style={{ fontSize: 11, color: 'var(--text-tertiary)', lineHeight: 1.4 }}>
-                  {signal.context}
-                </div>
-                <div className="mono" style={{ fontSize: 10, marginTop: 'var(--space-1)', color: 'var(--text-tertiary)' }}>
-                  Referenced by {signal.mentioned_by.join(', ')}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
         {/* Tracked sources overview */}
         <div className="panel-main">
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
