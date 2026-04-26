@@ -271,7 +271,8 @@ async function main() {
     Sentiment: ${p.sentiment} | Confidence: ${p.confidence} | Specificity: ${p.specificity} | Horizon: ${p.time_horizon} | Assets: ${p.assets || 'none'}`;
   }).join('\n');
 
-  const existingClaims = existingHouse.map((h) => `- ${h.claim} (${h.asset}, confidence: ${h.confidence}%, deadline: ${h.deadline})`).join('\n');
+  // Include the row UUID so Claude can return it as existing_id for KEEP/UPDATE/REMOVE.
+  const existingClaims = existingHouse.map((h) => `- [id: ${h.id}] ${h.claim} (${h.asset}, confidence: ${h.confidence}%, deadline: ${h.deadline})`).join('\n');
 
   // Normalize asset tickers to canonical form
   const assetNormMap: Record<string, string> = {
@@ -371,6 +372,8 @@ When sources OUTSIDE their domain weigh in (tagged "cross-domain"), their call i
 - **ADD**: Add when there is a clear, actionable, high-conviction thesis that isn't already covered. **A high-credibility domain expert (≥4.0 in-domain) making a specific, falsifiable call is sufficient grounds to ADD** — you do NOT need cross-roster triangulation. For cross-domain or non-expert claims, the multi-source bar still applies.
 
 For each action that is NOT "keep", you MUST provide a detailed reason explaining what material change in the intelligence justifies the action.
+
+For KEEP / UPDATE / REMOVE actions, the **existing_id** field MUST be the UUID shown in brackets at the start of each existing prediction line (the "[id: <uuid>]" prefix). Copy that UUID verbatim — do NOT invent a slug from the claim text.
 
 Respond in valid JSON array format:
 [
@@ -486,8 +489,11 @@ Remember: if nothing material has changed, it is CORRECT to return all "keep" ac
       const refPrice = await fetchPrice(a.prediction.asset);
       const deadline = new Date(now.getTime() + a.prediction.deadline_days * 24 * 60 * 60 * 1000);
 
+      // deadline_days is a Claude-output convenience field; the DB column is `deadline`.
+      const { deadline_days: _ignored, ...predictionRow } = a.prediction;
+      void _ignored;
       const row = {
-        ...a.prediction,
+        ...predictionRow,
         reference_value: refPrice,
         deadline: deadline.toISOString(),
         outcome: 'pending',
@@ -546,8 +552,11 @@ Remember: if nothing material has changed, it is CORRECT to return all "keep" ac
       const refPrice = await fetchPrice(a.prediction.asset);
       const deadline = new Date(now.getTime() + a.prediction.deadline_days * 24 * 60 * 60 * 1000);
 
+      // deadline_days is a Claude-output convenience field; the DB column is `deadline`.
+      const { deadline_days: _ignored, ...predictionRow } = a.prediction;
+      void _ignored;
       const row = {
-        ...a.prediction,
+        ...predictionRow,
         reference_value: refPrice,
         deadline: deadline.toISOString(),
         outcome: 'pending',
