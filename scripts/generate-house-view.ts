@@ -42,6 +42,34 @@ const anthropic = new Anthropic();
 const dryRun = process.argv.includes('--dry-run');
 const forceRegen = process.argv.includes('--force-regen');
 
+const DOMAIN_LABELS: Record<string, string> = {
+  'ai-semis': 'AI/Semis',
+  'macro': 'Macro',
+  'energy-commod': 'Energy/Commodities',
+  'credit': 'Credit',
+  'equities': 'Equities',
+  'tech-platforms': 'Tech/Platforms',
+  'crypto': 'Crypto',
+  'geopolitics': 'Geopolitics',
+};
+
+// Infer which canonical domain(s) a prediction touches based on its themes,
+// claim text, and assets. Used to match against the source's listed domains
+// so we can flag domain-expert calls.
+function inferPredictionDomains(themes: string[], claim: string, assets: string): string[] {
+  const t = `${themes.join(' ')} ${claim} ${assets}`.toLowerCase();
+  const out: string[] = [];
+  if (/\b(ai|gpu|cpu|chip|semi|nvidia|nvda|amd|intel|intc|tsmc|tsm|llm|inference|train|datacenter|data center|hyperscaler|micron|mu\b|asml|robotics|agent)\b/.test(t)) out.push('ai-semis');
+  if (/\b(liquidity|fed|rate|treasury|tlt|usd|dollar|fiscal|debt|monetary|inflation|cpi|pce|m2|qe|qt|powell|warsh)\b/.test(t)) out.push('macro');
+  if (/\b(oil|gas|gold|silver|copper|uranium|commodity|commodities|energy|cl=f|gc=f|si=f|hg=f|bz=f|xle|cvx|royalty|mining|hormuz|ttf|opec)\b/.test(t)) out.push('energy-commod');
+  if (/\b(credit|hyg|lqd|bdc|bizd|private credit|spread|default|junk bond|leveraged loan|cmbs)\b/.test(t)) out.push('credit');
+  if (/\b(btc|bitcoin|eth|ethereum|crypto|stablecoin|usdt|usdc|web3|defi)\b/.test(t)) out.push('crypto');
+  if (/\b(software|saas|platform|stratechery|fintech|stripe)\b/.test(t)) out.push('tech-platforms');
+  if (/\b(china|iran|hormuz|geopolit|war|sanction|trade war|tariff|nuclear|israel)\b/.test(t)) out.push('geopolitics');
+  if (/\b(spy|qqq|earnings|valuation|stock)\b/.test(t) && out.length === 0) out.push('equities');
+  return out;
+}
+
 interface GeneratedPrediction {
   claim: string;
   asset: string;
@@ -200,32 +228,48 @@ async function main() {
   Positioning: ${(o.positioning || []).join('; ')}`;
   }).join('\n\n');
 
-  // Weight predictions by source credibility
+  // Weight predictions by source credibility AND domain expertise.
+  // A solo call from a domain expert is a primary signal — see prompt rules below.
   const weightedPredictions = predictions
     .map((p) => {
-      const source = p.sources as { name: string; weighted_score: number; scores: Record<string, number> } | null;
+      const source = p.sources as { name: string; weighted_score: number; scores: Record<string, number>; domains: string[] } | null;
       const weight = source?.weighted_score || 3;
       const perfScore = source?.scores?.performance || 3;
+      const sourceDomains = (source?.domains as string[]) || [];
+      const assetsStr = (p.assets_mentioned || []).join(', ');
+      const themesArr = (p.themes || []) as string[];
+      const predDomains = inferPredictionDomains(themesArr, p.claim || '', assetsStr);
+      const matchedDomains = predDomains.filter((d) => sourceDomains.includes(d));
+      const isDomainExpert = matchedDomains.length > 0 && weight >= 4.0;
+      const sourceDomainLabels = sourceDomains.map((d) => DOMAIN_LABELS[d] || d).join('/') || 'unspecified';
       return {
         claim: p.claim,
         sentiment: p.sentiment,
         confidence: p.confidence,
         specificity: p.specificity,
         time_horizon: p.time_horizon,
-        assets: (p.assets_mentioned || []).join(', '),
-        themes: (p.themes || []).join(', '),
+        assets: assetsStr,
+        themes: themesArr.join(', '),
         source_name: source?.name || 'Unknown',
         source_weight: weight,
         source_performance: perfScore,
+        source_domain_label: sourceDomainLabels,
+        is_domain_expert: isDomainExpert,
+        cross_domain: predDomains.length > 0 && matchedDomains.length === 0,
         date_made: p.date_made || p.created_at,
       };
     })
-    .sort((a, b) => b.source_weight - a.source_weight);
+    // Sort: domain experts first (within domain credibility), then by overall weight
+    .sort((a, b) => {
+      if (a.is_domain_expert !== b.is_domain_expert) return a.is_domain_expert ? -1 : 1;
+      return b.source_weight - a.source_weight;
+    });
 
-  const predictionsSummary = weightedPredictions.slice(0, 50).map((p) =>
-    `[${p.source_name} (credibility: ${p.source_weight}/5, performance: ${p.source_performance}/5)] ${p.claim}
-    Sentiment: ${p.sentiment} | Confidence: ${p.confidence} | Specificity: ${p.specificity} | Horizon: ${p.time_horizon} | Assets: ${p.assets || 'none'}`
-  ).join('\n');
+  const predictionsSummary = weightedPredictions.slice(0, 50).map((p) => {
+    const tag = p.is_domain_expert ? ' DOMAIN EXPERT' : p.cross_domain ? ' (cross-domain)' : '';
+    return `[${p.source_name} · ${p.source_weight.toFixed(1)}/5 · ${p.source_domain_label}${tag}] ${p.claim}
+    Sentiment: ${p.sentiment} | Confidence: ${p.confidence} | Specificity: ${p.specificity} | Horizon: ${p.time_horizon} | Assets: ${p.assets || 'none'}`;
+  }).join('\n');
 
   const existingClaims = existingHouse.map((h) => `- ${h.claim} (${h.asset}, confidence: ${h.confidence}%, deadline: ${h.deadline})`).join('\n');
 
@@ -298,12 +342,33 @@ ${intelligenceBlock}
 For EACH existing prediction, decide: KEEP or UPDATE or REMOVE.
 Then decide if any genuinely NEW predictions should be ADDED.
 
+## DOMAIN AUTHORITY (read this first)
+
+Each source prediction is tagged with that source's listed domain (e.g., AI/Semis, Macro, Energy/Commodities, Credit, Crypto, Tech/Platforms, Geopolitics, Equities). When a prediction is tagged "DOMAIN EXPERT", it means a high-credibility source (≥4.0/5) is speaking in their listed specialty.
+
+**Domain-expert solo calls are primary signals — NOT down-weighted for lack of triangulation.** The roster has different specialists for different areas; the rest of the roster being silent on a topic is *non-coverage*, not *disagreement*.
+
+Examples:
+- A solo Patel or Tae Kim call on chips/CPUs/AI infra is a strong signal even if no other source touches it. They ARE the semis specialists.
+- A solo Rule call on uranium/copper/gold royalty is a strong signal even if no other source touches it. He IS the resource specialist.
+- A solo Marks/Howell/Burry/Eisman call on credit cycles or liquidity is a strong signal even if no other source touches it. They ARE the credit/macro specialists.
+- A solo Currie call on energy supply / Hormuz is a strong signal.
+- A solo Amodei or Karpathy call on AI capability trajectory is a strong signal.
+
+When sources OUTSIDE their domain weigh in (tagged "cross-domain"), their call is informational but should NOT itself drive high-confidence house views. Marks on chips, or Patel on credit, is interesting but not authoritative.
+
+**Triangulation matters most when**: (a) the call crosses domains, (b) no domain expert in the roster has weighed in on the topic, or (c) the domain expert's credibility is only moderate.
+
+**The most interesting case is when domain experts DISAGREE** — that's where you slow down and reason carefully. Patel-vs-Kim on Intel matters. Patel-vs-Marks on Intel doesn't.
+
+## DECISION RULES
+
 **Default is KEEP.** The bar for changes is HIGH:
 
 - **KEEP** (default): The thesis is intact, no material new information contradicts it. Minor price moves within the expected range do NOT warrant changes.
-- **UPDATE**: Only if there is material new evidence that significantly changes the confidence, target, or timeline. Examples: a key driver has reversed, invalidation criteria have been partially triggered, or multiple high-credibility sources have changed their view. Updating the confidence by <10 points is NOT material — leave it alone.
+- **UPDATE**: Only if there is material new evidence that significantly changes the confidence, target, or timeline. Examples: a key driver has reversed, invalidation criteria have been partially triggered, OR a domain expert has materially changed their view. Updating the confidence by <10 points is NOT material — leave it alone.
 - **REMOVE**: Only if the invalidation criteria have been clearly met, the thesis has been fundamentally broken, or the prediction is no longer relevant. A view moving against us in the short term is NOT reason to remove — that's just volatility.
-- **ADD**: Only if there is strong, multi-source conviction for a NEW view that is not already covered by existing predictions. The bar for adding should be as high as for the original predictions. Do not add views just because the intelligence mentions an asset — there must be a clear, actionable, high-conviction thesis.
+- **ADD**: Add when there is a clear, actionable, high-conviction thesis that isn't already covered. **A high-credibility domain expert (≥4.0 in-domain) making a specific, falsifiable call is sufficient grounds to ADD** — you do NOT need cross-roster triangulation. For cross-domain or non-expert claims, the multi-source bar still applies.
 
 For each action that is NOT "keep", you MUST provide a detailed reason explaining what material change in the intelligence justifies the action.
 
@@ -525,6 +590,23 @@ ${intelligenceBlock}
 ### Existing Active House Predictions (do not duplicate)
 ${existingClaims || 'None yet.'}
 
+## DOMAIN AUTHORITY (read this first)
+
+Each source prediction is tagged with that source's listed domain (AI/Semis, Macro, Energy/Commodities, Credit, Crypto, Tech/Platforms, Geopolitics, Equities). When a prediction is tagged "DOMAIN EXPERT", it means a high-credibility source (≥4.0/5) is speaking in their listed specialty.
+
+**Domain-expert solo calls are primary signals — NOT down-weighted for lack of triangulation.** The roster has different specialists for different areas; the rest of the roster being silent on a topic is *non-coverage*, not *disagreement*.
+
+Examples:
+- Patel + Tae Kim are the AI/Semis specialists. A solo call from either is a strong signal on chips/CPUs/AI infra.
+- Rick Rule is the resource specialist. A solo call from him on uranium/copper/gold royalty is a strong signal.
+- Marks/Howell/Burry/Eisman are the credit/macro specialists. A solo call from any of them on credit cycles or liquidity is a strong signal.
+- Currie is the energy supply / commodities specialist.
+- Amodei / Karpathy are the AI capability specialists.
+
+When sources weigh in OUTSIDE their domain (tagged "cross-domain"), their call is informational but should NOT itself drive high-confidence house views.
+
+**The most interesting case is when domain experts DISAGREE** — slow down and reason carefully there.
+
 ## INSTRUCTIONS
 
 Generate 5-8 house predictions. Each must be:
@@ -532,14 +614,14 @@ Generate 5-8 house predictions. Each must be:
 1. **Asset-specific**: tied to a tradeable asset (ticker or commodity)
 2. **Falsifiable**: has a clear target condition that can be measured
 3. **Time-bound**: has a specific deadline (30 days to 12 months)
-4. **Confidence-calibrated**:
-   - Only assign high confidence (70-90%) when multiple high-credibility sources agree AND the data strongly supports it
-   - Use medium confidence (40-69%) for directional calls with some uncertainty
-   - Use low confidence (20-39%) for contrarian or speculative calls
-   - NEVER go above 90% — markets are inherently uncertain
-   - Your confidence should reflect the ACTUAL probability you believe this will happen
+4. **Confidence-calibrated** with domain weighting:
+   - **High confidence (70-90%)**: A high-credibility (≥4.0) DOMAIN EXPERT is bullish/bearish AND the data supports it AND no other domain expert disagrees. OR multiple high-credibility sources across complementary domains converge on the same view (e.g., a chip-specialist + a macro-specialist + a credit-specialist all align).
+   - **Medium confidence (40-69%)**: Directional call from a credible source with some support; or domain expert with moderate confidence; or non-domain-expert sources clustering on a view.
+   - **Low confidence (20-39%)**: Contrarian or speculative; sparse signal; or thesis-only with no domain expert engagement.
+   - **NEVER above 90%** — markets are inherently uncertain.
+   - Your confidence should reflect the ACTUAL probability you believe this will happen.
 
-5. **Source-weighted**: Give more weight to predictions from sources with higher credibility scores and better track records (performance scores).
+5. **Domain-expert weighting**: A solo high-credibility (≥4.0) domain-expert call in their specialty is sufficient grounds for a prediction with medium-to-high confidence. Triangulation across non-domain sources is NOT required and adds little. Triangulation matters when (a) the call crosses domains, (b) no domain expert has weighed in, or (c) the domain expert's credibility is moderate.
 
 6. **Bias towards conviction**: Prefer generating fewer, higher-confidence predictions over many low-confidence ones. Howard's value comes from having strong, well-reasoned calls — not from hedging everything. Only include a prediction if you would be comfortable defending it for the next 3+ months.
 
