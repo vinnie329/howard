@@ -13,9 +13,10 @@ interface NavItem {
 
 const navItems: NavItem[] = [
   { label: 'Daily Update', href: '/' },
+  { label: 'Data Feed', href: '/feed' },
   { label: 'House View', href: '/house-view' },
   { label: 'Model Portfolio', href: '/portfolio' },
-  { label: 'Data Feed', href: '/feed' },
+  { label: 'Assets', href: '/assets' },
   { label: 'Technicals', href: '/technicals' },
   { label: 'Prediction Markets', href: '/markets' },
   { label: 'Fed Watch', href: '/fedwatch' },

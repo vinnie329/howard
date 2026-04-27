@@ -1,120 +1,8 @@
 import { NextResponse } from 'next/server';
 import { getSupabaseServiceClient } from '@/lib/supabase';
+import { CORE_SYMBOLS, get13FTickers } from '@/lib/assets-universe';
 
 export const dynamic = 'force-dynamic';
-
-interface SymbolEntry {
-  ticker: string;
-  name: string;
-  tv: string;
-  source: 'core' | '13f';
-}
-
-const CORE_SYMBOLS: SymbolEntry[] = [
-  // Core
-  { ticker: 'NVDA', name: 'NVIDIA', tv: 'NASDAQ:NVDA', source: 'core' },
-  { ticker: 'MU', name: 'Micron', tv: 'NASDAQ:MU', source: 'core' },
-  { ticker: 'MRVL', name: 'Marvell', tv: 'NASDAQ:MRVL', source: 'core' },
-  { ticker: 'AVGO', name: 'Broadcom', tv: 'NASDAQ:AVGO', source: 'core' },
-  { ticker: 'ANET', name: 'Arista', tv: 'NYSE:ANET', source: 'core' },
-  { ticker: 'VST', name: 'Vistra', tv: 'NYSE:VST', source: 'core' },
-  // Monitoring
-  { ticker: 'ARM', name: 'ARM Holdings', tv: 'NASDAQ:ARM', source: 'core' },
-  { ticker: 'CRWV', name: 'CoreWeave', tv: 'NASDAQ:CRWV', source: 'core' },
-  { ticker: 'PLTR', name: 'Palantir', tv: 'NYSE:PLTR', source: 'core' },
-  // Hyperscalers
-  { ticker: 'MSFT', name: 'Microsoft', tv: 'NASDAQ:MSFT', source: 'core' },
-  { ticker: 'GOOGL', name: 'Google', tv: 'NASDAQ:GOOGL', source: 'core' },
-  { ticker: 'AMZN', name: 'Amazon', tv: 'NASDAQ:AMZN', source: 'core' },
-  { ticker: 'META', name: 'Meta', tv: 'NASDAQ:META', source: 'core' },
-  // Other Tech
-  { ticker: 'AMD', name: 'AMD', tv: 'NASDAQ:AMD', source: 'core' },
-  { ticker: 'INTC', name: 'Intel', tv: 'NASDAQ:INTC', source: 'core' },
-  { ticker: 'TSM', name: 'TSMC', tv: 'NYSE:TSM', source: 'core' },
-  { ticker: 'CSCO', name: 'Cisco', tv: 'NASDAQ:CSCO', source: 'core' },
-  { ticker: 'DELL', name: 'Dell', tv: 'NYSE:DELL', source: 'core' },
-  { ticker: 'HPE', name: 'HPE', tv: 'NYSE:HPE', source: 'core' },
-  // Data & Cybersecurity (GS Software Opportunities thesis)
-  { ticker: 'SNOW', name: 'Snowflake', tv: 'NYSE:SNOW', source: 'core' },
-  { ticker: 'MDB', name: 'MongoDB', tv: 'NASDAQ:MDB', source: 'core' },
-  { ticker: 'CFLT', name: 'Confluent', tv: 'NASDAQ:CFLT', source: 'core' },
-  { ticker: 'INFA', name: 'Informatica', tv: 'NYSE:INFA', source: 'core' },
-  { ticker: 'CRWD', name: 'CrowdStrike', tv: 'NASDAQ:CRWD', source: 'core' },
-  { ticker: 'PANW', name: 'Palo Alto Networks', tv: 'NASDAQ:PANW', source: 'core' },
-  { ticker: 'ZS', name: 'Zscaler', tv: 'NASDAQ:ZS', source: 'core' },
-  { ticker: 'FTNT', name: 'Fortinet', tv: 'NASDAQ:FTNT', source: 'core' },
-  { ticker: 'S', name: 'SentinelOne', tv: 'NYSE:S', source: 'core' },
-  // Crypto & Commodities
-  { ticker: 'BTC-USD', name: 'Bitcoin', tv: 'BITSTAMP:BTCUSD', source: 'core' },
-  { ticker: 'ETH-USD', name: 'Ethereum', tv: 'BITSTAMP:ETHUSD', source: 'core' },
-  { ticker: 'ZEC-USD', name: 'Zcash', tv: 'BINANCE:ZECUSDT', source: 'core' },
-  { ticker: 'GC=F', name: 'Gold', tv: 'COMEX:GC1!', source: 'core' },
-  { ticker: 'SI=F', name: 'Silver', tv: 'COMEX:SI1!', source: 'core' },
-  { ticker: 'HG=F', name: 'Copper', tv: 'COMEX:HG1!', source: 'core' },
-  { ticker: 'URA', name: 'Uranium ETF', tv: 'AMEX:URA', source: 'core' },
-  // House View positions
-  { ticker: 'SPY', name: 'S&P 500 ETF', tv: 'AMEX:SPY', source: 'core' },
-  { ticker: 'QQQ', name: 'NASDAQ 100 ETF', tv: 'NASDAQ:QQQ', source: 'core' },
-  { ticker: 'TLT', name: '20+ Year Treasury', tv: 'NASDAQ:TLT', source: 'core' },
-  { ticker: 'GLD', name: 'Gold ETF', tv: 'AMEX:GLD', source: 'core' },
-  { ticker: 'PAVE', name: 'Infrastructure ETF', tv: 'AMEX:PAVE', source: 'core' },
-  { ticker: 'GEV', name: 'GE Vernova', tv: 'NYSE:GEV', source: 'core' },
-  { ticker: 'BIZD', name: 'BDC Income ETF', tv: 'AMEX:BIZD', source: 'core' },
-  // Indices
-  { ticker: '^GSPC', name: 'S&P 500', tv: 'SP:SPX', source: 'core' },
-  { ticker: '^DJI', name: 'Dow Jones', tv: 'DJ:DJI', source: 'core' },
-  { ticker: '^IXIC', name: 'NASDAQ', tv: 'NASDAQ:IXIC', source: 'core' },
-];
-
-// Guess a TradingView symbol from a plain ticker
-function guessTvSymbol(ticker: string): string {
-  // Common NYSE-listed tickers
-  const nyse = new Set(['UBER', 'SNOW', 'HOOD', 'Z', 'CART', 'GRAB', 'RBLX', 'U', 'SOFI', 'NOW', 'WDAY', 'ABNB', 'SQ', 'SE', 'ARM', 'ALAB', 'RBRK', 'TTAN', 'FLUT', 'S', 'VST', 'ANET', 'PLTR', 'DELL', 'HPE', 'INFA', 'VRT']);
-  const exchange = nyse.has(ticker) ? 'NYSE' : 'NASDAQ';
-  return `${exchange}:${ticker}`;
-}
-
-async function get13FTickers(supabase: ReturnType<typeof getSupabaseServiceClient>): Promise<SymbolEntry[]> {
-  try {
-    // Get the latest filing date
-    const { data: latestFiling } = await supabase
-      .from('holdings')
-      .select('filing_date')
-      .order('filing_date', { ascending: false })
-      .limit(1);
-
-    if (!latestFiling || latestFiling.length === 0) return [];
-
-    const latestDate = latestFiling[0].filing_date;
-
-    // Get unique tickers from that filing date (equity positions only, skip options)
-    const { data: holdings } = await supabase
-      .from('holdings')
-      .select('ticker, company_name')
-      .eq('filing_date', latestDate)
-      .is('option_type', null)
-      .not('ticker', 'is', null);
-
-    if (!holdings) return [];
-
-    // Deduplicate by ticker
-    const seen = new Set<string>();
-    const entries: SymbolEntry[] = [];
-    for (const h of holdings) {
-      if (!h.ticker || seen.has(h.ticker)) continue;
-      seen.add(h.ticker);
-      entries.push({
-        ticker: h.ticker,
-        name: h.company_name,
-        tv: guessTvSymbol(h.ticker),
-        source: '13f',
-      });
-    }
-    return entries;
-  } catch {
-    return [];
-  }
-}
 
 interface MaExtremesRow {
   ticker: string;
@@ -135,17 +23,33 @@ async function fetchChartData(
   range: string,
   interval: string
 ): Promise<number[]> {
+  const r = await fetchChartSeries(ticker, range, interval);
+  return r.closes;
+}
+
+async function fetchChartSeries(
+  ticker: string,
+  range: string,
+  interval: string
+): Promise<{ closes: number[]; timestamps: number[] }> {
   const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ticker)}?range=${range}&interval=${interval}`;
   const res = await fetch(url, {
     headers: { 'User-Agent': 'Mozilla/5.0' },
   });
-
-  if (!res.ok) return [];
-
+  if (!res.ok) return { closes: [], timestamps: [] };
   const data = await res.json();
-  const closes: (number | null)[] =
-    data.chart?.result?.[0]?.indicators?.quote?.[0]?.close ?? [];
-  return closes.filter((v): v is number => v !== null);
+  const result = data.chart?.result?.[0];
+  const rawCloses: (number | null)[] = result?.indicators?.quote?.[0]?.close ?? [];
+  const rawTs: number[] = result?.timestamp ?? [];
+  const closes: number[] = [];
+  const timestamps: number[] = [];
+  for (let i = 0; i < rawCloses.length; i++) {
+    if (rawCloses[i] !== null && Number.isFinite(rawCloses[i] as number)) {
+      closes.push(rawCloses[i] as number);
+      timestamps.push(rawTs[i]);
+    }
+  }
+  return { closes, timestamps };
 }
 
 interface TechnicalResult {
@@ -153,6 +57,9 @@ interface TechnicalResult {
   name: string;
   tvSymbol: string;
   currentPrice: number;
+  previousClose: number | null;
+  change24h: number | null; // decimal (0.05 = +5%)
+  changeYtd: number | null; // decimal
   ma200d: number | null;
   devFromMa200d: number | null;
   historicalMaxDev200d: number | null;
@@ -172,14 +79,28 @@ async function fetchTechnicals(
   extremes: MaExtremesRow | undefined,
 ): Promise<{ result: TechnicalResult; update: MaExtremesRow | null } | null> {
   try {
-    const [dailyPrices, weeklyPrices] = await Promise.all([
-      fetchChartData(ticker, '1y', '1d'),
+    const [dailySeries, weeklyPrices] = await Promise.all([
+      fetchChartSeries(ticker, '1y', '1d'),
       fetchChartData(ticker, '5y', '1wk'),
     ]);
+    const dailyPrices = dailySeries.closes;
 
     if (dailyPrices.length === 0) return null;
 
     const currentPrice = dailyPrices[dailyPrices.length - 1];
+    const previousClose = dailyPrices.length >= 2 ? dailyPrices[dailyPrices.length - 2] : null;
+    const change24h = previousClose && previousClose !== 0 ? (currentPrice - previousClose) / previousClose : null;
+
+    // YTD = % change from the first close on/after Jan 1 of the current year.
+    const yearStartTs = Math.floor(new Date(new Date().getFullYear(), 0, 1).getTime() / 1000);
+    let ytdStart: number | null = null;
+    for (let i = 0; i < dailySeries.timestamps.length; i++) {
+      if (dailySeries.timestamps[i] >= yearStartTs) {
+        ytdStart = dailySeries.closes[i];
+        break;
+      }
+    }
+    const changeYtd = ytdStart && ytdStart !== 0 ? (currentPrice - ytdStart) / ytdStart : null;
     const displaySymbol = ticker
       .replace('=F', '')
       .replace('-Y.NYB', '')
@@ -225,6 +146,9 @@ async function fetchTechnicals(
       name,
       tvSymbol: tv,
       currentPrice,
+      previousClose,
+      change24h,
+      changeYtd,
       ma200d,
       devFromMa200d,
       historicalMaxDev200d: maxDev200d,
