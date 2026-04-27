@@ -32,6 +32,7 @@ const WHITELISTED_CHANNELS = [
   'bloombergpodcasts',
   'all-in podcast',
   'cheeky pint',
+  'acquired',
 ];
 
 function isWhitelistedChannel(channelTitle: string): boolean {

@@ -276,7 +276,7 @@ export default function TickerProfilePage() {
           {/* Row 1: title row */}
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 'var(--space-3)', marginBottom: 'var(--space-3)' }}>
             <h1 className="mono" style={{ fontSize: 28, fontWeight: 700, margin: 0, lineHeight: 1 }}>{ticker}</h1>
-            <span style={{ fontSize: 16, color: 'var(--text-secondary)' }}>{f.name || profile.name}</span>
+            <span style={{ fontSize: 16, color: 'var(--text-primary)', fontWeight: 500 }}>{f.name || profile.name}</span>
             <div style={{ flex: 1 }} />
             <span className="mono" style={{ fontSize: 24, fontWeight: 600 }}>{fmtCurrency(f.currentPrice)}</span>
           </div>
@@ -533,10 +533,6 @@ export default function TickerProfilePage() {
               )}
             </div>
             <div className="dossier" style={{
-              padding: 'var(--space-5)',
-              border: '1px solid var(--border)',
-              borderRadius: 'var(--radius-md)',
-              background: 'var(--bg-panel)',
               fontSize: 14,
               lineHeight: 1.65,
               color: 'var(--text-secondary)',
