@@ -12,6 +12,8 @@ const TICKER_MAP: Record<string, string> = {
   TLT: 'TLT', 'US10Y': '^TNX', DXY: 'DX-Y.NYB',
   Copper: 'HG=F', HG: 'HG=F', Uranium: 'URA',
   'Natural Gas': 'NG=F', NG: 'NG=F',
+  // Berkshire shares — Yahoo uses dash, not dot
+  'BRK.B': 'BRK-B', 'BRK.A': 'BRK-A',
 };
 
 export async function fetchPrice(ticker: string): Promise<number | null> {

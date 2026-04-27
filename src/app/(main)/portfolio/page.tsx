@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { SkeletonRows } from '@/components/ui/Skeleton';
 import { getPortfolioRebalanceHistory } from '@/lib/data';
 import type { PortfolioSnapshot, PortfolioPosition, PortfolioPerformance } from '@/types';
@@ -183,7 +184,10 @@ export default function PortfolioPage() {
 
             </div>
 
-            {/* ── Section 3: Positions Table ── */}
+            {/* ── Section 3: Tactical / Opportunistic positions ── */}
+            <div className="label" style={{ marginBottom: 'var(--space-3)' }}>
+              Tactical / Opportunistic
+            </div>
             <div className="table-scroll"><div style={{
               border: '1px solid var(--border)',
               borderRadius: 'var(--radius-md)',
@@ -337,6 +341,9 @@ export default function PortfolioPage() {
               </div>
             </div></div>
 
+            {/* ── Section 4: Compounder watchlist ── */}
+            <CompounderSection />
+
             <div className="mono" style={{ marginTop: 'var(--space-4)', fontSize: 10, color: 'var(--text-tertiary)' }}>
               AI-generated model portfolio. Not financial advice.
             </div>
@@ -448,5 +455,156 @@ export default function PortfolioPage() {
         </div>
       </div>
     </>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════════
+// Compounder watchlist (long-only quality book)
+// ════════════════════════════════════════════════════════════════════
+
+interface CoreWatchlistRow {
+  id: string;
+  ticker: string;
+  asset_name: string;
+  thesis: string;
+  buy_zone_max: number | null;
+  trim_zone_min: number | null;
+  invalidation_criteria: string | null;
+  status: 'watching' | 'in_position' | 'thesis_broken' | 'taken_profits';
+  has_dossier: boolean;
+  current_price: number | null;
+  in_buy_zone: boolean;
+  above_trim_zone: boolean;
+  distance_to_buy_zone_pct: number | null;
+}
+
+function CompounderSection() {
+  const [rows, setRows] = useState<CoreWatchlistRow[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetch('/api/core-watchlist')
+      .then((r) => r.json())
+      .then((d) => Array.isArray(d) ? setRows(d) : setRows([]))
+      .finally(() => setLoading(false));
+  }, []);
+
+  return (
+    <div style={{ marginTop: 'var(--space-8)' }}>
+      <div className="label" style={{ marginBottom: 'var(--space-3)' }}>
+        Compounder Watchlist
+      </div>
+      <p style={{ fontSize: 12, color: 'var(--text-tertiary)', marginBottom: 'var(--space-3)', maxWidth: 720 }}>
+        Long-only quality candidates. Each name has a thesis + buy-zone trigger; capital deploys from cash when the trigger hits and trims when the trim zone hits. Sized 3–8% per name when entered.
+      </p>
+
+      {loading ? (
+        <SkeletonRows count={3} />
+      ) : rows.length === 0 ? (
+        <div className="mono" style={{ fontSize: 11, color: 'var(--text-tertiary)', padding: 'var(--space-3) 0' }}>
+          No watchlist candidates yet. Run <code>npx tsx scripts/seed-core-watchlist.ts</code> to seed starter names.
+        </div>
+      ) : (
+        <div className="table-scroll">
+          <div style={{ border: '1px solid var(--border)', borderRadius: 'var(--radius-md)', overflow: 'hidden' }}>
+            <div className="mono" style={{
+              display: 'grid',
+              gridTemplateColumns: '90px 1fr 100px 100px 100px 80px',
+              padding: 'var(--space-3) var(--space-4)',
+              background: 'var(--bg-surface)',
+              borderBottom: '1px solid var(--border)',
+              gap: 'var(--space-2)',
+              fontSize: 10,
+              color: 'var(--text-tertiary)',
+              letterSpacing: '0.03em',
+            }}>
+              <span>TICKER</span>
+              <span>NAME</span>
+              <span style={{ textAlign: 'right' }}>PRICE</span>
+              <span style={{ textAlign: 'right' }}>BUY ≤</span>
+              <span style={{ textAlign: 'right' }}>VS BUY</span>
+              <span style={{ textAlign: 'right' }}>STATUS</span>
+            </div>
+            {rows.map((r) => {
+              const expanded = expandedId === r.id;
+              const distColor = r.in_buy_zone ? '#22c55e' : (r.distance_to_buy_zone_pct ?? 0) < 10 ? '#eab308' : 'var(--text-tertiary)';
+              const statusColor =
+                r.status === 'in_position' ? 'var(--accent)'
+                : r.status === 'thesis_broken' ? '#ef4444'
+                : r.status === 'taken_profits' ? '#22c55e'
+                : 'var(--text-tertiary)';
+              return (
+                <div key={r.id} style={{ borderBottom: '1px solid var(--border)' }}>
+                  <div
+                    onClick={() => setExpandedId(expanded ? null : r.id)}
+                    style={{
+                      display: 'grid',
+                      gridTemplateColumns: '90px 1fr 100px 100px 100px 80px',
+                      padding: 'var(--space-3) var(--space-4)',
+                      gap: 'var(--space-2)',
+                      alignItems: 'center',
+                      cursor: 'pointer',
+                      transition: 'background 0.1s ease',
+                      background: expanded ? 'var(--bg-surface)' : 'transparent',
+                    }}
+                  >
+                    <Link href={`/assets/${encodeURIComponent(r.ticker)}`} onClick={(e) => e.stopPropagation()} className="mono" style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-primary)', textDecoration: 'none' }}>
+                      {r.ticker}
+                    </Link>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
+                      <span style={{ fontSize: 12, color: 'var(--text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.asset_name}</span>
+                      {r.has_dossier && (
+                        <span className="mono" style={{
+                          fontSize: 9, padding: '1px 6px', borderRadius: 2,
+                          background: 'color-mix(in srgb, #a78bfa 15%, transparent)', color: '#a78bfa',
+                          letterSpacing: '0.05em', flexShrink: 0,
+                        }}>
+                          DOSSIER
+                        </span>
+                      )}
+                    </div>
+                    <span className="mono" style={{ fontSize: 12, textAlign: 'right' }}>
+                      {r.current_price !== null ? `$${r.current_price.toFixed(2)}` : '—'}
+                    </span>
+                    <span className="mono" style={{ fontSize: 12, textAlign: 'right', color: 'var(--text-tertiary)' }}>
+                      {r.buy_zone_max !== null ? `$${r.buy_zone_max.toFixed(0)}` : '—'}
+                    </span>
+                    <span className="mono" style={{ fontSize: 11, textAlign: 'right', color: distColor }}>
+                      {r.distance_to_buy_zone_pct !== null
+                        ? `${r.distance_to_buy_zone_pct >= 0 ? '+' : ''}${r.distance_to_buy_zone_pct.toFixed(1)}%`
+                        : '—'}
+                    </span>
+                    <span className="mono" style={{
+                      fontSize: 9, textAlign: 'right',
+                      padding: '2px 6px', borderRadius: 3,
+                      background: `color-mix(in srgb, ${statusColor} 15%, transparent)`,
+                      color: statusColor, letterSpacing: '0.05em',
+                      justifySelf: 'end',
+                    }}>
+                      {r.status.toUpperCase().replace('_', ' ')}
+                    </span>
+                  </div>
+                  {expanded && (
+                    <div style={{ padding: 'var(--space-4)', background: 'var(--bg-surface)', fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.6 }}>
+                      <div style={{ marginBottom: 'var(--space-2)' }}>
+                        <span className="label" style={{ marginRight: 'var(--space-2)' }}>Thesis:</span>
+                        {r.thesis}
+                      </div>
+                      {r.invalidation_criteria && (
+                        <div>
+                          <span className="label" style={{ marginRight: 'var(--space-2)' }}>Invalidation:</span>
+                          {r.invalidation_criteria}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </div>
   );
 }

@@ -52,7 +52,7 @@ export async function GET(_request: Request, { params }: { params: { ticker: str
   const aliases = aliasesFor(ticker, displayName);
 
   // Run everything in parallel
-  const [fundamentals, housePredsRes, portfolioRes, sourcePredsRes, contentMentionsRes] = await Promise.all([
+  const [fundamentals, housePredsRes, portfolioRes, sourcePredsRes, contentMentionsRes, coreWatchlistRes] = await Promise.all([
     fetchFundamentals(ticker),
     sb.from('house_predictions')
       .select('id, claim, direction, conviction, confidence, target_value, target_condition, reference_value, deadline, thesis, supporting_sources, key_drivers, invalidation_criteria, themes, outcome, created_at')
@@ -73,6 +73,10 @@ export async function GET(_request: Request, { params }: { params: { ticker: str
       .select('id, content_id, summary, sentiment_overall, themes, key_quotes, assets_mentioned, created_at, content(id, title, published_at, source_id, sources(name, slug, weighted_score))')
       .order('created_at', { ascending: false })
       .limit(2000),
+    sb.from('core_watchlist')
+      .select('id, ticker, asset_name, thesis, reinvestment_runway, pricing_power_evidence, capital_allocation_notes, buy_zone_max, trim_zone_min, invalidation_criteria, status, dossier_md, dossier_updated_at, flagged_by_sources, notes')
+      .eq('ticker', ticker)
+      .maybeSingle(),
   ]);
 
   // Filter by alias match (case-insensitive)
@@ -118,6 +122,7 @@ export async function GET(_request: Request, { params }: { params: { ticker: str
     sourcePredictions: filteredPreds,
     sourceMentions: filteredMentions,
     peers,
+    coreWatchlist: coreWatchlistRes.data || null,
   }, {
     headers: { 'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=60' },
   });

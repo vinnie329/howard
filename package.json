@@ -18,7 +18,9 @@
     "pdf-parse": "^1.1.4",
     "react": "^18",
     "react-dom": "^18",
+    "react-markdown": "^10.1.0",
     "recharts": "^3.7.0",
+    "remark-gfm": "^4.0.1",
     "uuid": "^13.0.0",
     "voyageai": "^0.1.0",
     "youtube-transcript": "^1.2.1"

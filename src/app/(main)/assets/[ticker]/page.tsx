@@ -3,6 +3,8 @@
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { Skeleton, SkeletonLines } from '@/components/ui/Skeleton';
 import SourcePill from '@/components/ui/SourcePill';
 import Tag from '@/components/ui/Tag';
@@ -107,6 +109,24 @@ interface SourceMention {
   } | null;
 }
 
+interface CoreWatchlistEntry {
+  id: string;
+  ticker: string;
+  asset_name: string;
+  thesis: string;
+  reinvestment_runway: string | null;
+  pricing_power_evidence: string | null;
+  capital_allocation_notes: string | null;
+  buy_zone_max: number | null;
+  trim_zone_min: number | null;
+  invalidation_criteria: string | null;
+  status: 'watching' | 'in_position' | 'thesis_broken' | 'taken_profits';
+  dossier_md: string | null;
+  dossier_updated_at: string | null;
+  flagged_by_sources: string[];
+  notes: string | null;
+}
+
 interface Profile {
   ticker: string;
   name: string;
@@ -117,6 +137,7 @@ interface Profile {
   sourcePredictions: SourcePrediction[];
   sourceMentions: SourceMention[];
   peers: string[];
+  coreWatchlist: CoreWatchlistEntry | null;
 }
 
 function fmtBigNum(n: number | null): string {
@@ -209,7 +230,7 @@ export default function TickerProfilePage() {
     );
   }
 
-  const { fundamentals: f, housePredictions, portfolioPosition: pos, sourcePredictions, sourceMentions, peers } = profile;
+  const { fundamentals: f, housePredictions, portfolioPosition: pos, sourcePredictions, sourceMentions, peers, coreWatchlist } = profile;
 
   // Pick the highest-confidence active house prediction for the inline header chip.
   const topHouse = housePredictions.length > 0
@@ -295,6 +316,21 @@ export default function TickerProfilePage() {
                   IN PORT · {pos.direction.toUpperCase()} {pos.allocation_pct.toFixed(1)}%
                 </span>
               )}
+              {coreWatchlist && (() => {
+                const cwColor = coreWatchlist.status === 'in_position' ? '#22c55e'
+                  : coreWatchlist.status === 'thesis_broken' ? '#ef4444'
+                  : '#a78bfa';
+                const inBuyZone = coreWatchlist.buy_zone_max !== null && f.currentPrice !== null && f.currentPrice <= coreWatchlist.buy_zone_max;
+                return (
+                  <span className="mono" style={{
+                    fontSize: 10, padding: '3px 7px', borderRadius: 3,
+                    background: `color-mix(in srgb, ${cwColor} 15%, transparent)`,
+                    color: cwColor, letterSpacing: '0.06em', fontWeight: 500,
+                  }}>
+                    COMPOUNDER · {coreWatchlist.status.toUpperCase().replace('_', ' ')}{inBuyZone ? ' · IN BUY ZONE' : ''}{coreWatchlist.dossier_md ? ' · DOSSIER' : ''}
+                  </span>
+                );
+              })()}
               <a
                 href={tradingViewUrl(ticker)}
                 target="_blank"
@@ -344,6 +380,56 @@ export default function TickerProfilePage() {
             </div>
           </div>
         )}
+
+        {/* Compounder watchlist banner */}
+        {coreWatchlist && (() => {
+          const inBuyZone = coreWatchlist.buy_zone_max !== null && f.currentPrice !== null && f.currentPrice <= coreWatchlist.buy_zone_max;
+          const aboveTrim = coreWatchlist.trim_zone_min !== null && f.currentPrice !== null && f.currentPrice >= coreWatchlist.trim_zone_min;
+          const distance = coreWatchlist.buy_zone_max !== null && f.currentPrice !== null
+            ? ((f.currentPrice - coreWatchlist.buy_zone_max) / coreWatchlist.buy_zone_max) * 100
+            : null;
+          return (
+            <div style={{ marginBottom: 'var(--space-6)' }}>
+              <div className="label" style={{ marginBottom: 'var(--space-2)' }}>Compounder Watchlist</div>
+              <div style={{
+                padding: 'var(--space-4)',
+                border: `1px solid ${inBuyZone ? '#22c55e66' : '#a78bfa66'}`,
+                borderRadius: 'var(--radius-md)',
+                background: `color-mix(in srgb, ${inBuyZone ? '#22c55e' : '#a78bfa'} 6%, var(--bg-panel))`,
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', marginBottom: 'var(--space-2)', flexWrap: 'wrap' }}>
+                  <span className="mono" style={{ fontSize: 10, padding: '3px 7px', borderRadius: 3, background: '#a78bfa22', color: '#a78bfa', letterSpacing: '0.06em' }}>
+                    {coreWatchlist.status.toUpperCase().replace('_', ' ')}
+                  </span>
+                  {inBuyZone && (
+                    <span className="mono" style={{ fontSize: 10, padding: '3px 7px', borderRadius: 3, background: '#22c55e22', color: '#22c55e', letterSpacing: '0.06em' }}>
+                      IN BUY ZONE
+                    </span>
+                  )}
+                  {aboveTrim && (
+                    <span className="mono" style={{ fontSize: 10, padding: '3px 7px', borderRadius: 3, background: '#ef444422', color: '#ef4444', letterSpacing: '0.06em' }}>
+                      ABOVE TRIM ZONE
+                    </span>
+                  )}
+                </div>
+                <div style={{ fontSize: 13, lineHeight: 1.5, color: 'var(--text-secondary)', marginBottom: 'var(--space-2)' }}>
+                  {coreWatchlist.thesis}
+                </div>
+                <div className="mono" style={{ fontSize: 10, color: 'var(--text-tertiary)' }}>
+                  {coreWatchlist.buy_zone_max !== null && (
+                    <>Buy ≤ ${coreWatchlist.buy_zone_max.toFixed(0)}</>
+                  )}
+                  {coreWatchlist.trim_zone_min !== null && (
+                    <> · Trim ≥ ${coreWatchlist.trim_zone_min.toFixed(0)}</>
+                  )}
+                  {distance !== null && (
+                    <> · {distance >= 0 ? '+' : ''}{distance.toFixed(1)}% vs buy zone</>
+                  )}
+                </div>
+              </div>
+            </div>
+          );
+        })()}
 
         {/* Portfolio banner */}
         {pos && (
@@ -432,6 +518,33 @@ export default function TickerProfilePage() {
           <div style={{ marginBottom: 'var(--space-6)' }}>
             <div className="label" style={{ marginBottom: 'var(--space-2)' }}>Business</div>
             <p style={{ color: 'var(--text-secondary)', fontSize: 13, lineHeight: 1.6 }}>{f.businessSummary}</p>
+          </div>
+        )}
+
+        {/* Compounder dossier — long-form research note */}
+        {coreWatchlist?.dossier_md && (
+          <div style={{ marginBottom: 'var(--space-6)' }}>
+            <div className="label" style={{ marginBottom: 'var(--space-2)' }}>
+              Compounder Dossier
+              {coreWatchlist.dossier_updated_at && (
+                <span className="mono" style={{ fontSize: 9, color: 'var(--text-tertiary)', marginLeft: 'var(--space-2)', textTransform: 'none', letterSpacing: 0 }}>
+                  Updated {fmtShortDate(coreWatchlist.dossier_updated_at)}
+                </span>
+              )}
+            </div>
+            <div className="dossier" style={{
+              padding: 'var(--space-5)',
+              border: '1px solid var(--border)',
+              borderRadius: 'var(--radius-md)',
+              background: 'var(--bg-panel)',
+              fontSize: 14,
+              lineHeight: 1.65,
+              color: 'var(--text-secondary)',
+            }}>
+              <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                {coreWatchlist.dossier_md}
+              </ReactMarkdown>
+            </div>
           </div>
         )}
 

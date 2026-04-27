@@ -507,3 +507,22 @@ h2 {
   }
 
 }
+
+/* ── Compounder dossier markdown ── */
+.dossier h1 { font-size: 22px; font-weight: 600; color: var(--text-primary); margin: 0 0 var(--space-4); line-height: 1.2; }
+.dossier h2 { font-size: 16px; font-weight: 600; color: var(--text-primary); margin: var(--space-6) 0 var(--space-3); line-height: 1.3; border-top: 1px solid var(--border); padding-top: var(--space-4); }
+.dossier h2:first-of-type { border-top: none; padding-top: 0; }
+.dossier h3 { font-size: 14px; font-weight: 600; color: var(--text-primary); margin: var(--space-4) 0 var(--space-2); }
+.dossier p { margin: 0 0 var(--space-3); }
+.dossier strong { color: var(--text-primary); font-weight: 600; }
+.dossier ul, .dossier ol { padding-left: var(--space-5); margin: 0 0 var(--space-3); }
+.dossier li { margin-bottom: var(--space-1); }
+.dossier blockquote { border-left: 3px solid var(--accent); padding: var(--space-2) var(--space-4); margin: 0 0 var(--space-3); background: var(--bg-surface); color: var(--text-secondary); }
+.dossier code { font-family: var(--font-mono); font-size: 0.9em; background: var(--bg-surface); padding: 1px 5px; border-radius: 2px; color: var(--text-primary); }
+.dossier table { width: 100%; border-collapse: collapse; margin: var(--space-3) 0; font-size: 12px; }
+.dossier th, .dossier td { padding: var(--space-2) var(--space-3); border: 1px solid var(--border); text-align: left; }
+.dossier th { background: var(--bg-surface); font-weight: 600; color: var(--text-tertiary); font-size: 10px; text-transform: uppercase; letter-spacing: 0.03em; }
+.dossier td { color: var(--text-secondary); }
+.dossier hr { border: none; border-top: 1px solid var(--border); margin: var(--space-5) 0; }
+.dossier a { color: var(--accent); text-decoration: none; }
+.dossier a:hover { text-decoration: underline; }
