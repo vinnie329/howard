@@ -32,7 +32,6 @@ interface EquitiesRow {
 export async function GET() {
   const sb = getSupabaseServiceClient();
   const universe = await getEquitiesUniverse(sb);
-  const tickers = universe.map((s) => s.ticker);
 
   // Build a tolerant matcher: many predictions/analyses store the asset under
   // common alias forms (e.g. "Gold" instead of "GC=F", "Bitcoin" for "BTC-USD",
