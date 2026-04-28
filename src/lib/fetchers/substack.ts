@@ -12,6 +12,7 @@ const SUBSTACK_SENDERS: Record<string, string> = {
   'michaeljburry@substack.com': 'mike-burry',
   'taekim@substack.com': 'tae-kim',
   'eladgil@substack.com': 'elad-gil',
+  'kakashiii111@substack.com': 'kakashii',
 };
 
 interface GmailMessage {
@@ -72,36 +73,57 @@ function decodeBase64Url(data: string): string {
   return Buffer.from(base64, 'base64').toString('utf-8');
 }
 
-function extractHtmlBody(payload: GmailMessageFull['payload']): string | null {
-  // Direct body
-  if (payload.body?.data) {
+function extractMimePart(payload: GmailMessageFull['payload'], mimeType: string): string | null {
+  // Direct body matches the requested mime type — Gmail puts it on the root if simple.
+  if (payload.body?.data && (!payload.parts || payload.parts.length === 0)) {
     return decodeBase64Url(payload.body.data);
   }
-
-  // Search parts for text/html
   if (payload.parts) {
     for (const part of payload.parts) {
-      if (part.mimeType === 'text/html' && part.body?.data) {
+      if (part.mimeType === mimeType && part.body?.data) {
         return decodeBase64Url(part.body.data);
       }
-      // Nested multipart
       if (part.parts) {
         for (const sub of part.parts) {
-          if (sub.mimeType === 'text/html' && sub.body?.data) {
+          if (sub.mimeType === mimeType && sub.body?.data) {
             return decodeBase64Url(sub.body.data);
           }
         }
       }
     }
-    // Fallback to text/plain
-    for (const part of payload.parts) {
-      if (part.mimeType === 'text/plain' && part.body?.data) {
-        return decodeBase64Url(part.body.data);
-      }
-    }
   }
-
   return null;
+}
+
+function extractHtmlBody(payload: GmailMessageFull['payload']): string | null {
+  return extractMimePart(payload, 'text/html') ?? extractMimePart(payload, 'text/plain');
+}
+
+function extractPlainBody(payload: GmailMessageFull['payload']): string | null {
+  return extractMimePart(payload, 'text/plain');
+}
+
+/**
+ * Strip Substack's plain-text email tail (unsubscribe link, disclaimers, etc.).
+ * Many Substack emails contain the full article in text/plain but the HTML
+ * version is just the headline + a "view online" link — extracting from
+ * plaintext is the robust path. We trim the boilerplate that Substack appends.
+ */
+function cleanPlainText(plain: string): string {
+  let text = plain;
+
+  // Remove the leading "View this post on the web at <url>" line
+  text = text.replace(/^View this post on the web at[^\n]*\n+/i, '');
+
+  // Truncate at the unsubscribe footer (Substack always appends one)
+  const unsubIdx = text.search(/\n\s*Unsubscribe\s+https?:\/\//i);
+  if (unsubIdx > 0) text = text.slice(0, unsubIdx);
+
+  // Drop common Substack disclaimer/boilerplate blocks if present
+  text = text.replace(/\n\s*Get the (?:Substack )?app[^\n]*\n+/gi, '\n');
+  text = text.replace(/\n\s*Read on Substack[^\n]*\n+/gi, '\n');
+
+  return text.replace(/\n{3,}/g, '\n\n').trim();
 }
 
 /**
@@ -322,7 +344,13 @@ export async function fetchSubstackEmails(
           continue;
         }
 
-        const rawText = extractArticleText(html);
+        // Many Substack emails contain the full article only in text/plain — the
+        // HTML version is the title + a "view online" link. Prefer whichever
+        // candidate has more substantive body text.
+        const htmlText = extractArticleText(html);
+        const plainRaw = extractPlainBody(msgData.payload);
+        const plainText = plainRaw ? cleanPlainText(plainRaw) : '';
+        const rawText = plainText.length > htmlText.length ? plainText : htmlText;
         if (rawText.length < 100) {
           console.log(`    ✕ Too short (${rawText.length} chars): ${subject}`);
           continue;
