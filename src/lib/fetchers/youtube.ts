@@ -29,7 +29,7 @@ const WHITELISTED_CHANNELS = [
   'realeismanplaybook',
   'steve eisman',
   'south park commons',
-  'bloombergpodcasts',
+  'bloomberg podcasts',
   'all-in podcast',
   'cheeky pint',
   'acquired',
