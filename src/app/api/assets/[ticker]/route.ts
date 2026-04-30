@@ -52,7 +52,7 @@ export async function GET(_request: Request, { params }: { params: { ticker: str
   const aliases = aliasesFor(ticker, displayName);
 
   // Run everything in parallel
-  const [fundamentals, housePredsRes, portfolioRes, sourcePredsRes, contentMentionsRes, coreWatchlistRes] = await Promise.all([
+  const [fundamentals, housePredsRes, portfolioRes, sourcePredsRes, contentMentionsRes, coreWatchlistRes, assetDossierRes, buildoutWatchlistRes] = await Promise.all([
     fetchFundamentals(ticker),
     sb.from('house_predictions')
       .select('id, claim, direction, conviction, confidence, target_value, target_condition, reference_value, deadline, thesis, supporting_sources, key_drivers, invalidation_criteria, themes, outcome, created_at')
@@ -75,6 +75,20 @@ export async function GET(_request: Request, { params }: { params: { ticker: str
       .limit(2000),
     sb.from('core_watchlist')
       .select('id, ticker, asset_name, thesis, reinvestment_runway, pricing_power_evidence, capital_allocation_notes, buy_zone_max, trim_zone_min, invalidation_criteria, status, dossier_md, dossier_updated_at, flagged_by_sources, notes')
+      .eq('ticker', ticker)
+      .maybeSingle(),
+    // Latest research dossier for this ticker (general, not compounder-specific).
+    // Match either the primary anchor ticker or any dossier whose related_tickers
+    // array includes this ticker (thematic dossiers like robotics-silicon).
+    sb.from('asset_dossiers')
+      .select('id, ticker, title, body_md, author, as_of_date, summary, related_tickers, updated_at')
+      .or(`ticker.eq.${ticker},related_tickers.cs.{${ticker}}`)
+      .order('as_of_date', { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+    // Buildout watchlist entry (AGI / robotics infrastructure book) — companion to core_watchlist
+    sb.from('buildout_watchlist')
+      .select('id, ticker, asset_name, category, value_chain_layer, thesis, agi_dependency, buy_zone_max, trim_zone_min, invalidation_capex_stall, invalidation_disintermediation, status, notes')
       .eq('ticker', ticker)
       .maybeSingle(),
   ]);
@@ -123,6 +137,8 @@ export async function GET(_request: Request, { params }: { params: { ticker: str
     sourceMentions: filteredMentions,
     peers,
     coreWatchlist: coreWatchlistRes.data || null,
+    assetDossier: assetDossierRes.data || null,
+    buildoutWatchlist: buildoutWatchlistRes.data || null,
   }, {
     headers: { 'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=60' },
   });

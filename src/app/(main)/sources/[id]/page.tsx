@@ -6,6 +6,7 @@ import Link from 'next/link';
 import SourcePanel from '@/components/ui/SourcePanel';
 import ContentCard from '@/components/ui/ContentCard';
 import Tag from '@/components/ui/Tag';
+import { OutcomeBadge } from '@/components/ui/OutcomeBadge';
 import { getSourceBySlug, getContentForSource, getPredictionsForSource } from '@/lib/data';
 import { SkeletonCards } from '@/components/ui/Skeleton';
 import type { Source, ContentWithAnalysis, Prediction } from '@/types';
@@ -26,7 +27,10 @@ function decodeEntities(text: string): string {
 }
 
 type PredFilter = 'all' | 'bullish' | 'bearish';
+type OutcomeFilter = 'all' | 'resolved' | 'unresolved' | 'correct' | 'incorrect' | 'partially_correct' | 'pending';
 type RightTab = 'content' | 'predictions';
+
+const RESOLVED = new Set(['correct', 'incorrect', 'partially_correct']);
 
 function formatTimestamp(iso: string): string {
   const d = new Date(iso);
@@ -47,6 +51,7 @@ export default function SourceProfile() {
   const [predictions, setPredictions] = useState<Prediction[]>([]);
   const [loading, setLoading] = useState(true);
   const [predFilter, setPredFilter] = useState<PredFilter>('all');
+  const [outcomeFilter, setOutcomeFilter] = useState<OutcomeFilter>('all');
   const [rightTab, setRightTab] = useState<RightTab>('content');
 
   const loadData = useCallback(async () => {
@@ -111,9 +116,17 @@ export default function SourceProfile() {
     .sort((a, b) => new Date(a[1]).getTime() - new Date(b[1]).getTime());
 
   // Filtered predictions
-  const filteredPreds = predFilter === 'all'
-    ? predictions
-    : predictions.filter((p) => p.sentiment === predFilter);
+  const filteredPreds = predictions.filter((p) => {
+    if (predFilter !== 'all' && p.sentiment !== predFilter) return false;
+    const outcome = p.outcome || 'pending';
+    if (outcomeFilter === 'all') return true;
+    if (outcomeFilter === 'resolved') return RESOLVED.has(outcome);
+    if (outcomeFilter === 'unresolved') return !RESOLVED.has(outcome);
+    return outcome === outcomeFilter;
+  });
+
+  const resolvedCount = predictions.filter((p) => p.outcome && RESOLVED.has(p.outcome)).length;
+  const unresolvedCount = totalPreds - resolvedCount;
 
   return (
     <>
@@ -223,7 +236,7 @@ export default function SourceProfile() {
           {/* Predictions view */}
           {rightTab === 'predictions' && (
             <div style={{ flex: 1 }}>
-              <div style={{ padding: '0 var(--space-4)' }}>
+              <div style={{ padding: '0 var(--space-4)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 'var(--space-2)' }}>
                 <div className="filter-tabs" style={{ marginBottom: 0 }}>
                   {(['all', 'bullish', 'bearish'] as PredFilter[]).map((f) => (
                     <button
@@ -233,6 +246,26 @@ export default function SourceProfile() {
                       style={{ textTransform: 'capitalize' }}
                     >
                       {f} {f === 'all' ? `(${totalPreds})` : f === 'bullish' ? `(${bullish})` : `(${bearish})`}
+                    </button>
+                  ))}
+                </div>
+                <Link
+                  href={`/performance/${source.slug}`}
+                  style={{ fontSize: 11, color: 'var(--accent)', textDecoration: 'none' }}
+                >
+                  View full performance →
+                </Link>
+              </div>
+              <div style={{ padding: 'var(--space-2) var(--space-4) 0' }}>
+                <div className="filter-tabs" style={{ marginBottom: 0 }}>
+                  {(['all', 'resolved', 'unresolved', 'correct', 'partially_correct', 'incorrect', 'pending'] as OutcomeFilter[]).map((f) => (
+                    <button
+                      key={f}
+                      className={`filter-tab ${outcomeFilter === f ? 'active' : ''}`}
+                      onClick={() => setOutcomeFilter(f)}
+                      style={{ fontSize: 10 }}
+                    >
+                      {f === 'all' ? `All (${totalPreds})` : f === 'resolved' ? `Resolved (${resolvedCount})` : f === 'unresolved' ? `Unresolved (${unresolvedCount})` : f.replace('_', ' ').replace(/^\w/, (c) => c.toUpperCase())}
                     </button>
                   ))}
                 </div>
@@ -247,12 +280,13 @@ export default function SourceProfile() {
                     {/* Table header */}
                     <div style={{
                       display: 'grid',
-                      gridTemplateColumns: '2fr 80px 100px 80px',
+                      gridTemplateColumns: '2fr 100px 80px 100px 80px',
                       padding: 'var(--space-3) var(--space-4)',
                       background: 'var(--bg-surface)',
                       borderBottom: '1px solid var(--border)',
                     }}>
                       <span className="label">Claim</span>
+                      <span className="label">Outcome</span>
                       <span className="label">Sentiment</span>
                       <span className="label">Horizon</span>
                       <span className="label">Specificity</span>
@@ -263,7 +297,7 @@ export default function SourceProfile() {
                         key={pred.id}
                         style={{
                           display: 'grid',
-                          gridTemplateColumns: '2fr 80px 100px 80px',
+                          gridTemplateColumns: '2fr 100px 80px 100px 80px',
                           padding: 'var(--space-3) var(--space-4)',
                           borderBottom: '1px solid var(--border)',
                           alignItems: 'center',
@@ -290,6 +324,9 @@ export default function SourceProfile() {
                               </span>
                             ))}
                           </div>
+                        </div>
+                        <div>
+                          <OutcomeBadge outcome={pred.outcome} />
                         </div>
                         <div>
                           <Tag

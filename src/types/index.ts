@@ -321,6 +321,28 @@ export interface DailyUpdate {
       ticker: string;
       detail: string;
     }>;
+    insider_filings?: Array<{
+      fund: string;
+      manager?: string;
+      form_type: string;
+      filing_date: string;
+      issuer?: string;
+      ownership?: string;
+      cost_basis_usd?: number;
+      headline: string;
+      significance?: string;
+    }>;
+    buildout_alerts?: Array<{
+      ticker: string;
+      name: string;
+      category: string;
+      agi_dependency: 'core' | 'optional' | 'hedge';
+      current_price: number;
+      buy_zone_max: number;
+      in_zone: boolean;
+      headline: string;
+      significance?: string;
+    }>;
   };
   generated_at: string;
 }

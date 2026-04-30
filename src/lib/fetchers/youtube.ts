@@ -33,6 +33,7 @@ const WHITELISTED_CHANNELS = [
   'all-in podcast',
   'cheeky pint',
   'acquired',
+  'matthew berman',
 ];
 
 function isWhitelistedChannel(channelTitle: string): boolean {

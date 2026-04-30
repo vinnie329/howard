@@ -159,7 +159,61 @@ async function main() {
     .gte('created_at', twentyFourHoursAgo)
     .order('value', { ascending: false })
     .limit(20);
-  console.log(`  ${recentHoldings?.length ?? 0} holdings changes\n`);
+  console.log(`  ${recentHoldings?.length ?? 0} holdings changes`);
+
+  // 9. Insider/SA filings detected in last 24h (top-of-briefing alert)
+  console.log('Fetching insider filings...');
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: insiderFilings } = await supabase
+    .from('insider_filings')
+    .select('form_type, filing_date, event_date, period_of_report, issuer_name, issuer_ticker, issuer_cusip, shares_owned, pct_of_class, cost_basis, prior_pct, primary_doc_url, fund:fund_id(name, manager_name)')
+    .gte('ingested_at', twentyFourHoursAgo)
+    .order('filing_date', { ascending: false });
+  console.log(`  ${insiderFilings?.length ?? 0} insider filings detected`);
+
+  // 10. Buildout watchlist names that are in or near their buy zone (alertable).
+  // Compute live prices and surface any name where current_price <= buy_zone_max
+  // OR within 5% of buy_zone_max. These are buy-zone-hit alerts for the daily briefing.
+  console.log('Fetching buildout watchlist buy-zone hits...');
+  const { data: buildoutRows } = await supabase
+    .from('buildout_watchlist')
+    .select('ticker, asset_name, category, agi_dependency, buy_zone_max, trim_zone_min, thesis, status')
+    .eq('status', 'watching')
+    .not('buy_zone_max', 'is', null);
+  // Use the same chart endpoint used elsewhere — quick last-close price per ticker
+  async function fetchLast(ticker: string): Promise<number | null> {
+    try {
+      const end = Math.floor(Date.now() / 1000);
+      const startTs = end - 5 * 24 * 60 * 60;
+      const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ticker)}?period1=${startTs}&period2=${end}&interval=1d`;
+      const res = await fetch(url, { headers: { 'User-Agent': 'Howard/1.0' } });
+      if (!res.ok) return null;
+      const json = await res.json();
+      const closes = (json?.chart?.result?.[0]?.indicators?.quote?.[0]?.close || []).filter((c: number | null) => c !== null);
+      return closes[closes.length - 1] ?? null;
+    } catch { return null; }
+  }
+  const buildoutAlerts: Array<{ ticker: string; asset_name: string; category: string; agi_dependency: string; current_price: number; buy_zone_max: number; pct_to_buy: number; in_zone: boolean; thesis: string }> = [];
+  for (const r of buildoutRows || []) {
+    const price = await fetchLast(r.ticker);
+    if (price === null || r.buy_zone_max === null) continue;
+    const pct = ((price - r.buy_zone_max) / r.buy_zone_max) * 100;
+    // Alert if in zone (≤ buy zone) OR within 5% above
+    if (pct <= 5) {
+      buildoutAlerts.push({
+        ticker: r.ticker,
+        asset_name: r.asset_name,
+        category: r.category,
+        agi_dependency: r.agi_dependency,
+        current_price: price,
+        buy_zone_max: r.buy_zone_max,
+        pct_to_buy: pct,
+        in_zone: pct <= 0,
+        thesis: r.thesis,
+      });
+    }
+  }
+  console.log(`  ${buildoutAlerts.length} buildout name(s) at or near buy zone\n`);
 
   // ── Check if there's anything to report ──────────────────────────────
   const totalData =
@@ -167,7 +221,9 @@ async function main() {
     (Array.isArray(signals) ? signals.length : 0) +
     (outlookChanges?.length ?? 0) +
     (marketSnapshots?.length ?? 0) +
-    (recentHoldings?.length ?? 0);
+    (recentHoldings?.length ?? 0) +
+    (insiderFilings?.length ?? 0) +
+    buildoutAlerts.length;
 
   if (totalData === 0) {
     console.log('No new data in the last 24 hours. Skipping generation.');
@@ -223,6 +279,25 @@ async function main() {
     return `[${fund}] ${h.change_type}: ${h.company_name} (${h.ticker ?? 'N/A'}) — ${h.shares?.toLocaleString() ?? 0} shares, $${(h.value / 1000).toFixed(0)}k, change: ${h.share_change?.toLocaleString() ?? 0}`;
   }).join('\n');
 
+  // Insider/SA filing alerts — top-of-briefing flag for any new SEC filing
+  // by tracked funds (13F-HR / 13D / 13G / amendments). Surfaces the *fact*
+  // of the filing plus parsed ownership data for 13D-style filings.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const insiderBlock = (insiderFilings ?? []).map((f: any) => {
+    const fund = f.fund?.name ?? 'Unknown Fund';
+    const mgr = f.fund?.manager_name ? ` (${f.fund.manager_name})` : '';
+    const lines: string[] = [`[${fund}${mgr}] ${f.form_type} filed ${f.filing_date}`];
+    if (f.period_of_report) lines.push(`  Period: ${f.period_of_report}`);
+    if (f.event_date) lines.push(`  Event date: ${f.event_date}`);
+    if (f.issuer_name) lines.push(`  Issuer: ${f.issuer_name}${f.issuer_ticker ? ` (${f.issuer_ticker})` : ''}`);
+    if (f.shares_owned && f.pct_of_class) {
+      lines.push(`  Position: ${Number(f.shares_owned).toLocaleString()} sh = ${f.pct_of_class}% of class`);
+    }
+    if (f.cost_basis) lines.push(`  Cost basis: $${(Number(f.cost_basis) / 1e6).toFixed(1)}M`);
+    if (f.prior_pct) lines.push(`  Prior %: ${f.prior_pct}% (this is an amendment)`);
+    return lines.join('\n');
+  }).join('\n\n');
+
   const positioningBlock = posCache?.data
     ? `Posture: ${posCache.data.posture}\nNarrative: ${(posCache.data.narrative ?? '').slice(0, 500)}`
     : 'No positioning data today.';
@@ -231,7 +306,17 @@ async function main() {
 
   const prompt = `You are Howard, an elite financial intelligence system. Generate a daily briefing for ${todayKey} summarizing everything that changed in the last 24 hours.
 
-═══ NEW CONTENT & ANALYSES (${recentAnalyses?.length ?? 0}) ═══
+${insiderBlock ? `═══ ⚑ TRACKED-FUND SEC FILINGS (${insiderFilings?.length ?? 0}) — TOP PRIORITY ═══
+${insiderBlock}
+
+These are SEC filings by funds we follow that surfaced today. They are HIGHEST priority — surface them at the very top of the briefing in a dedicated section. 13D / 13D/A filings are particularly significant (5%+ ownership disclosure with cost basis). New 13F-HRs reveal a quarter's worth of positioning. Mention specific issuer, ownership %, cost basis, and what the move implies vs the prior filing.
+
+` : ''}${buildoutAlerts.length > 0 ? `═══ ⚑ BUILDOUT WATCHLIST — BUY-ZONE HITS (${buildoutAlerts.length}) ═══
+${buildoutAlerts.map((b) => `[${b.category} · ${b.agi_dependency}] ${b.ticker} ${b.asset_name} — $${b.current_price.toFixed(2)} ${b.in_zone ? 'IN BUY ZONE' : `${b.pct_to_buy.toFixed(1)}% above buy zone`} (buy ≤ $${b.buy_zone_max})\n  Thesis: ${b.thesis.slice(0, 200)}`).join('\n\n')}
+
+These are AGI/robotics buildout names that have hit or are within 5% of their buy zone. Surface as a dedicated alert section just below tracked-fund filings. Highlight 'core' agi_dependency names first (the ramp dependency makes them highest-conviction buy-zone candidates).
+
+` : ''}═══ NEW CONTENT & ANALYSES (${recentAnalyses?.length ?? 0}) ═══
 ${contentBlock || 'No new content.'}
 
 ═══ SIGNALS (${Array.isArray(signals) ? signals.length : 0}) ═══
@@ -257,6 +342,8 @@ Generate a JSON daily briefing with this structure:
   "date": "${todayKey}",
   "summary": "2-3 paragraphs providing a narrative overview of the day's intelligence. Write in a direct, authoritative style. Reference specific sources and data points. Do NOT use markdown formatting.",
   "sections": {
+    "insider_filings": [{ "fund": "Name", "manager": "Name", "form_type": "13D|13F-HR|13D/A|...", "filing_date": "YYYY-MM-DD", "issuer": "Company (TICKER)", "ownership": "X.X% of class (Y shares)", "cost_basis_usd": 0, "headline": "one-liner — what this filing tells us", "significance": "why it matters" }],
+    "buildout_alerts": [{ "ticker": "SYM", "name": "Asset Name", "category": "compute_silicon|power_generation|...", "agi_dependency": "core|optional|hedge", "current_price": 0, "buy_zone_max": 0, "in_zone": true, "headline": "one-liner — buy-zone status + thesis hook", "significance": "why this name matters now" }],
     "new_content": {
       "count": <number>,
       "highlights": [{ "source": "Name", "title": "Title", "sentiment": "bearish|bullish|neutral|mixed", "summary": "1 sentence" }]

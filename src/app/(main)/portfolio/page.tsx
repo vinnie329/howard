@@ -344,6 +344,9 @@ export default function PortfolioPage() {
             {/* ── Section 4: Compounder watchlist ── */}
             <CompounderSection />
 
+            {/* ── Section 5: Buildout watchlist (AGI/robotics infra) ── */}
+            <BuildoutSection />
+
             <div className="mono" style={{ marginTop: 'var(--space-4)', fontSize: 10, color: 'var(--text-tertiary)' }}>
               AI-generated model portfolio. Not financial advice.
             </div>
@@ -599,6 +602,236 @@ function CompounderSection() {
                       )}
                     </div>
                   )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════════
+// Buildout watchlist (AGI / robotics infrastructure long-only book)
+// ════════════════════════════════════════════════════════════════════
+
+interface BuildoutRow {
+  id: string;
+  ticker: string;
+  asset_name: string;
+  category: string;
+  value_chain_layer: 'foundational' | 'enabling' | 'application' | null;
+  thesis: string;
+  agi_dependency: 'core' | 'optional' | 'hedge';
+  buy_zone_max: number | null;
+  trim_zone_min: number | null;
+  invalidation_capex_stall: string | null;
+  invalidation_disintermediation: string | null;
+  status: 'watching' | 'in_position' | 'thesis_broken';
+  has_dossier: boolean;
+  current_price: number | null;
+  in_buy_zone: boolean;
+  above_trim_zone: boolean;
+  distance_to_buy_zone_pct: number | null;
+  notes: string | null;
+}
+
+const CATEGORY_LABELS: Record<string, string> = {
+  compute_silicon: 'Compute Silicon',
+  memory_storage: 'Memory + Storage',
+  power_generation: 'Power Generation',
+  networking_optical: 'Networking + Optical',
+  datacenter_capacity: 'Datacenter Capacity',
+  robotics_silicon: 'Robotics Silicon',
+  robotics_oem: 'Robotics OEM',
+  specialty_materials: 'Specialty Materials',
+  cooling_electrical: 'Cooling + Electrical',
+  semicap: 'Semicap',
+};
+
+const CATEGORY_ORDER = [
+  'compute_silicon', 'memory_storage', 'power_generation', 'networking_optical',
+  'datacenter_capacity', 'robotics_silicon', 'robotics_oem', 'specialty_materials',
+  'cooling_electrical', 'semicap',
+];
+
+function BuildoutSection() {
+  const [rows, setRows] = useState<BuildoutRow[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetch('/api/buildout-watchlist')
+      .then((r) => r.json())
+      .then((d) => Array.isArray(d) ? setRows(d) : setRows([]))
+      .finally(() => setLoading(false));
+  }, []);
+
+  // Group by category, ordered
+  const grouped = new Map<string, BuildoutRow[]>();
+  for (const r of rows) {
+    const arr = grouped.get(r.category) || [];
+    arr.push(r);
+    grouped.set(r.category, arr);
+  }
+  const orderedCategories = CATEGORY_ORDER.filter((c) => grouped.has(c));
+
+  return (
+    <div style={{ marginTop: 'var(--space-8)' }}>
+      <div className="label" style={{ marginBottom: 'var(--space-3)' }}>
+        Buildout Watchlist
+      </div>
+      <p style={{ fontSize: 12, color: 'var(--text-tertiary)', marginBottom: 'var(--space-3)', maxWidth: 720 }}>
+        Buy-and-hold equities tied to the AGI / robotics infrastructure ramp. Distinct from the compounder book — these names <em>require</em> the AI capex cycle to play out, but offer the cleanest exposure if it does. Categories below mirror the value chain.
+      </p>
+
+      {loading ? (
+        <SkeletonRows count={5} />
+      ) : rows.length === 0 ? (
+        <div className="mono" style={{ fontSize: 11, color: 'var(--text-tertiary)', padding: 'var(--space-3) 0' }}>
+          No buildout candidates yet. Run <code>npx tsx scripts/seed-buildout-watchlist.ts</code> to seed.
+        </div>
+      ) : (
+        <div className="table-scroll">
+          <div style={{ border: '1px solid var(--border)', borderRadius: 'var(--radius-md)', overflow: 'hidden' }}>
+            {orderedCategories.map((cat, catIdx) => {
+              const catRows = grouped.get(cat) || [];
+              return (
+                <div key={cat}>
+                  {/* Category divider */}
+                  <div className="mono" style={{
+                    padding: 'var(--space-2) var(--space-4)',
+                    background: 'var(--bg-surface)',
+                    borderTop: catIdx === 0 ? 'none' : '1px solid var(--border)',
+                    borderBottom: '1px solid var(--border)',
+                    fontSize: 10,
+                    color: 'var(--text-secondary)',
+                    letterSpacing: '0.06em',
+                    textTransform: 'uppercase',
+                    fontWeight: 600,
+                  }}>
+                    {CATEGORY_LABELS[cat] || cat} <span style={{ color: 'var(--text-tertiary)', fontWeight: 400, marginLeft: 6 }}>{catRows.length}</span>
+                  </div>
+                  {catIdx === 0 && (
+                    <div className="mono" style={{
+                      display: 'grid',
+                      gridTemplateColumns: '90px 1fr 100px 100px 100px 70px 70px',
+                      padding: 'var(--space-2) var(--space-4)',
+                      background: 'var(--bg-panel)',
+                      borderBottom: '1px solid var(--border)',
+                      gap: 'var(--space-2)',
+                      fontSize: 9,
+                      color: 'var(--text-tertiary)',
+                      letterSpacing: '0.03em',
+                    }}>
+                      <span>TICKER</span>
+                      <span>NAME</span>
+                      <span style={{ textAlign: 'right' }}>PRICE</span>
+                      <span style={{ textAlign: 'right' }}>BUY ≤</span>
+                      <span style={{ textAlign: 'right' }}>VS BUY</span>
+                      <span style={{ textAlign: 'right' }}>DEP</span>
+                      <span style={{ textAlign: 'right' }}>STATUS</span>
+                    </div>
+                  )}
+                  {catRows.map((r) => {
+                    const expanded = expandedId === r.id;
+                    const distColor = r.in_buy_zone ? '#22c55e' : (r.distance_to_buy_zone_pct ?? 0) < 10 ? '#eab308' : 'var(--text-tertiary)';
+                    const statusColor =
+                      r.status === 'in_position' ? 'var(--accent)'
+                      : r.status === 'thesis_broken' ? '#ef4444'
+                      : 'var(--text-tertiary)';
+                    const depColor = r.agi_dependency === 'core' ? '#ef4444'
+                      : r.agi_dependency === 'optional' ? '#eab308'
+                      : '#22c55e';
+                    return (
+                      <div key={r.id} style={{ borderBottom: '1px solid var(--border)' }}>
+                        <div
+                          onClick={() => setExpandedId(expanded ? null : r.id)}
+                          style={{
+                            display: 'grid',
+                            gridTemplateColumns: '90px 1fr 100px 100px 100px 70px 70px',
+                            padding: 'var(--space-3) var(--space-4)',
+                            gap: 'var(--space-2)',
+                            alignItems: 'center',
+                            cursor: 'pointer',
+                            transition: 'background 0.1s ease',
+                            background: expanded ? 'var(--bg-surface)' : 'transparent',
+                          }}
+                        >
+                          <Link href={`/assets/${encodeURIComponent(r.ticker)}`} onClick={(e) => e.stopPropagation()} className="mono" style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-primary)', textDecoration: 'none' }}>
+                            {r.ticker}
+                          </Link>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
+                            <span style={{ fontSize: 12, color: 'var(--text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.asset_name}</span>
+                            {r.has_dossier && (
+                              <span className="mono" style={{
+                                fontSize: 9, padding: '1px 6px', borderRadius: 2,
+                                background: 'color-mix(in srgb, #a78bfa 15%, transparent)', color: '#a78bfa',
+                                letterSpacing: '0.05em', flexShrink: 0,
+                              }}>
+                                DOSSIER
+                              </span>
+                            )}
+                          </div>
+                          <span className="mono" style={{ fontSize: 12, textAlign: 'right' }}>
+                            {r.current_price !== null ? `$${r.current_price.toFixed(2)}` : '—'}
+                          </span>
+                          <span className="mono" style={{ fontSize: 12, textAlign: 'right', color: 'var(--text-tertiary)' }}>
+                            {r.buy_zone_max !== null ? `$${r.buy_zone_max.toFixed(0)}` : '—'}
+                          </span>
+                          <span className="mono" style={{ fontSize: 11, textAlign: 'right', color: distColor }}>
+                            {r.distance_to_buy_zone_pct !== null
+                              ? `${r.distance_to_buy_zone_pct >= 0 ? '+' : ''}${r.distance_to_buy_zone_pct.toFixed(1)}%`
+                              : '—'}
+                          </span>
+                          <span className="mono" style={{
+                            fontSize: 9, textAlign: 'right',
+                            padding: '2px 6px', borderRadius: 3,
+                            background: `color-mix(in srgb, ${depColor} 15%, transparent)`,
+                            color: depColor, letterSpacing: '0.05em',
+                            justifySelf: 'end',
+                          }}>
+                            {r.agi_dependency.toUpperCase()}
+                          </span>
+                          <span className="mono" style={{
+                            fontSize: 9, textAlign: 'right',
+                            padding: '2px 6px', borderRadius: 3,
+                            background: `color-mix(in srgb, ${statusColor} 15%, transparent)`,
+                            color: statusColor, letterSpacing: '0.05em',
+                            justifySelf: 'end',
+                          }}>
+                            {r.status.toUpperCase().replace('_', ' ')}
+                          </span>
+                        </div>
+                        {expanded && (
+                          <div style={{ padding: 'var(--space-4)', background: 'var(--bg-surface)', fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.6 }}>
+                            <div style={{ marginBottom: 'var(--space-2)' }}>
+                              <span className="label" style={{ marginRight: 'var(--space-2)' }}>Thesis:</span>
+                              {r.thesis}
+                            </div>
+                            {r.invalidation_capex_stall && (
+                              <div style={{ marginBottom: 'var(--space-2)' }}>
+                                <span className="label" style={{ marginRight: 'var(--space-2)' }}>Invalidates if AI capex stalls:</span>
+                                {r.invalidation_capex_stall}
+                              </div>
+                            )}
+                            {r.invalidation_disintermediation && (
+                              <div style={{ marginBottom: 'var(--space-2)' }}>
+                                <span className="label" style={{ marginRight: 'var(--space-2)' }}>Invalidates if disintermediated:</span>
+                                {r.invalidation_disintermediation}
+                              </div>
+                            )}
+                            {r.notes && (
+                              <div style={{ marginTop: 'var(--space-2)', fontStyle: 'italic', color: 'var(--text-tertiary)' }}>
+                                {r.notes}
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               );
             })}

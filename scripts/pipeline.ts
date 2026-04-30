@@ -88,6 +88,7 @@ const runSignals = runAll || args.includes('--signals');
 const runPosData = runAll || args.includes('--pos-data');
 const runPositioning = runAll || args.includes('--positioning');
 const run13f = runAll || args.includes('--13f');
+const runInsiderMonitor = runAll || args.includes('--insider-monitor') || args.includes('--13f');
 const runMarkets = runAll || args.includes('--markets');
 const runFedWatch = runAll || args.includes('--fedwatch');
 const runBacktest = runAll || args.includes('--backtest');
@@ -151,6 +152,7 @@ const steps: [boolean, string, string][] = [
   [runPosData, 'Step 8/18 — Fetch positioning data (COT, credit, options)', 'scripts/fetch-positioning-data.ts'],
   [runPositioning, 'Step 9/18 — Generate positioning', 'scripts/generate-positioning.ts'],
   [run13f, 'Step 10/18 — Fetch 13F holdings', 'scripts/fetch-13f.ts'],
+  [runInsiderMonitor, 'Step 10b/18 — Monitor SA insider filings (13D/13G + 13F detection)', 'scripts/monitor-sa-filings.ts'],
   [runMarkets, 'Step 11/18 — Fetch prediction markets', 'scripts/fetch-prediction-markets.ts'],
   [runFedWatch, 'Step 12/18 — Fetch FedWatch probabilities', 'scripts/fetch-fedwatch.ts'],
   [runBacktest, 'Step 13/18 — Backtest source predictions', 'scripts/backtest-predictions.ts'],
@@ -165,7 +167,10 @@ const active = steps.filter(([enabled]) => enabled);
 const pipelineStart = Date.now();
 
 // Hard budget: stop starting new steps after 30 min to leave room for cleanup
-const PIPELINE_BUDGET_MS = 30 * 60 * 1000;
+// Budget needs to comfortably exceed the worst-case path through fetch + transcripts
+// + analysis. 30min was too tight — daily update kept getting skipped. 50min leaves
+// ~5min headroom under the GH Actions 55min job timeout.
+const PIPELINE_BUDGET_MS = 50 * 60 * 1000;
 
 for (const [, label, script] of active) {
   const elapsed = Date.now() - pipelineStart;

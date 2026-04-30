@@ -195,6 +195,91 @@ export default function DailyUpdatePage() {
                 );
               })()}
 
+              {/* Buildout watchlist buy-zone hits — surfaced near the top */}
+              {s?.buildout_alerts && s.buildout_alerts.length > 0 && (
+                <Section title="Buildout Watchlist — Buy-Zone Hits" count={s.buildout_alerts.length}>
+                  {s.buildout_alerts.map((a, i) => {
+                    const depColor = a.agi_dependency === 'core' ? '#ef4444'
+                      : a.agi_dependency === 'optional' ? '#eab308'
+                      : '#22c55e';
+                    return (
+                      <div key={i} style={{
+                        padding: 'var(--space-3) var(--space-4)',
+                        border: `1px solid ${a.in_zone ? '#22c55e' : 'var(--border)'}`,
+                        borderRadius: 'var(--radius-md)',
+                        background: 'var(--bg-panel)',
+                      }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', marginBottom: 'var(--space-2)', flexWrap: 'wrap' }}>
+                          <span className="mono" style={{ fontSize: 11, color: 'var(--text-primary)', fontWeight: 600 }}>{a.ticker}</span>
+                          <span className="mono" style={{ fontSize: 10, color: 'var(--text-tertiary)' }}>{a.name}</span>
+                          <span className="mono" style={{ fontSize: 9, padding: '1px 5px', borderRadius: 2, background: 'var(--bg-surface)', color: 'var(--text-tertiary)', border: '1px solid var(--border)' }}>
+                            {a.category.replace(/_/g, ' ')}
+                          </span>
+                          <span className="mono" style={{ fontSize: 9, padding: '1px 5px', borderRadius: 2, background: `color-mix(in srgb, ${depColor} 15%, transparent)`, color: depColor, letterSpacing: '0.05em' }}>
+                            {a.agi_dependency.toUpperCase()}
+                          </span>
+                          {a.in_zone && (
+                            <span className="mono" style={{ fontSize: 9, padding: '1px 5px', borderRadius: 2, background: 'color-mix(in srgb, #22c55e 15%, transparent)', color: '#22c55e', letterSpacing: '0.05em' }}>
+                              IN BUY ZONE
+                            </span>
+                          )}
+                        </div>
+                        <div style={{ fontSize: 13, color: 'var(--text-primary)', marginBottom: 'var(--space-1)' }}>
+                          {a.headline}
+                        </div>
+                        <div className="mono" style={{ fontSize: 10, color: 'var(--text-tertiary)' }}>
+                          ${a.current_price.toFixed(2)} · buy ≤ ${a.buy_zone_max.toFixed(0)}
+                        </div>
+                        {a.significance && (
+                          <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 'var(--space-1)', lineHeight: 1.5 }}>
+                            {a.significance}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </Section>
+              )}
+
+              {/* Tracked-Fund SEC Filings — surfaced at the very top */}
+              {s?.insider_filings && s.insider_filings.length > 0 && (
+                <Section title="Tracked-Fund SEC Filings" count={s.insider_filings.length}>
+                  {s.insider_filings.map((f, i) => (
+                    <div key={i} style={{
+                      padding: 'var(--space-3) var(--space-4)',
+                      border: '1px solid var(--accent)',
+                      borderRadius: 'var(--radius-md)',
+                      background: 'var(--bg-panel)',
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', marginBottom: 'var(--space-2)', flexWrap: 'wrap' }}>
+                        <span className="mono" style={{ fontSize: 10, color: 'var(--accent)', fontWeight: 600 }}>
+                          {f.form_type}
+                        </span>
+                        <span className="mono" style={{ fontSize: 10, color: 'var(--text-tertiary)' }}>
+                          {f.fund}{f.manager ? ` · ${f.manager}` : ''}
+                        </span>
+                        <span className="mono" style={{ fontSize: 10, color: 'var(--text-tertiary)' }}>
+                          {f.filing_date}
+                        </span>
+                      </div>
+                      <div style={{ fontSize: 14, fontWeight: 500, color: 'var(--text-primary)', marginBottom: 'var(--space-1)' }}>
+                        {f.headline}
+                      </div>
+                      {(f.issuer || f.ownership) && (
+                        <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 'var(--space-1)' }}>
+                          {f.issuer}{f.ownership ? ` — ${f.ownership}` : ''}{f.cost_basis_usd ? ` · cost $${(f.cost_basis_usd / 1e6).toFixed(1)}M` : ''}
+                        </div>
+                      )}
+                      {f.significance && (
+                        <div style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+                          {f.significance}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </Section>
+              )}
+
               {/* New Content */}
               {s?.new_content && s.new_content.highlights.length > 0 && (
                 <Section title="New Content" count={s.new_content.count}>

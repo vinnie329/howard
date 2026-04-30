@@ -127,6 +127,32 @@ interface CoreWatchlistEntry {
   notes: string | null;
 }
 
+interface AssetDossier {
+  id: string;
+  title: string;
+  body_md: string;
+  author: string;
+  as_of_date: string;
+  summary: string | null;
+  updated_at: string;
+}
+
+interface BuildoutWatchlistEntry {
+  id: string;
+  ticker: string;
+  asset_name: string;
+  category: string;
+  value_chain_layer: 'foundational' | 'enabling' | 'application' | null;
+  thesis: string;
+  agi_dependency: 'core' | 'optional' | 'hedge';
+  buy_zone_max: number | null;
+  trim_zone_min: number | null;
+  invalidation_capex_stall: string | null;
+  invalidation_disintermediation: string | null;
+  status: 'watching' | 'in_position' | 'thesis_broken';
+  notes: string | null;
+}
+
 interface Profile {
   ticker: string;
   name: string;
@@ -138,6 +164,8 @@ interface Profile {
   sourceMentions: SourceMention[];
   peers: string[];
   coreWatchlist: CoreWatchlistEntry | null;
+  assetDossier: AssetDossier | null;
+  buildoutWatchlist: BuildoutWatchlistEntry | null;
 }
 
 function fmtBigNum(n: number | null): string {
@@ -230,7 +258,7 @@ export default function TickerProfilePage() {
     );
   }
 
-  const { fundamentals: f, housePredictions, portfolioPosition: pos, sourcePredictions, sourceMentions, peers, coreWatchlist } = profile;
+  const { fundamentals: f, housePredictions, portfolioPosition: pos, sourcePredictions, sourceMentions, peers, coreWatchlist, assetDossier, buildoutWatchlist } = profile;
 
   // Pick the highest-confidence active house prediction for the inline header chip.
   const topHouse = housePredictions.length > 0
@@ -328,6 +356,29 @@ export default function TickerProfilePage() {
                     color: cwColor, letterSpacing: '0.06em', fontWeight: 500,
                   }}>
                     COMPOUNDER · {coreWatchlist.status.toUpperCase().replace('_', ' ')}{inBuyZone ? ' · IN BUY ZONE' : ''}{coreWatchlist.dossier_md ? ' · DOSSIER' : ''}
+                  </span>
+                );
+              })()}
+              {!coreWatchlist && assetDossier && (
+                <span className="mono" style={{
+                  fontSize: 10, padding: '3px 7px', borderRadius: 3,
+                  background: 'color-mix(in srgb, #a78bfa 15%, transparent)',
+                  color: '#a78bfa', letterSpacing: '0.06em', fontWeight: 500,
+                }}>
+                  RESEARCH NOTE
+                </span>
+              )}
+              {buildoutWatchlist && (() => {
+                const depColor = buildoutWatchlist.agi_dependency === 'core' ? '#ef4444'
+                  : buildoutWatchlist.agi_dependency === 'optional' ? '#eab308'
+                  : '#22c55e';
+                return (
+                  <span className="mono" style={{
+                    fontSize: 10, padding: '3px 7px', borderRadius: 3,
+                    background: `color-mix(in srgb, ${depColor} 15%, transparent)`,
+                    color: depColor, letterSpacing: '0.06em', fontWeight: 500,
+                  }}>
+                    BUILDOUT · {buildoutWatchlist.category.replace(/_/g, ' ').toUpperCase()} · {buildoutWatchlist.agi_dependency.toUpperCase()}
                   </span>
                 );
               })()}
@@ -521,28 +572,46 @@ export default function TickerProfilePage() {
           </div>
         )}
 
-        {/* Compounder dossier — long-form research note */}
-        {coreWatchlist?.dossier_md && (
-          <div style={{ marginBottom: 'var(--space-6)' }}>
-            <div className="label" style={{ marginBottom: 'var(--space-2)' }}>
-              Compounder Dossier
-              {coreWatchlist.dossier_updated_at && (
-                <span className="mono" style={{ fontSize: 9, color: 'var(--text-tertiary)', marginLeft: 'var(--space-2)', textTransform: 'none', letterSpacing: 0 }}>
-                  Updated {fmtShortDate(coreWatchlist.dossier_updated_at)}
-                </span>
-              )}
+        {/* Long-form research dossier.
+            Prefer the compounder-watchlist dossier (curated 5+yr-hold thesis);
+            fall back to a general asset_dossiers entry (research note keyed to ticker). */}
+        {(() => {
+          const cwBody = coreWatchlist?.dossier_md;
+          const cwUpdated = coreWatchlist?.dossier_updated_at;
+          const adBody = assetDossier?.body_md;
+          const body = cwBody ?? adBody;
+          if (!body) return null;
+          const isCompounder = !!cwBody;
+          const label = isCompounder ? 'Compounder Dossier' : 'Research Note';
+          const updatedAt = isCompounder ? cwUpdated : assetDossier?.as_of_date;
+          const author = !isCompounder && assetDossier?.author ? assetDossier.author : null;
+          return (
+            <div style={{ marginBottom: 'var(--space-6)' }}>
+              <div className="label" style={{ marginBottom: 'var(--space-2)' }}>
+                {label}
+                {author && (
+                  <span className="mono" style={{ fontSize: 9, color: 'var(--text-tertiary)', marginLeft: 'var(--space-2)', textTransform: 'none', letterSpacing: 0 }}>
+                    by {author}
+                  </span>
+                )}
+                {updatedAt && (
+                  <span className="mono" style={{ fontSize: 9, color: 'var(--text-tertiary)', marginLeft: 'var(--space-2)', textTransform: 'none', letterSpacing: 0 }}>
+                    {isCompounder ? 'Updated ' : 'As of '}{fmtShortDate(updatedAt)}
+                  </span>
+                )}
+              </div>
+              <div className="dossier" style={{
+                fontSize: 14,
+                lineHeight: 1.65,
+                color: 'var(--text-secondary)',
+              }}>
+                <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                  {body}
+                </ReactMarkdown>
+              </div>
             </div>
-            <div className="dossier" style={{
-              fontSize: 14,
-              lineHeight: 1.65,
-              color: 'var(--text-secondary)',
-            }}>
-              <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                {coreWatchlist.dossier_md}
-              </ReactMarkdown>
-            </div>
-          </div>
-        )}
+          );
+        })()}
 
         {/* Sector peers — same chip style as ASSETS MENTIONED on /content */}
         {peers.length > 0 && (

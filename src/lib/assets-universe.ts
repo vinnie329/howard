@@ -62,6 +62,51 @@ export const CORE_SYMBOLS: SymbolEntry[] = [
   { ticker: 'PAVE', name: 'Infrastructure ETF', tv: 'AMEX:PAVE', source: 'core' },
   { ticker: 'GEV', name: 'GE Vernova', tv: 'NYSE:GEV', source: 'core' },
   { ticker: 'BIZD', name: 'BDC Income ETF', tv: 'AMEX:BIZD', source: 'core' },
+  // ── Buildout watchlist (AGI / robotics infrastructure) ──
+  // Compute silicon
+  { ticker: 'ASML', name: 'ASML', tv: 'NASDAQ:ASML', source: 'core' },
+  // Memory + storage
+  { ticker: 'SNDK', name: 'SanDisk', tv: 'NASDAQ:SNDK', source: 'core' },
+  { ticker: '000660.KS', name: 'SK Hynix', tv: 'KRX:000660', source: 'core' },
+  // Power generation
+  { ticker: 'CEG', name: 'Constellation Energy', tv: 'NASDAQ:CEG', source: 'core' },
+  { ticker: 'TLN', name: 'Talen Energy', tv: 'NASDAQ:TLN', source: 'core' },
+  { ticker: 'BE', name: 'Bloom Energy', tv: 'NYSE:BE', source: 'core' },
+  { ticker: 'EQT', name: 'EQT Corporation', tv: 'NYSE:EQT', source: 'core' },
+  { ticker: 'NEE', name: 'NextEra Energy', tv: 'NYSE:NEE', source: 'core' },
+  // Networking + optical
+  { ticker: 'COHR', name: 'Coherent', tv: 'NYSE:COHR', source: 'core' },
+  { ticker: 'LITE', name: 'Lumentum', tv: 'NASDAQ:LITE', source: 'core' },
+  { ticker: 'CIEN', name: 'Ciena', tv: 'NYSE:CIEN', source: 'core' },
+  // Datacenter capacity
+  { ticker: 'EQIX', name: 'Equinix', tv: 'NASDAQ:EQIX', source: 'core' },
+  { ticker: 'DLR', name: 'Digital Realty', tv: 'NYSE:DLR', source: 'core' },
+  { ticker: 'ORCL', name: 'Oracle', tv: 'NYSE:ORCL', source: 'core' },
+  { ticker: 'IREN', name: 'IREN Limited', tv: 'NASDAQ:IREN', source: 'core' },
+  { ticker: 'APLD', name: 'Applied Digital', tv: 'NASDAQ:APLD', source: 'core' },
+  { ticker: 'CORZ', name: 'Core Scientific', tv: 'NASDAQ:CORZ', source: 'core' },
+  { ticker: 'CIFR', name: 'Cipher Mining', tv: 'NASDAQ:CIFR', source: 'core' },
+  // Robotics silicon
+  { ticker: 'TXN', name: 'Texas Instruments', tv: 'NASDAQ:TXN', source: 'core' },
+  { ticker: 'ADI', name: 'Analog Devices', tv: 'NASDAQ:ADI', source: 'core' },
+  { ticker: '6758.T', name: 'Sony Group', tv: 'TSE:6758', source: 'core' },
+  { ticker: 'IFX.DE', name: 'Infineon Technologies', tv: 'XETR:IFX', source: 'core' },
+  { ticker: 'STM', name: 'STMicroelectronics', tv: 'NYSE:STM', source: 'core' },
+  // Robotics OEM
+  { ticker: 'TSLA', name: 'Tesla', tv: 'NASDAQ:TSLA', source: 'core' },
+  { ticker: 'FANUY', name: 'Fanuc', tv: 'OTC:FANUY', source: 'core' },
+  { ticker: 'ABBN.SW', name: 'ABB', tv: 'SIX:ABBN', source: 'core' },
+  // Specialty materials
+  { ticker: '2802.T', name: 'Ajinomoto', tv: 'TSE:2802', source: 'core' },
+  { ticker: 'TSEM', name: 'Tower Semiconductor', tv: 'NASDAQ:TSEM', source: 'core' },
+  { ticker: 'WOLF', name: 'Wolfspeed', tv: 'NYSE:WOLF', source: 'core' },
+  // Cooling + electrical
+  { ticker: 'VRT', name: 'Vertiv Holdings', tv: 'NYSE:VRT', source: 'core' },
+  { ticker: 'CARR', name: 'Carrier Global', tv: 'NYSE:CARR', source: 'core' },
+  { ticker: 'ETN', name: 'Eaton', tv: 'NYSE:ETN', source: 'core' },
+  // Semicap
+  { ticker: 'AEHR', name: 'Aehr Test Systems', tv: 'NASDAQ:AEHR', source: 'core' },
+  { ticker: 'KLAC', name: 'KLA Corporation', tv: 'NASDAQ:KLAC', source: 'core' },
   // Indices
   { ticker: '^GSPC', name: 'S&P 500', tv: 'SP:SPX', source: 'core' },
   { ticker: '^DJI', name: 'Dow Jones', tv: 'DJ:DJI', source: 'core' },

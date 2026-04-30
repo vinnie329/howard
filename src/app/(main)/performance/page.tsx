@@ -1,10 +1,12 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { getSources, getPredictions, getSourcePerformance, getBacktestRuns } from '@/lib/data';
 import { SkeletonRows } from '@/components/ui/Skeleton';
 import Tag from '@/components/ui/Tag';
 import SourcePill from '@/components/ui/SourcePill';
+import { OutcomeBadge, AccuracyBar } from '@/components/ui/OutcomeBadge';
 import type { Source, Prediction, SourcePerformance, BacktestRun } from '@/types';
 
 type ViewMode = 'leaderboard' | 'predictions' | 'runs';
@@ -16,44 +18,6 @@ function formatPct(n: number): string {
 
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-}
-
-function OutcomeBadge({ outcome }: { outcome: string }) {
-  const styles: Record<string, { bg: string; color: string }> = {
-    correct: { bg: 'rgba(34,197,94,0.15)', color: '#22c55e' },
-    incorrect: { bg: 'rgba(239,68,68,0.15)', color: '#ef4444' },
-    partially_correct: { bg: 'rgba(234,179,8,0.15)', color: '#eab308' },
-    pending: { bg: 'rgba(148,163,184,0.1)', color: 'var(--text-tertiary)' },
-    expired: { bg: 'rgba(148,163,184,0.1)', color: 'var(--text-tertiary)' },
-  };
-  const s = styles[outcome] || styles.pending;
-  return (
-    <span style={{
-      fontSize: 10,
-      fontFamily: 'var(--font-mono)',
-      padding: '2px 8px',
-      borderRadius: 3,
-      background: s.bg,
-      color: s.color,
-      textTransform: 'capitalize',
-    }}>
-      {outcome.replace('_', ' ')}
-    </span>
-  );
-}
-
-function AccuracyBar({ rate, size = 'normal' }: { rate: number; size?: 'normal' | 'large' }) {
-  const width = size === 'large' ? 120 : 80;
-  const height = size === 'large' ? 8 : 5;
-  const color = rate >= 0.7 ? '#22c55e' : rate >= 0.4 ? '#eab308' : '#ef4444';
-  return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
-      <div style={{ width, height, background: 'var(--bg-surface)', borderRadius: height / 2, overflow: 'hidden' }}>
-        <div style={{ width: `${rate * 100}%`, height: '100%', background: color, borderRadius: height / 2, transition: 'width 0.3s ease' }} />
-      </div>
-      <span className="mono" style={{ fontSize: size === 'large' ? 14 : 11, color }}>{formatPct(rate)}</span>
-    </div>
-  );
 }
 
 export default function PerformanceDashboard() {
@@ -284,15 +248,21 @@ function LeaderboardView({
       ) : (
         <div className="stagger-in">
           {rows.map((row, i) => (
-            <div
+            <Link
               key={row.source.id}
+              href={`/performance/${row.source.slug}`}
               style={{
                 display: 'grid',
                 gridTemplateColumns: '40px 1.5fr 80px 80px 120px 80px 80px 1fr',
                 padding: 'var(--space-3) var(--space-4)',
                 borderBottom: '1px solid var(--border)',
                 alignItems: 'center',
+                textDecoration: 'none',
+                color: 'inherit',
+                cursor: 'pointer',
+                transition: 'background 0.1s ease',
               }}
+              className="leaderboard-row"
             >
               <span className="mono" style={{
                 fontSize: 14,
@@ -317,7 +287,7 @@ function LeaderboardView({
               <span className="mono" style={{ fontSize: 10, color: 'var(--text-secondary)' }}>
                 {row.bestDomain || '—'}
               </span>
-            </div>
+            </Link>
           ))}
         </div>
       )}

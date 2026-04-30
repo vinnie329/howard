@@ -100,13 +100,12 @@ async function main() {
       .single();
 
     if (current) {
-      // Check 1: Any new or updated house predictions since last rebalance?
-      const { data: newHousePreds } = await supabase
-        .from('house_predictions')
-        .select('id')
-        .gt('created_at', current.generated_at)
-        .eq('outcome', 'pending')
-        .limit(1);
+      // High bar to rebalance — flip-flopping the book on every new daily prediction is bad.
+      // Required: EITHER (a) a stop/target hit (risk event, always trigger) OR
+      // (b) ≥7 days since last rebalance AND a prediction was *resolved* (a known view actually changed).
+      // New pending predictions alone do NOT trigger — they roll into the next scheduled rebalance.
+      const MIN_DWELL_DAYS = 7;
+      const daysSinceRebalance = (Date.now() - new Date(current.generated_at).getTime()) / (1000 * 60 * 60 * 24);
 
       const { data: resolvedHousePreds } = await supabase
         .from('house_predictions')
@@ -115,8 +114,7 @@ async function main() {
         .neq('outcome', 'pending')
         .limit(1);
 
-      const houseViewChanged = (newHousePreds && newHousePreds.length > 0) ||
-        (resolvedHousePreds && resolvedHousePreds.length > 0);
+      const houseViewChanged = !!(resolvedHousePreds && resolvedHousePreds.length > 0);
 
       // Check 2: Any positions hit stop-loss or targets?
       const { data: positions } = await supabase
@@ -148,17 +146,20 @@ async function main() {
         }
       }
 
-      if (!houseViewChanged && !stopOrTargetHit) {
+      const meetsHighBar = stopOrTargetHit || (daysSinceRebalance >= MIN_DWELL_DAYS && houseViewChanged);
+
+      if (!meetsHighBar) {
         console.log('No rebalance needed:');
-        console.log('  - No new house predictions since last rebalance');
-        console.log('  - No stops or targets hit');
+        console.log(`  - Days since last rebalance: ${daysSinceRebalance.toFixed(1)} (min ${MIN_DWELL_DAYS})`);
+        console.log(`  - Resolved predictions: ${houseViewChanged ? 'yes' : 'no'}`);
+        console.log(`  - Stops/targets hit: ${stopOrTargetHit ? 'yes' : 'no'}`);
         console.log('  (use --rebalance to force)');
         return;
       }
 
       const reasons: string[] = [];
-      if (houseViewChanged) reasons.push('house view updated');
       if (stopOrTargetHit) reasons.push('stop/target hit');
+      if (houseViewChanged && daysSinceRebalance >= MIN_DWELL_DAYS) reasons.push(`view resolved (${daysSinceRebalance.toFixed(1)}d since last)`);
       console.log(`Rebalance triggered: ${reasons.join(' + ')}\n`);
     }
   }
@@ -285,11 +286,25 @@ Evaluate each position: hold, increase, decrease, or exit. Then add any new posi
     return;
   }
 
+  // Dedup by ticker — keep the highest-confidence prediction per asset.
+  // A live book cannot simultaneously hold long + short the same ticker (that's the absence of a position).
+  // When the house view emits opposing predictions on one asset (typically a sequenced trade like
+  // "short now, flip long after the drawdown"), the lower-confidence leg belongs in a deployment plan,
+  // not the live portfolio. Same-direction duplicates also collapse — we don't stack the same exposure.
+  const byTicker = new Map<string, typeof tradeablePreds[number]>();
+  for (const h of tradeablePreds) {
+    const existing = byTicker.get(h.asset);
+    if (!existing || h.confidence > existing.confidence) byTicker.set(h.asset, h);
+  }
+  const dedupedPreds = Array.from(byTicker.values());
+  const droppedCount = tradeablePreds.length - dedupedPreds.length;
+  if (droppedCount > 0) console.log(`  Deduped ${droppedCount} same-ticker prediction(s) — kept highest-confidence per asset`);
+
   // Size positions proportional to confidence, normalize to sum to ~90% (10% cash)
-  const totalConfidence = tradeablePreds.reduce((s, h) => s + h.confidence, 0);
+  const totalConfidence = dedupedPreds.reduce((s, h) => s + h.confidence, 0);
   const targetInvested = 90; // 90% invested, 10% cash
 
-  const mechanicalPositions = tradeablePreds.map((h) => {
+  const mechanicalPositions = dedupedPreds.map((h) => {
     const rawAlloc = (h.confidence / totalConfidence) * targetInvested;
     // Clamp to 5-20% range
     const allocation = Math.max(5, Math.min(20, Math.round(rawAlloc * 10) / 10));
