@@ -15,9 +15,11 @@ export async function GET() {
     .single();
 
   if (cached) {
+    // Tight CDN cache (5min) — daily update can be regenerated mid-day and we
+    // don't want stale edge responses sticking around for an hour.
     return NextResponse.json(cached.data, {
       headers: {
-        'Cache-Control': 'public, s-maxage=3600, stale-while-revalidate=600',
+        'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=120',
         'X-Daily-Update-Date': todayKey,
       },
     });
@@ -34,7 +36,7 @@ export async function GET() {
   if (latest) {
     return NextResponse.json(latest.data, {
       headers: {
-        'Cache-Control': 'public, s-maxage=1800',
+        'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=120',
         'X-Daily-Update-Date': latest.key,
       },
     });

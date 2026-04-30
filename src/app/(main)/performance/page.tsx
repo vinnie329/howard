@@ -12,10 +12,6 @@ import type { Source, Prediction, SourcePerformance, BacktestRun } from '@/types
 type ViewMode = 'leaderboard' | 'predictions' | 'runs';
 type OutcomeFilter = 'all' | 'correct' | 'incorrect' | 'partially_correct' | 'pending' | 'expired';
 
-function formatPct(n: number): string {
-  return `${(n * 100).toFixed(1)}%`;
-}
-
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 }
