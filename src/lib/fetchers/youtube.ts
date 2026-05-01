@@ -34,6 +34,9 @@ const WHITELISTED_CHANNELS = [
   'cheeky pint',
   'acquired',
   'matthew berman',
+  'sequoia capital',
+  'tim ferriss',
+  'stripe',
 ];
 
 function isWhitelistedChannel(channelTitle: string): boolean {
