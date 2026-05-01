@@ -13,6 +13,7 @@ const SUBSTACK_SENDERS: Record<string, string> = {
   'taekim@substack.com': 'tae-kim',
   'eladgil@substack.com': 'elad-gil',
   'kakashiii111@substack.com': 'kakashii',
+  'semianalysis@substack.com': 'dylan-patel',
 };
 
 interface GmailMessage {
