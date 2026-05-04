@@ -164,6 +164,8 @@ const steps: [boolean, string, string][] = [
   [runSignals2, 'Step 17b/18 — Detect intelligence signals (convergence + tension)', 'scripts/detect-intelligence-signals.ts'],
   [runSignals2, 'Step 17c/18 — Derive 2nd/3rd order implications', 'scripts/derive-implications.ts'],
   [runSignals2, 'Step 17d/18 — Resolve cross-source tensions', 'scripts/resolve-tensions.ts'],
+  [runSignals2, 'Step 17e/18 — Refresh theme graph (co-occurrence + Claude edges)', 'scripts/build-theme-graph.ts'],
+  [runSignals2, 'Step 17f/18 — Weekly digest (Mondays only)', 'scripts/generate-weekly-digest.ts'],
   [runDaily, 'Step 18/18 — Generate daily update', 'scripts/generate-daily-update.ts'],
 ];
 

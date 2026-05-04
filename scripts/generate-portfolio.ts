@@ -277,9 +277,17 @@ Evaluate each position: hold, increase, decrease, or exit. Then add any new posi
   // The house view is the PM. The portfolio is the execution. No discretion.
   console.log('Translating house view into portfolio...\n');
 
-  // Filter to tradeable predictions with confidence > 50% — below that, the house view
-  // isn't confident enough to put capital at risk
-  const tradeablePreds = housePredictions.filter((h) => h.confidence > 50 && h.asset);
+  // Filter to tradeable predictions:
+  //   1. Confidence > 50% (below that, conviction is too low to commit capital)
+  //   2. Asset is set
+  //   3. Not gated on a future trigger (activation_status='active'). Conditional /
+  //      forward-deployment predictions ('accumulate during Q3 weakness for the
+  //      pre-election rally') belong in a deployment plan, not the live book.
+  const tradeablePreds = housePredictions.filter((h) =>
+    h.confidence > 50 &&
+    h.asset &&
+    (h.activation_status ?? 'active') === 'active'
+  );
 
   if (tradeablePreds.length === 0) {
     console.log('No tradeable house predictions (>= 40% confidence). Skipping portfolio generation.');

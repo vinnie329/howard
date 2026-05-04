@@ -17,6 +17,7 @@ export interface AnalysisResult {
     time_horizon: string;
     confidence: string;
     specificity: 'hard' | 'directional' | 'thematic';
+    activation_condition?: string | null;
   }>;
 }
 
@@ -111,7 +112,8 @@ Respond in JSON format only (no markdown fences) with these fields:
       "sentiment": "bullish | bearish | neutral | mixed",
       "time_horizon": "timeframe if mentioned, otherwise 'unspecified'",
       "confidence": "high/medium/low based on language strength",
-      "specificity": "hard (specific price/date target) | directional (clear up/down call) | thematic (broad thesis or narrative)"
+      "specificity": "hard (specific price/date target) | directional (clear up/down call) | thematic (broad thesis or narrative)",
+      "activation_condition": "OPTIONAL — only populate if the prediction is conditional on a future event before it activates. Examples: 'after Q3 2026 drawdown', 'once memory shortage resolves', 'if Fed cuts in 2027', 'when Optimus reaches commercial production'. If the prediction is a CURRENT directional view (active now), leave this null. CRITICAL: a forward-deployment plan ('accumulate during Q3 weakness for the pre-election rally') is conditional — its activation depends on Q3 weakness landing first."
     }
   ]
 }
