@@ -37,6 +37,7 @@ const WHITELISTED_CHANNELS = [
   'sequoia capital',
   'tim ferriss',
   'stripe',
+  'blackstone',
 ];
 
 function isWhitelistedChannel(channelTitle: string): boolean {
