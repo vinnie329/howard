@@ -343,6 +343,16 @@ export interface DailyUpdate {
       headline: string;
       significance?: string;
     }>;
+    intelligence_signals?: Array<{
+      signal_type: 'convergence' | 'tension';
+      signal_kind: 'asset' | 'theme';
+      signal_key: string;
+      direction: 'bullish' | 'bearish' | null;
+      source_count: number;
+      avg_credibility: number;
+      headline: string;
+      implication?: string;
+    }>;
   };
   generated_at: string;
 }

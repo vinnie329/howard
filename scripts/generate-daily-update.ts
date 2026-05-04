@@ -213,7 +213,26 @@ async function main() {
       });
     }
   }
-  console.log(`  ${buildoutAlerts.length} buildout name(s) at or near buy zone\n`);
+  console.log(`  ${buildoutAlerts.length} buildout name(s) at or near buy zone`);
+
+  // 11. Intelligence signals — convergence + tension across high-credibility sources.
+  // Surface signals UPDATED today (or convergences with ≥4 sources regardless of recency).
+  console.log('Fetching intelligence signals...');
+  const { data: signalRows } = await supabase
+    .from('intelligence_signals')
+    .select('signal_type, signal_kind, signal_key, direction, source_count, avg_credibility, source_names, bullish_count, bearish_count, bullish_sources, bearish_sources, sample_claims, last_signal_at, updated_at')
+    .eq('status', 'active')
+    .order('source_count', { ascending: false });
+  const today = new Date().toISOString().slice(0, 10);
+  const intelligenceSignals = (signalRows || []).filter((s) => {
+    // Always include very strong convergences (≥4 sources)
+    if (s.signal_type === 'convergence' && s.source_count >= 4) return true;
+    // Always include tensions with ≥3 total sources
+    if (s.signal_type === 'tension' && s.source_count >= 3) return true;
+    // Otherwise only include if updated today (fresh signal)
+    return (s.updated_at || '').slice(0, 10) === today || (s.last_signal_at || '').slice(0, 10) === today;
+  }).slice(0, 20);
+  console.log(`  ${intelligenceSignals.length} intelligence signal(s) to surface\n`);
 
   // ── Check if there's anything to report ──────────────────────────────
   const totalData =
@@ -223,7 +242,8 @@ async function main() {
     (marketSnapshots?.length ?? 0) +
     (recentHoldings?.length ?? 0) +
     (insiderFilings?.length ?? 0) +
-    buildoutAlerts.length;
+    buildoutAlerts.length +
+    intelligenceSignals.length;
 
   if (totalData === 0) {
     console.log('No new data in the last 24 hours. Skipping generation.');
@@ -311,6 +331,17 @@ ${insiderBlock}
 
 These are SEC filings by funds we follow that surfaced today. They are HIGHEST priority — surface them at the very top of the briefing in a dedicated section. 13D / 13D/A filings are particularly significant (5%+ ownership disclosure with cost basis). New 13F-HRs reveal a quarter's worth of positioning. Mention specific issuer, ownership %, cost basis, and what the move implies vs the prior filing.
 
+` : ''}${intelligenceSignals.length > 0 ? `═══ ⚑ INTELLIGENCE SIGNALS — CONVERGENCE + TENSION (${intelligenceSignals.length}) ═══
+${intelligenceSignals.map((s) => {
+  if (s.signal_type === 'convergence') {
+    return `[CONVERGENCE · ${s.signal_kind}] ${s.signal_key} ${s.direction?.toUpperCase()} — ${s.source_count} sources @ avg cred ${s.avg_credibility}\n  Sources: ${(s.source_names || []).join(', ')}\n  Sample claim: ${(s.sample_claims || [''])[0]?.slice(0, 180)}`;
+  } else {
+    return `[TENSION · ${s.signal_kind}] ${s.signal_key} — BULL ${s.bullish_count} (${(s.bullish_sources || []).slice(0, 5).join(', ')}) vs BEAR ${s.bearish_count} (${(s.bearish_sources || []).slice(0, 5).join(', ')})`;
+  }
+}).join('\n\n')}
+
+These are CROSS-SOURCE patterns — convergences (≥3 high-credibility sources stacking the same direction) and tensions (high-credibility sources disagreeing). They are HIGH PRIORITY — surface at the very top of the briefing alongside tracked-fund SEC filings. For convergences, name the sources and explain the implication. For tensions, frame as "credible disagreement worth resolving" — both sides have weight.
+
 ` : ''}${buildoutAlerts.length > 0 ? `═══ ⚑ BUILDOUT WATCHLIST — BUY-ZONE HITS (${buildoutAlerts.length}) ═══
 ${buildoutAlerts.map((b) => `[${b.category} · ${b.agi_dependency}] ${b.ticker} ${b.asset_name} — $${b.current_price.toFixed(2)} ${b.in_zone ? 'IN BUY ZONE' : `${b.pct_to_buy.toFixed(1)}% above buy zone`} (buy ≤ $${b.buy_zone_max})\n  Thesis: ${b.thesis.slice(0, 200)}`).join('\n\n')}
 
@@ -344,6 +375,7 @@ Generate a JSON daily briefing with this structure:
   "sections": {
     "insider_filings": [{ "fund": "Name", "manager": "Name", "form_type": "13D|13F-HR|13D/A|...", "filing_date": "YYYY-MM-DD", "issuer": "Company (TICKER)", "ownership": "X.X% of class (Y shares)", "cost_basis_usd": 0, "headline": "one-liner — what this filing tells us", "significance": "why it matters" }],
     "buildout_alerts": [{ "ticker": "SYM", "name": "Asset Name", "category": "compute_silicon|power_generation|...", "agi_dependency": "core|optional|hedge", "current_price": 0, "buy_zone_max": 0, "in_zone": true, "headline": "one-liner — buy-zone status + thesis hook", "significance": "why this name matters now" }],
+    "intelligence_signals": [{ "signal_type": "convergence|tension", "signal_kind": "asset|theme", "signal_key": "TICKER or theme name", "direction": "bullish|bearish|null", "source_count": 0, "avg_credibility": 0, "headline": "one-liner — what this convergence/tension says", "implication": "concrete trade or watch implication" }],
     "new_content": {
       "count": <number>,
       "highlights": [{ "source": "Name", "title": "Title", "sentiment": "bearish|bullish|neutral|mixed", "summary": "1 sentence" }]

@@ -98,6 +98,7 @@ const runHouseEval = runAll || args.includes('--house-eval');
 const runPortfolio = runAll || args.includes('--portfolio');
 const runTrackPortfolio = runAll || args.includes('--track-portfolio');
 const runDaily = runAll || args.includes('--daily');
+const runSignals2 = runAll || args.includes('--intel-signals') || args.includes('--signals');
 
 const failures: string[] = [];
 
@@ -160,6 +161,7 @@ const steps: [boolean, string, string][] = [
   [runHouseEval, 'Step 15/18 — Evaluate house predictions', 'scripts/evaluate-house-view.ts'],
   [runPortfolio, 'Step 16/18 — Generate model portfolio', 'scripts/generate-portfolio.ts'],
   [runTrackPortfolio, 'Step 17/18 — Track portfolio performance', 'scripts/track-portfolio-performance.ts'],
+  [runSignals2, 'Step 17b/18 — Detect intelligence signals (convergence + tension)', 'scripts/detect-intelligence-signals.ts'],
   [runDaily, 'Step 18/18 — Generate daily update', 'scripts/generate-daily-update.ts'],
 ];
 

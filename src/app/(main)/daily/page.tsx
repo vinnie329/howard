@@ -195,6 +195,51 @@ export default function DailyUpdatePage() {
                 );
               })()}
 
+              {/* Intelligence Signals — convergence + tension surfaced first */}
+              {s?.intelligence_signals && s.intelligence_signals.length > 0 && (
+                <Section title="Intelligence Signals" count={s.intelligence_signals.length}>
+                  {s.intelligence_signals.map((sig, i) => {
+                    const isConv = sig.signal_type === 'convergence';
+                    const dirColor = sig.direction === 'bullish' ? '#22c55e'
+                      : sig.direction === 'bearish' ? '#ef4444'
+                      : '#a78bfa';
+                    const typeColor = isConv ? dirColor : '#eab308';
+                    return (
+                      <div key={i} style={{
+                        padding: 'var(--space-3) var(--space-4)',
+                        border: `1px solid ${typeColor}`,
+                        borderRadius: 'var(--radius-md)',
+                        background: 'var(--bg-panel)',
+                      }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', marginBottom: 'var(--space-2)', flexWrap: 'wrap' }}>
+                          <span className="mono" style={{ fontSize: 9, padding: '1px 6px', borderRadius: 2, background: `color-mix(in srgb, ${typeColor} 15%, transparent)`, color: typeColor, letterSpacing: '0.06em', fontWeight: 600 }}>
+                            {sig.signal_type.toUpperCase()}
+                          </span>
+                          <span className="mono" style={{ fontSize: 11, color: 'var(--text-primary)', fontWeight: 600 }}>{sig.signal_key}</span>
+                          {sig.direction && (
+                            <span className="mono" style={{ fontSize: 9, padding: '1px 5px', borderRadius: 2, background: `color-mix(in srgb, ${dirColor} 15%, transparent)`, color: dirColor, letterSpacing: '0.05em' }}>
+                              {sig.direction.toUpperCase()}
+                            </span>
+                          )}
+                          <span className="mono" style={{ fontSize: 10, color: 'var(--text-tertiary)' }}>{sig.signal_kind}</span>
+                          <span className="mono" style={{ fontSize: 10, color: 'var(--text-tertiary)' }}>
+                            {sig.source_count} sources · cred {sig.avg_credibility}
+                          </span>
+                        </div>
+                        <div style={{ fontSize: 13, color: 'var(--text-primary)', marginBottom: 'var(--space-1)' }}>
+                          {sig.headline}
+                        </div>
+                        {sig.implication && (
+                          <div style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+                            {sig.implication}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </Section>
+              )}
+
               {/* Buildout watchlist buy-zone hits — surfaced near the top */}
               {s?.buildout_alerts && s.buildout_alerts.length > 0 && (
                 <Section title="Buildout Watchlist — Buy-Zone Hits" count={s.buildout_alerts.length}>
