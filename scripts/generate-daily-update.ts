@@ -232,7 +232,20 @@ async function main() {
     // Otherwise only include if updated today (fresh signal)
     return (s.updated_at || '').slice(0, 10) === today || (s.last_signal_at || '').slice(0, 10) === today;
   }).slice(0, 20);
-  console.log(`  ${intelligenceSignals.length} intelligence signal(s) to surface\n`);
+  console.log(`  ${intelligenceSignals.length} intelligence signal(s) to surface`);
+
+  // 12. Derived implications — 2nd / 3rd order chains from today's high-cred predictions
+  console.log('Fetching derived implications...');
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: implRows } = await supabase
+    .from('derived_implications')
+    .select('order_n, affected_asset, affected_theme, direction, conviction, reasoning, derivation_steps, parent_source_name, parent_source_credibility, parent_claim, created_at')
+    .gte('created_at', twentyFourHoursAgo)
+    .order('parent_source_credibility', { ascending: false })
+    .order('order_n')
+    .limit(40);
+  const derivedImplications = implRows || [];
+  console.log(`  ${derivedImplications.length} derived implication(s)\n`);
 
   // ── Check if there's anything to report ──────────────────────────────
   const totalData =
@@ -243,7 +256,8 @@ async function main() {
     (recentHoldings?.length ?? 0) +
     (insiderFilings?.length ?? 0) +
     buildoutAlerts.length +
-    intelligenceSignals.length;
+    intelligenceSignals.length +
+    derivedImplications.length;
 
   if (totalData === 0) {
     console.log('No new data in the last 24 hours. Skipping generation.');
@@ -331,6 +345,14 @@ ${insiderBlock}
 
 These are SEC filings by funds we follow that surfaced today. They are HIGHEST priority — surface them at the very top of the briefing in a dedicated section. 13D / 13D/A filings are particularly significant (5%+ ownership disclosure with cost basis). New 13F-HRs reveal a quarter's worth of positioning. Mention specific issuer, ownership %, cost basis, and what the move implies vs the prior filing.
 
+` : ''}${derivedImplications.length > 0 ? `═══ ⚑ DERIVED IMPLICATIONS — 2ND/3RD ORDER CHAINS (${derivedImplications.length}) ═══
+${derivedImplications.slice(0, 25).map((d) => {
+  const target = d.affected_asset || d.affected_theme || '?';
+  return `[O${d.order_n} · ${d.direction.toUpperCase()} · ${d.conviction}] ${target} ← from ${d.parent_source_name} (${d.parent_source_credibility})\n  Parent: "${(d.parent_claim || '').slice(0, 120)}"\n  Why: ${d.reasoning}`;
+}).join('\n\n')}
+
+These are 2nd / 3rd order implications automatically derived from today's high-credibility predictions, grounded in our tracked asset universe. Surface in a dedicated section that highlights cross-asset spillovers — particularly when many implications hit the same asset (cluster signal) or when implications contradict direct predictions (tension worth flagging).
+
 ` : ''}${intelligenceSignals.length > 0 ? `═══ ⚑ INTELLIGENCE SIGNALS — CONVERGENCE + TENSION (${intelligenceSignals.length}) ═══
 ${intelligenceSignals.map((s) => {
   if (s.signal_type === 'convergence') {
@@ -376,6 +398,7 @@ Generate a JSON daily briefing with this structure:
     "insider_filings": [{ "fund": "Name", "manager": "Name", "form_type": "13D|13F-HR|13D/A|...", "filing_date": "YYYY-MM-DD", "issuer": "Company (TICKER)", "ownership": "X.X% of class (Y shares)", "cost_basis_usd": 0, "headline": "one-liner — what this filing tells us", "significance": "why it matters" }],
     "buildout_alerts": [{ "ticker": "SYM", "name": "Asset Name", "category": "compute_silicon|power_generation|...", "agi_dependency": "core|optional|hedge", "current_price": 0, "buy_zone_max": 0, "in_zone": true, "headline": "one-liner — buy-zone status + thesis hook", "significance": "why this name matters now" }],
     "intelligence_signals": [{ "signal_type": "convergence|tension", "signal_kind": "asset|theme", "signal_key": "TICKER or theme name", "direction": "bullish|bearish|null", "source_count": 0, "avg_credibility": 0, "headline": "one-liner — what this convergence/tension says", "implication": "concrete trade or watch implication" }],
+    "derived_implications": [{ "order_n": 2, "affected_asset": "TICKER", "affected_theme": null, "direction": "bullish|bearish|mixed", "conviction": "high|medium|low", "parent_source": "Source Name", "headline": "one-liner — implication summary", "reasoning": "why this follows from the parent prediction" }],
     "new_content": {
       "count": <number>,
       "highlights": [{ "source": "Name", "title": "Title", "sentiment": "bearish|bullish|neutral|mixed", "summary": "1 sentence" }]

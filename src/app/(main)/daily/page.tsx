@@ -195,6 +195,49 @@ export default function DailyUpdatePage() {
                 );
               })()}
 
+              {/* Derived Implications — 2nd/3rd order chains, surfaced very high */}
+              {s?.derived_implications && s.derived_implications.length > 0 && (
+                <Section title="Derived Implications" count={s.derived_implications.length}>
+                  {s.derived_implications.map((d, i) => {
+                    const dirColor = d.direction === 'bullish' ? '#22c55e'
+                      : d.direction === 'bearish' ? '#ef4444'
+                      : '#a78bfa';
+                    return (
+                      <div key={i} style={{
+                        padding: 'var(--space-3) var(--space-4)',
+                        border: '1px solid var(--border)',
+                        borderRadius: 'var(--radius-md)',
+                        background: 'var(--bg-panel)',
+                      }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', marginBottom: 'var(--space-2)', flexWrap: 'wrap' }}>
+                          <span className="mono" style={{ fontSize: 9, padding: '1px 6px', borderRadius: 2, background: 'var(--bg-surface)', color: 'var(--text-tertiary)', border: '1px solid var(--border)', letterSpacing: '0.06em' }}>
+                            O{d.order_n}
+                          </span>
+                          <span className="mono" style={{ fontSize: 11, color: 'var(--text-primary)', fontWeight: 600 }}>
+                            {d.affected_asset || d.affected_theme}
+                          </span>
+                          <span className="mono" style={{ fontSize: 9, padding: '1px 5px', borderRadius: 2, background: `color-mix(in srgb, ${dirColor} 15%, transparent)`, color: dirColor, letterSpacing: '0.05em' }}>
+                            {d.direction.toUpperCase()}
+                          </span>
+                          <span className="mono" style={{ fontSize: 9, padding: '1px 5px', borderRadius: 2, background: 'var(--bg-surface)', color: 'var(--text-tertiary)', letterSpacing: '0.05em' }}>
+                            {d.conviction.toUpperCase()}
+                          </span>
+                          <span className="mono" style={{ fontSize: 10, color: 'var(--text-tertiary)' }}>
+                            ← {d.parent_source}
+                          </span>
+                        </div>
+                        <div style={{ fontSize: 13, color: 'var(--text-primary)', marginBottom: 'var(--space-1)' }}>
+                          {d.headline}
+                        </div>
+                        <div style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+                          {d.reasoning}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </Section>
+              )}
+
               {/* Intelligence Signals — convergence + tension surfaced first */}
               {s?.intelligence_signals && s.intelligence_signals.length > 0 && (
                 <Section title="Intelligence Signals" count={s.intelligence_signals.length}>

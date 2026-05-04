@@ -162,6 +162,7 @@ const steps: [boolean, string, string][] = [
   [runPortfolio, 'Step 16/18 — Generate model portfolio', 'scripts/generate-portfolio.ts'],
   [runTrackPortfolio, 'Step 17/18 — Track portfolio performance', 'scripts/track-portfolio-performance.ts'],
   [runSignals2, 'Step 17b/18 — Detect intelligence signals (convergence + tension)', 'scripts/detect-intelligence-signals.ts'],
+  [runSignals2, 'Step 17c/18 — Derive 2nd/3rd order implications', 'scripts/derive-implications.ts'],
   [runDaily, 'Step 18/18 — Generate daily update', 'scripts/generate-daily-update.ts'],
 ];
 

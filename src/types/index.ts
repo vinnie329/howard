@@ -353,6 +353,16 @@ export interface DailyUpdate {
       headline: string;
       implication?: string;
     }>;
+    derived_implications?: Array<{
+      order_n: number;
+      affected_asset: string | null;
+      affected_theme: string | null;
+      direction: 'bullish' | 'bearish' | 'mixed';
+      conviction: 'high' | 'medium' | 'low';
+      parent_source: string;
+      headline: string;
+      reasoning: string;
+    }>;
   };
   generated_at: string;
 }
