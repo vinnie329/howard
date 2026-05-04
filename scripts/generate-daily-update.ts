@@ -245,7 +245,19 @@ async function main() {
     .order('order_n')
     .limit(40);
   const derivedImplications = implRows || [];
-  console.log(`  ${derivedImplications.length} derived implication(s)\n`);
+  console.log(`  ${derivedImplications.length} derived implication(s)`);
+
+  // 13. Tension resolutions — adjudications of cross-source disagreements
+  console.log('Fetching tension resolutions...');
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: resolRows } = await supabase
+    .from('tension_resolutions')
+    .select('signal_id, resolution_type, winning_side, confidence, point_of_disagreement, net_recommendation, source_weighting_factor, bull_count, bear_count, bull_sources, bear_sources, resolved_at, intelligence_signals(signal_kind, signal_key)')
+    .gte('resolved_at', twentyFourHoursAgo)
+    .order('confidence', { ascending: false })
+    .limit(15);
+  const tensionResolutions = resolRows || [];
+  console.log(`  ${tensionResolutions.length} tension resolution(s)\n`);
 
   // ── Check if there's anything to report ──────────────────────────────
   const totalData =
@@ -257,7 +269,8 @@ async function main() {
     (insiderFilings?.length ?? 0) +
     buildoutAlerts.length +
     intelligenceSignals.length +
-    derivedImplications.length;
+    derivedImplications.length +
+    tensionResolutions.length;
 
   if (totalData === 0) {
     console.log('No new data in the last 24 hours. Skipping generation.');
@@ -345,6 +358,17 @@ ${insiderBlock}
 
 These are SEC filings by funds we follow that surfaced today. They are HIGHEST priority — surface them at the very top of the briefing in a dedicated section. 13D / 13D/A filings are particularly significant (5%+ ownership disclosure with cost basis). New 13F-HRs reveal a quarter's worth of positioning. Mention specific issuer, ownership %, cost basis, and what the move implies vs the prior filing.
 
+` : ''}${tensionResolutions.length > 0 ? `═══ ⚑ TENSION RESOLUTIONS — ADJUDICATED DISAGREEMENTS (${tensionResolutions.length}) ═══
+${tensionResolutions.map((r) => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const sig = r.intelligence_signals as any;
+  const key = sig?.signal_key || '?';
+  const kind = sig?.signal_kind || '?';
+  return `[${kind}: ${key}] ${r.resolution_type} (conf ${r.confidence})${r.winning_side ? ` — ${r.winning_side.toUpperCase()} side wins` : ''}\n  Point of disagreement: ${r.point_of_disagreement}\n  Bull (${r.bull_count}): ${(r.bull_sources || []).slice(0, 4).join(', ')}\n  Bear (${r.bear_count}): ${(r.bear_sources || []).slice(0, 4).join(', ')}\n  Recommendation: ${r.net_recommendation}\n  Weighting: ${r.source_weighting_factor}`;
+}).join('\n\n')}
+
+These are ADJUDICATED tensions — Claude has weighted source credibility, recency, and time horizons to identify which side has the weight (or whether both are right at different windows). Surface high-confidence resolutions prominently — they translate cross-source disagreement into actionable trade direction. For "both_right_different_horizons" outcomes, frame as the sequenced trade (e.g., "near-term bear, long-term bull").
+
 ` : ''}${derivedImplications.length > 0 ? `═══ ⚑ DERIVED IMPLICATIONS — 2ND/3RD ORDER CHAINS (${derivedImplications.length}) ═══
 ${derivedImplications.slice(0, 25).map((d) => {
   const target = d.affected_asset || d.affected_theme || '?';
@@ -399,6 +423,7 @@ Generate a JSON daily briefing with this structure:
     "buildout_alerts": [{ "ticker": "SYM", "name": "Asset Name", "category": "compute_silicon|power_generation|...", "agi_dependency": "core|optional|hedge", "current_price": 0, "buy_zone_max": 0, "in_zone": true, "headline": "one-liner — buy-zone status + thesis hook", "significance": "why this name matters now" }],
     "intelligence_signals": [{ "signal_type": "convergence|tension", "signal_kind": "asset|theme", "signal_key": "TICKER or theme name", "direction": "bullish|bearish|null", "source_count": 0, "avg_credibility": 0, "headline": "one-liner — what this convergence/tension says", "implication": "concrete trade or watch implication" }],
     "derived_implications": [{ "order_n": 2, "affected_asset": "TICKER", "affected_theme": null, "direction": "bullish|bearish|mixed", "conviction": "high|medium|low", "parent_source": "Source Name", "headline": "one-liner — implication summary", "reasoning": "why this follows from the parent prediction" }],
+    "tension_resolutions": [{ "signal_kind": "asset|theme", "signal_key": "TICKER or theme", "resolution_type": "side_a_wins|side_b_wins|both_right_different_horizons|unresolvable_pending_evidence|genuine_uncertainty", "winning_side": "bullish|bearish|null", "confidence": 0, "point_of_disagreement": "what's actually being disagreed about", "net_recommendation": "one-line trade implication", "headline": "one-liner — adjudication summary" }],
     "new_content": {
       "count": <number>,
       "highlights": [{ "source": "Name", "title": "Title", "sentiment": "bearish|bullish|neutral|mixed", "summary": "1 sentence" }]
@@ -425,7 +450,7 @@ Return ONLY the JSON object.`;
   console.log('Generating daily update with Claude...');
   const response = await anthropic.messages.create({
     model: 'claude-sonnet-4-5-20250929',
-    max_tokens: 8000,
+    max_tokens: 16000,
     messages: [{ role: 'user', content: prompt }],
   });
 

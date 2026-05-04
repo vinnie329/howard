@@ -363,6 +363,16 @@ export interface DailyUpdate {
       headline: string;
       reasoning: string;
     }>;
+    tension_resolutions?: Array<{
+      signal_kind: 'asset' | 'theme';
+      signal_key: string;
+      resolution_type: 'side_a_wins' | 'side_b_wins' | 'both_right_different_horizons' | 'unresolvable_pending_evidence' | 'genuine_uncertainty';
+      winning_side: 'bullish' | 'bearish' | null;
+      confidence: number;
+      point_of_disagreement: string;
+      net_recommendation: string;
+      headline: string;
+    }>;
   };
   generated_at: string;
 }

@@ -195,6 +195,46 @@ export default function DailyUpdatePage() {
                 );
               })()}
 
+              {/* Tension Resolutions — adjudicated cross-source disagreements */}
+              {s?.tension_resolutions && s.tension_resolutions.length > 0 && (
+                <Section title="Tension Resolutions" count={s.tension_resolutions.length}>
+                  {s.tension_resolutions.map((r, i) => {
+                    const sideColor = r.winning_side === 'bullish' ? '#22c55e'
+                      : r.winning_side === 'bearish' ? '#ef4444'
+                      : '#a78bfa';
+                    return (
+                      <div key={i} style={{
+                        padding: 'var(--space-3) var(--space-4)',
+                        border: '1px solid var(--border)',
+                        borderRadius: 'var(--radius-md)',
+                        background: 'var(--bg-panel)',
+                      }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', marginBottom: 'var(--space-2)', flexWrap: 'wrap' }}>
+                          <span className="mono" style={{ fontSize: 11, color: 'var(--text-primary)', fontWeight: 600 }}>{r.signal_key}</span>
+                          <span className="mono" style={{ fontSize: 9, color: 'var(--text-tertiary)' }}>{r.signal_kind}</span>
+                          <span className="mono" style={{ fontSize: 9, padding: '1px 5px', borderRadius: 2, background: 'var(--bg-surface)', color: 'var(--text-tertiary)', border: '1px solid var(--border)', letterSpacing: '0.05em' }}>
+                            {r.resolution_type.replace(/_/g, ' ').toUpperCase()}
+                          </span>
+                          {r.winning_side && (
+                            <span className="mono" style={{ fontSize: 9, padding: '1px 5px', borderRadius: 2, background: `color-mix(in srgb, ${sideColor} 15%, transparent)`, color: sideColor, letterSpacing: '0.05em' }}>
+                              {r.winning_side.toUpperCase()} WINS
+                            </span>
+                          )}
+                          <span className="mono" style={{ fontSize: 10, color: 'var(--text-tertiary)' }}>conf {r.confidence}</span>
+                        </div>
+                        <div style={{ fontSize: 13, color: 'var(--text-primary)', marginBottom: 'var(--space-1)' }}>{r.headline}</div>
+                        <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 'var(--space-1)', lineHeight: 1.5 }}>
+                          <span style={{ color: 'var(--text-tertiary)' }}>Disagreement:</span> {r.point_of_disagreement}
+                        </div>
+                        <div style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+                          <span style={{ color: 'var(--text-tertiary)' }}>→</span> {r.net_recommendation}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </Section>
+              )}
+
               {/* Derived Implications — 2nd/3rd order chains, surfaced very high */}
               {s?.derived_implications && s.derived_implications.length > 0 && (
                 <Section title="Derived Implications" count={s.derived_implications.length}>
